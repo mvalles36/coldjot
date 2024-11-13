@@ -35,9 +35,9 @@ model Session {
 }
 
 model User {
-    id            String     @id @default(cuid())
+    id            String         @id @default(cuid())
     name          String?
-    email         String?    @unique
+    email         String?        @unique
     emailVerified DateTime?
     image         String?
     accounts      Account[]
@@ -45,6 +45,7 @@ model User {
     contacts      Contact[]
     templates     Template[]
     drafts        Draft[]
+    EmailSettings EmailSettings?
 }
 
 model VerificationToken {
@@ -101,4 +102,14 @@ model Draft {
     user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
     contact      Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
     template     Template  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+}
+
+model EmailSettings {
+    id               String   @id @default(cuid())
+    userId           String   @unique
+    defaultSubject   String?
+    defaultSignature String?
+    createdAt        DateTime @default(now())
+    updatedAt        DateTime @updatedAt
+    user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
