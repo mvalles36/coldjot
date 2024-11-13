@@ -41,7 +41,6 @@ export interface Draft {
   createdAt: Date;
   updatedAt: Date;
 }
-
 // import { Template } from "@prisma/client";
 
 export interface TemplateWithSections extends Template {
