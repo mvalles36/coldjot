@@ -9,6 +9,7 @@ import {
   FileText,
   Mail,
   Settings,
+  Building2,
   Menu,
   X,
   ChevronLeft,
@@ -37,6 +38,11 @@ const routes = [
     label: "Contacts",
     icon: Users,
     href: "/contacts",
+  },
+  {
+    label: "Companies",
+    icon: Building2,
+    href: "/companies",
   },
   {
     label: "Templates",

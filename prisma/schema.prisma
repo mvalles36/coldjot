@@ -46,6 +46,7 @@ model User {
     templates     Template[]
     drafts        Draft[]
     EmailSettings EmailSettings?
+    Company       Company[]
 }
 
 model VerificationToken {
@@ -59,11 +60,13 @@ model VerificationToken {
 model Contact {
     id        String   @id @default(cuid())
     userId    String
+    companyId String?
     name      String
     email     String
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
     user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    company   Company? @relation(fields: [companyId], references: [id])
     drafts    Draft[]
 }
 
@@ -102,6 +105,7 @@ model Draft {
     userId       String
     contactId    String
     templateId   String
+    companyId    String?
     content      String
     gmailDraftId String?
     sent         Boolean   @default(false)
@@ -111,6 +115,7 @@ model Draft {
     user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
     contact      Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
     template     Template  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+    company      Company?  @relation(fields: [companyId], references: [id])
 }
 
 model EmailSettings {
@@ -121,4 +126,17 @@ model EmailSettings {
     createdAt        DateTime @default(now())
     updatedAt        DateTime @updatedAt
     user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Company {
+    id        String    @id @default(cuid())
+    name      String
+    website   String?
+    address   String?
+    createdAt DateTime  @default(now())
+    updatedAt DateTime  @updatedAt
+    contacts  Contact[]
+    drafts    Draft[]
+    userId    String
+    user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

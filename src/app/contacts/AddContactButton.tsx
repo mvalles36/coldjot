@@ -1,31 +1,38 @@
 "use client";
 
-import { useState } from "react";
-import { Contact } from "@prisma/client";
-import AddContactModal from "./AddContactModal";
-import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import AddContactModal from "./AddContactModal";
+import { Contact, Company } from "@prisma/client";
+
+type ContactWithCompany = Contact & {
+  company: Company | null;
+};
+
+interface AddContactButtonProps {
+  onAddContact: (contact: ContactWithCompany) => void;
+  companies: Company[];
+}
 
 export default function AddContactButton({
   onAddContact,
-}: {
-  onAddContact: (contact: Contact) => void;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
+  companies,
+}: AddContactButtonProps) {
+  const [showModal, setShowModal] = useState(false);
 
   return (
     <>
-      <Button onClick={() => setIsOpen(true)}>
-        <Plus className="mr-2 h-4 w-4" /> Add Contact
+      <Button onClick={() => setShowModal(true)}>
+        <Plus className="h-4 w-4 mr-2" />
+        Add Contact
       </Button>
 
-      {isOpen && (
+      {showModal && (
         <AddContactModal
-          onClose={() => setIsOpen(false)}
-          onAdd={(contact) => {
-            onAddContact(contact);
-            setIsOpen(false);
-          }}
+          onClose={() => setShowModal(false)}
+          onAdd={onAddContact}
+          companies={companies}
         />
       )}
     </>

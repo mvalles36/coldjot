@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "react-hot-toast";
+import { Contact, Company } from "@prisma/client";
 import {
   Dialog,
   DialogContent,
@@ -13,20 +14,28 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
-import { Contact } from "@prisma/client";
+
+type ContactWithCompany = Contact & {
+  company: Company | null;
+};
 
 type FormData = {
   name: string;
   email: string;
+  companyId?: string;
 };
+
+interface AddContactModalProps {
+  onClose: () => void;
+  onAdd: (contact: ContactWithCompany) => void;
+  companies: Company[];
+}
 
 export default function AddContactModal({
   onClose,
   onAdd,
-}: {
-  onClose: () => void;
-  onAdd: (contact: Contact) => void;
-}) {
+  companies,
+}: AddContactModalProps) {
   const {
     register,
     handleSubmit,
@@ -47,9 +56,17 @@ export default function AddContactModal({
 
       if (!response.ok) throw new Error("Failed to add contact");
 
-      const newContact = await response.json();
+      const contact = await response.json();
+      // Transform the response to match ContactWithCompany type
+      const contactWithCompany: ContactWithCompany = {
+        ...contact,
+        company: contact.companyId
+          ? companies.find((c) => c.id === contact.companyId) || null
+          : null,
+      };
+
       toast.success("Contact added successfully");
-      onAdd(newContact);
+      onAdd(contactWithCompany);
     } catch (error) {
       toast.error("Failed to add contact");
     } finally {
@@ -91,6 +108,22 @@ export default function AddContactModal({
             {errors.email && (
               <p className="text-sm text-destructive">{errors.email.message}</p>
             )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="companyId">Company</Label>
+            <select
+              id="companyId"
+              className="w-full rounded-md border border-input bg-background px-3 py-2"
+              {...register("companyId")}
+            >
+              <option value="">Select a company</option>
+              {companies.map((company) => (
+                <option key={company.id} value={company.id}>
+                  {company.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="flex justify-end gap-3">

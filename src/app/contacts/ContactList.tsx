@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Contact } from "@prisma/client";
+import { Contact, Company } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import EditContactModal from "./EditContactModal";
 import AddContactButton from "./AddContactButton";
@@ -25,21 +25,33 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ColumnDef } from "@tanstack/react-table";
+
+type ContactWithCompany = Contact & {
+  company: Company | null;
+};
+
+interface ContactListProps {
+  initialContacts: ContactWithCompany[];
+  companies: Company[];
+}
 
 export default function ContactList({
   initialContacts,
-}: {
-  initialContacts: Contact[];
-}) {
-  const [contacts, setContacts] = useState<Contact[]>(initialContacts);
-  const [editingContact, setEditingContact] = useState<Contact | null>(null);
-  const [deletingContact, setDeletingContact] = useState<Contact | null>(null);
+  companies,
+}: ContactListProps) {
+  const [contacts, setContacts] =
+    useState<ContactWithCompany[]>(initialContacts);
+  const [editingContact, setEditingContact] =
+    useState<ContactWithCompany | null>(null);
+  const [deletingContact, setDeletingContact] =
+    useState<ContactWithCompany | null>(null);
 
-  const handleAddContact = (newContact: Contact) => {
+  const handleAddContact = (newContact: ContactWithCompany) => {
     setContacts((prev) => [newContact, ...prev]);
   };
 
-  const handleDelete = async (contact: Contact) => {
+  const handleDelete = async (contact: ContactWithCompany) => {
     const response = await fetch(`/api/contacts/${contact.id}`, {
       method: "DELETE",
     });
@@ -49,16 +61,64 @@ export default function ContactList({
     }
   };
 
+  const columns: ColumnDef<ContactWithCompany>[] = [
+    {
+      accessorKey: "name",
+      header: "Name",
+    },
+    {
+      accessorKey: "email",
+      header: "Email",
+    },
+    {
+      accessorKey: "company",
+      header: "Company",
+      cell: ({ row }) => {
+        const company = row.original.company;
+        return company ? company.name : "-";
+      },
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }) => {
+        const contact = row.original;
+        return (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setEditingContact(contact)}
+            >
+              <Edit2 className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setDeletingContact(contact)}
+            >
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+          </div>
+        );
+      },
+    },
+  ];
+
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <AddContactButton onAddContact={handleAddContact} />
+        <AddContactButton
+          onAddContact={handleAddContact}
+          companies={companies}
+        />
       </div>
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
             <TableHead>Email</TableHead>
+            <TableHead>Company</TableHead>
             <TableHead className="w-[100px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -67,6 +127,9 @@ export default function ContactList({
             <TableRow key={contact.id}>
               <TableCell className="font-medium">{contact.name}</TableCell>
               <TableCell>{contact.email}</TableCell>
+              <TableCell>
+                {contact.company ? contact.company.name : "-"}
+              </TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
                   <Button
@@ -93,6 +156,7 @@ export default function ContactList({
       {editingContact && (
         <EditContactModal
           contact={editingContact}
+          companies={companies}
           onClose={() => setEditingContact(null)}
           onSave={(updatedContact) => {
             setContacts(

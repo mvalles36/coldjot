@@ -23,23 +23,31 @@ export async function GET() {
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
-    return new NextResponse("Unauthorized", { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const json = await request.json();
-  const { name, email } = json;
+  try {
+    const json = await request.json();
+    const { name, email, companyId } = json;
 
-  if (!name || !email) {
-    return new NextResponse("Missing required fields", { status: 400 });
+    const contact = await prisma.contact.create({
+      data: {
+        name,
+        email,
+        companyId: companyId || null,
+        userId: session.user.id,
+      },
+      include: {
+        company: true,
+      },
+    });
+
+    return NextResponse.json(contact);
+  } catch (error) {
+    console.error("Failed to create contact:", error);
+    return NextResponse.json(
+      { error: "Failed to create contact" },
+      { status: 500 }
+    );
   }
-
-  const contact = await prisma.contact.create({
-    data: {
-      name,
-      email,
-      userId: session.user.id,
-    },
-  });
-
-  return NextResponse.json(contact);
 }

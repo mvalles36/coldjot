@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Mail, LogIn, Users, FileText } from "lucide-react";
+import { Mail, LogIn, Users, FileText, Building2 } from "lucide-react";
 import { signIn, useSession } from "next-auth/react";
 
 export default function Home() {
@@ -45,6 +45,16 @@ export default function Home() {
               >
                 <FileText className="mr-3 h-6 w-6" />
                 Manage Templates
+              </Button>
+            </Link>
+            <Link href="/companies" className="w-full">
+              <Button
+                variant="outline"
+                className="w-full h-14 text-lg shadow-sm hover:shadow-md transition-all"
+                size="lg"
+              >
+                <Building2 className="mr-3 h-6 w-6" />
+                Manage Companies
               </Button>
             </Link>
           </div>
