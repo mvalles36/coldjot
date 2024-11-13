@@ -1,19 +1,18 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { sendGmailDraft } from "@/lib/gmail";
+import { sendGmailDraft, refreshAccessToken } from "@/lib/gmail";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
-    return new NextResponse("Unauthorized", { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const json = await request.json();
   const { draftId } = json;
 
   try {
-    // Get the user's account with tokens
     const account = await prisma.account.findFirst({
       where: {
         userId: session.user.id,
@@ -21,11 +20,16 @@ export async function POST(request: Request) {
       },
       select: {
         access_token: true,
+        refresh_token: true,
+        providerAccountId: true,
       },
     });
 
-    if (!account?.access_token) {
-      return new NextResponse("No access token found", { status: 401 });
+    if (!account?.access_token || !account?.refresh_token) {
+      return NextResponse.json(
+        { error: "No access token found" },
+        { status: 401 }
+      );
     }
 
     const draft = await prisma.draft.findUnique({
@@ -36,18 +40,48 @@ export async function POST(request: Request) {
     });
 
     if (!draft) {
-      return new NextResponse("Draft not found", { status: 404 });
+      return NextResponse.json({ error: "Draft not found" }, { status: 404 });
     }
 
     if (!draft.gmailDraftId) {
-      return new NextResponse("Gmail draft ID not found", { status: 400 });
+      return NextResponse.json(
+        { error: "Gmail draft ID not found" },
+        { status: 400 }
+      );
     }
 
-    // Send the draft using Gmail API
-    await sendGmailDraft({
-      accessToken: account.access_token,
-      draftId: draft.gmailDraftId,
-    });
+    try {
+      // Try to send with current token
+      await sendGmailDraft({
+        accessToken: account.access_token,
+        draftId: draft.gmailDraftId,
+      });
+    } catch (error: any) {
+      if (error.message === "TOKEN_EXPIRED") {
+        // Refresh token and retry
+        const newAccessToken = await refreshAccessToken(account.refresh_token);
+
+        await prisma.account.update({
+          where: {
+            provider_providerAccountId: {
+              provider: "google",
+              providerAccountId: account.providerAccountId,
+            },
+          },
+          data: {
+            access_token: newAccessToken,
+          },
+        });
+
+        // Retry with new token
+        await sendGmailDraft({
+          accessToken: newAccessToken as string,
+          draftId: draft.gmailDraftId,
+        });
+      } else {
+        throw error;
+      }
+    }
 
     // Update the draft status in our database
     await prisma.draft.update({
@@ -58,6 +92,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Failed to send draft:", error);
-    return new NextResponse("Failed to send draft", { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to send draft" },
+      { status: 500 }
+    );
   }
 }

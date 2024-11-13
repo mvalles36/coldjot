@@ -19,6 +19,26 @@ interface SendDraftOptions {
   draftId: string;
 }
 
+export async function refreshAccessToken(refreshToken: string) {
+  const oauth2Client = new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    `${process.env.AUTH_URL}/api/auth/callback/google`
+  );
+
+  oauth2Client.setCredentials({
+    refresh_token: refreshToken,
+  });
+
+  try {
+    const { credentials } = await oauth2Client.refreshAccessToken();
+    return credentials.access_token;
+  } catch (error) {
+    console.error("Error refreshing access token:", error);
+    throw error;
+  }
+}
+
 export async function createGmailDraft({
   accessToken,
   to,
@@ -26,7 +46,6 @@ export async function createGmailDraft({
   content,
 }: CreateDraftOptions) {
   try {
-    // Set up new credentials for this request
     const auth = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
@@ -40,31 +59,38 @@ export async function createGmailDraft({
 
     const gmail = google.gmail({ version: "v1", auth });
 
-    // Create the email message in base64 format
-    const message = [
-      "Content-Type: text/html; charset=utf-8",
-      "MIME-Version: 1.0",
-      `To: ${to}`,
-      `Subject: ${subject}`,
-      "",
-      content,
-    ].join("\n");
+    try {
+      // Try with current access token
+      const message = [
+        "Content-Type: text/html; charset=utf-8",
+        "MIME-Version: 1.0",
+        `To: ${to}`,
+        `Subject: ${subject}`,
+        "",
+        content,
+      ].join("\n");
 
-    const encodedMessage = base64Encode(message)
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=+$/, "");
+      const encodedMessage = base64Encode(message)
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=+$/, "");
 
-    const response = await gmail.users.drafts.create({
-      userId: "me",
-      requestBody: {
-        message: {
-          raw: encodedMessage,
+      const response = await gmail.users.drafts.create({
+        userId: "me",
+        requestBody: {
+          message: {
+            raw: encodedMessage,
+          },
         },
-      },
-    });
+      });
 
-    return response.data.id;
+      return response.data.id;
+    } catch (error: any) {
+      if (error.status === 401) {
+        throw new Error("TOKEN_EXPIRED");
+      }
+      throw error;
+    }
   } catch (error) {
     console.error("Error creating Gmail draft:", error);
     throw error;

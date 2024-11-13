@@ -1,12 +1,12 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { createGmailDraft } from "@/lib/gmail";
+import { createGmailDraft, refreshAccessToken } from "@/lib/gmail";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
-    return new NextResponse("Unauthorized", { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const json = await request.json();
@@ -21,11 +21,16 @@ export async function POST(request: Request) {
       },
       select: {
         access_token: true,
+        refresh_token: true,
+        providerAccountId: true,
       },
     });
 
-    if (!account?.access_token) {
-      return new NextResponse("No access token found", { status: 401 });
+    if (!account?.access_token || !account?.refresh_token) {
+      return NextResponse.json(
+        { error: "No access token found" },
+        { status: 401 }
+      );
     }
 
     const contact = await prisma.contact.findUnique({
@@ -33,7 +38,7 @@ export async function POST(request: Request) {
     });
 
     if (!contact) {
-      return new NextResponse("Contact not found", { status: 404 });
+      return NextResponse.json({ error: "Contact not found" }, { status: 404 });
     }
 
     const fullContent = [
@@ -41,28 +46,74 @@ export async function POST(request: Request) {
       ...sections.map((section: any) => section.content),
     ].join("\n\n");
 
-    // Create the draft in Gmail using the access token from the database
-    const gmailDraftId = await createGmailDraft({
-      accessToken: account.access_token,
-      to: contact.email,
-      subject: "Draft Email",
-      content: fullContent,
-    });
-
-    // Save the draft in our database
-    const draft = await prisma.draft.create({
-      data: {
-        userId: session.user.id,
-        contactId,
-        templateId,
+    try {
+      // Try to create draft with current access token
+      const gmailDraftId = await createGmailDraft({
+        accessToken: account.access_token,
+        to: contact.email,
+        subject: "Draft Email",
         content: fullContent,
-        gmailDraftId,
-      },
-    });
+      });
 
-    return NextResponse.json(draft);
+      // Save the draft in our database
+      const draft = await prisma.draft.create({
+        data: {
+          userId: session.user.id,
+          contactId,
+          templateId,
+          content: fullContent,
+          gmailDraftId,
+        },
+      });
+
+      return NextResponse.json(draft);
+    } catch (error: any) {
+      if (error.message === "TOKEN_EXPIRED") {
+        // Refresh the token
+        const newAccessToken = await refreshAccessToken(account.refresh_token);
+
+        // Update the token in the database
+        // TODO :  save the expiration date
+        console.log("newAccessToken", newAccessToken);
+        await prisma.account.update({
+          where: {
+            provider_providerAccountId: {
+              provider: "google",
+              providerAccountId: account.providerAccountId,
+            },
+          },
+          data: {
+            access_token: newAccessToken,
+          },
+        });
+
+        // Retry with new token
+        const gmailDraftId = await createGmailDraft({
+          accessToken: newAccessToken as string,
+          to: contact.email,
+          subject: "Draft Email",
+          content: fullContent,
+        });
+
+        const draft = await prisma.draft.create({
+          data: {
+            userId: session.user.id,
+            contactId,
+            templateId,
+            content: fullContent,
+            gmailDraftId,
+          },
+        });
+
+        return NextResponse.json(draft);
+      }
+      throw error;
+    }
   } catch (error) {
     console.error("Failed to create draft:", error);
-    return new NextResponse("Failed to create draft", { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to create draft" },
+      { status: 500 }
+    );
   }
 }

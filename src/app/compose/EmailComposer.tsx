@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { Send, Save, Grip, Eye } from "lucide-react";
+import { Send, Save, Grip, Eye, Loader2 } from "lucide-react";
 import { Contact, TemplateWithSections } from "@/types";
 import { toast } from "react-hot-toast";
 import PreviewEmail from "./PreviewEmail";
@@ -36,6 +36,8 @@ export default function EmailComposer({
   const [sections, setSections] = useState<Section[]>([]);
   const [baseContent, setBaseContent] = useState("");
   const [showPreview, setShowPreview] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSending, setIsSending] = useState(false);
 
   useEffect(() => {
     if (selectedTemplate) {
@@ -65,19 +67,17 @@ export default function EmailComposer({
 
   const handleSaveAsDraft = async () => {
     try {
-      const contact = contacts.find((c) => c.id === selectedContact);
-      if (!contact) return;
-
-      const emailContent = `${baseContent}\n\n${sections
-        .map((section) => section.content)
-        .join("\n\n")}`;
+      if (!selectedContact || !selectedTemplate) return;
+      setIsSaving(true);
 
       const response = await fetch("/api/drafts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          to: contact.email,
-          content: emailContent,
+          contactId: selectedContact,
+          templateId: selectedTemplate,
+          content: baseContent,
+          sections: sections,
         }),
       });
 
@@ -85,6 +85,47 @@ export default function EmailComposer({
       toast.success("Draft saved successfully");
     } catch (error) {
       toast.error("Failed to save draft");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSendEmail = async () => {
+    try {
+      if (!selectedContact || !selectedTemplate) return;
+      setIsSending(true);
+
+      // First save as draft
+      const draftResponse = await fetch("/api/drafts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contactId: selectedContact,
+          templateId: selectedTemplate,
+          content: baseContent,
+          sections: sections,
+        }),
+      });
+
+      if (!draftResponse.ok) throw new Error("Failed to save draft");
+      const draft = await draftResponse.json();
+
+      // Then send the draft
+      const sendResponse = await fetch("/api/drafts/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          draftId: draft.id,
+        }),
+      });
+
+      if (!sendResponse.ok) throw new Error("Failed to send email");
+      toast.success("Email sent successfully");
+    } catch (error) {
+      console.error("Error sending email:", error);
+      toast.error("Failed to send email");
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -202,17 +243,25 @@ export default function EmailComposer({
         <Button
           variant="outline"
           onClick={handleSaveAsDraft}
-          disabled={!selectedContact || !selectedTemplate}
+          disabled={!selectedContact || !selectedTemplate || isSaving}
         >
-          <Save className="h-4 w-4 mr-2" />
-          Save as Draft
+          {isSaving ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <Save className="h-4 w-4 mr-2" />
+          )}
+          {isSaving ? "Saving..." : "Save as Draft"}
         </Button>
         <Button
-          onClick={() => {}}
-          disabled={!selectedContact || !selectedTemplate}
+          onClick={handleSendEmail}
+          disabled={!selectedContact || !selectedTemplate || isSending}
         >
-          <Send className="h-4 w-4 mr-2" />
-          Send Email
+          {isSending ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <Send className="h-4 w-4 mr-2" />
+          )}
+          {isSending ? "Sending..." : "Send Email"}
         </Button>
       </div>
 
