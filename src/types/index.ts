@@ -43,6 +43,12 @@ export interface Draft {
 }
 // import { Template } from "@prisma/client";
 
+export interface TemplateVariable {
+  id: string;
+  name: string;
+  label: string;
+}
+
 export interface TemplateWithSections extends Template {
   sections: {
     id: string;
@@ -50,4 +56,5 @@ export interface TemplateWithSections extends Template {
     content: string;
     order: number;
   }[];
+  variables: TemplateVariable[];
 }

@@ -17,6 +17,7 @@ export default async function TemplatesPage() {
           order: "asc",
         },
       },
+      variables: true,
     },
     orderBy: {
       createdAt: "desc",

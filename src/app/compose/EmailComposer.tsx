@@ -17,11 +17,19 @@ import { Send, Save, Grip, Eye, Loader2 } from "lucide-react";
 import { Contact, TemplateWithSections } from "@/types";
 import { toast } from "react-hot-toast";
 import PreviewEmail from "./PreviewEmail";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 
 type Section = {
   id: string;
   name: string;
   content: string;
+};
+
+type Variable = {
+  name: string;
+  label: string;
+  value: string;
 };
 
 export default function EmailComposer({
@@ -38,6 +46,7 @@ export default function EmailComposer({
   const [showPreview, setShowPreview] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [variables, setVariables] = useState<Variable[]>([]);
 
   useEffect(() => {
     if (selectedTemplate) {
@@ -51,7 +60,22 @@ export default function EmailComposer({
             content: section.content,
           }))
         );
+        if (template.variables) {
+          setVariables(
+            template.variables.map((v) => ({
+              name: v.name,
+              label: v.label,
+              value: "",
+            }))
+          );
+        } else {
+          setVariables([]);
+        }
       }
+    } else {
+      setBaseContent("");
+      setSections([]);
+      setVariables([]);
     }
   }, [selectedTemplate, templates]);
 
@@ -65,19 +89,41 @@ export default function EmailComposer({
     setSections(items);
   };
 
+  const replaceVariables = (content: string) => {
+    let replacedContent = content;
+    variables.forEach((variable) => {
+      const regex = new RegExp(`{{${variable.name}}}`, "g");
+      replacedContent = replacedContent.replace(regex, variable.value);
+    });
+    return replacedContent;
+  };
+
+  const getProcessedContent = () => {
+    const processedBase = replaceVariables(baseContent);
+    const processedSections = sections.map((section) => ({
+      ...section,
+      content: replaceVariables(section.content),
+    }));
+    return {
+      base: processedBase,
+      sections: processedSections,
+    };
+  };
+
   const handleSaveAsDraft = async () => {
     try {
       if (!selectedContact || !selectedTemplate) return;
       setIsSaving(true);
 
+      const processed = getProcessedContent();
       const response = await fetch("/api/drafts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contactId: selectedContact,
           templateId: selectedTemplate,
-          content: baseContent,
-          sections: sections,
+          content: processed.base,
+          sections: processed.sections,
         }),
       });
 
@@ -231,6 +277,32 @@ export default function EmailComposer({
         </DragDropContext>
       </div>
 
+      {variables.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="text-sm font-medium">Template Variables</h3>
+          <div className="grid grid-cols-2 gap-4">
+            {variables.map((variable) => (
+              <div key={variable.name} className="space-y-2">
+                <Label htmlFor={variable.name}>{variable.label}</Label>
+                <Input
+                  id={variable.name}
+                  value={variable.value}
+                  onChange={(e) => {
+                    const newVariables = variables.map((v) =>
+                      v.name === variable.name
+                        ? { ...v, value: e.target.value }
+                        : v
+                    );
+                    setVariables(newVariables);
+                  }}
+                  placeholder={`Enter ${variable.label.toLowerCase()}`}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-end gap-3">
         <Button
           variant="outline"
@@ -267,8 +339,8 @@ export default function EmailComposer({
 
       {showPreview && (
         <PreviewEmail
-          content={`${baseContent}\n\n${sections
-            .map((section) => section.content)
+          content={`${replaceVariables(baseContent)}\n\n${sections
+            .map((section) => replaceVariables(section.content))
             .join("\n\n")}`}
           onClose={() => setShowPreview(false)}
         />

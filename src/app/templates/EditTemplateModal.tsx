@@ -25,6 +25,10 @@ type FormData = {
     name: string;
     content: string;
   }[];
+  variables: {
+    name: string;
+    label: string;
+  }[];
 };
 
 const defaultSection = {
@@ -55,6 +59,11 @@ export default function EditTemplateModal({
         name: section.name,
         content: section.content,
       })),
+      variables:
+        template.variables?.map((variable) => ({
+          name: variable.name,
+          label: variable.label,
+        })) || [],
     },
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -70,6 +79,19 @@ export default function EditTemplateModal({
     setValue(
       "sections",
       currentSections.filter((_, i) => i !== index)
+    );
+  };
+
+  const addVariable = () => {
+    const currentVariables = watch("variables");
+    setValue("variables", [...currentVariables, { name: "", label: "" }]);
+  };
+
+  const removeVariable = (index: number) => {
+    const currentVariables = watch("variables");
+    setValue(
+      "variables",
+      currentVariables.filter((_, i) => i !== index)
     );
   };
 
@@ -136,6 +158,63 @@ export default function EditTemplateModal({
                     {errors.content.message}
                   </p>
                 )}
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <Label>Template Variables</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addVariable}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Variable
+                  </Button>
+                </div>
+
+                {watch("variables").map((_, index) => (
+                  <div key={index} className="space-y-4 p-4 border rounded-lg">
+                    <div className="flex justify-between items-start">
+                      <div className="grid grid-cols-2 gap-4 flex-1">
+                        <div className="space-y-2">
+                          <Label htmlFor={`variables.${index}.name`}>
+                            Variable Name
+                          </Label>
+                          <Input
+                            id={`variables.${index}.name`}
+                            {...register(`variables.${index}.name` as const, {
+                              required: "Variable name is required",
+                            })}
+                            placeholder="e.g., companyName"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor={`variables.${index}.label`}>
+                            Display Label
+                          </Label>
+                          <Input
+                            id={`variables.${index}.label`}
+                            {...register(`variables.${index}.label` as const, {
+                              required: "Display label is required",
+                            })}
+                            placeholder="e.g., Company Name"
+                          />
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="ml-2"
+                        onClick={() => removeVariable(index)}
+                      >
+                        <Trash className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
 
               <div className="space-y-4">

@@ -4,26 +4,34 @@ import { NextResponse } from "next/server";
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
+  const { id } = await context.params;
   const session = await auth();
   if (!session?.user?.id) {
-    return new NextResponse("Unauthorized", { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const json = await request.json();
-  const { name, content, sections } = json;
+  const { name, content, sections, variables } = json;
 
-  // Delete existing sections and create new ones
-  await prisma.templateSection.deleteMany({
-    where: {
-      templateId: params.id,
-    },
-  });
+  // Delete existing sections and variables
+  await Promise.all([
+    prisma.templateSection.deleteMany({
+      where: {
+        templateId: id,
+      },
+    }),
+    prisma.templateVariable.deleteMany({
+      where: {
+        templateId: id,
+      },
+    }),
+  ]);
 
   const template = await prisma.template.update({
     where: {
-      id: params.id,
+      id: id,
       userId: session.user.id,
     },
     data: {
@@ -36,6 +44,12 @@ export async function PUT(
           order: index,
         })),
       },
+      variables: {
+        create: variables.map((variable: any) => ({
+          name: variable.name,
+          label: variable.label,
+        })),
+      },
     },
     include: {
       sections: {
@@ -43,6 +57,7 @@ export async function PUT(
           order: "asc",
         },
       },
+      variables: true,
     },
   });
 
@@ -51,16 +66,17 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
+  const { id } = await context.params;
   const session = await auth();
   if (!session?.user?.id) {
-    return new NextResponse("Unauthorized", { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   await prisma.template.delete({
     where: {
-      id: params.id,
+      id: id,
       userId: session.user.id,
     },
   });

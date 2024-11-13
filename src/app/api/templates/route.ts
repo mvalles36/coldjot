@@ -30,11 +30,11 @@ export async function GET() {
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
-    return new NextResponse("Unauthorized", { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const json = await request.json();
-  const { name, content, sections } = json;
+  const { name, content, sections, variables } = json;
 
   const template = await prisma.template.create({
     data: {
@@ -48,9 +48,16 @@ export async function POST(request: Request) {
           order: index,
         })),
       },
+      variables: {
+        create: variables.map((variable: any) => ({
+          name: variable.name,
+          label: variable.label,
+        })),
+      },
     },
     include: {
       sections: true,
+      variables: true,
     },
   });
 

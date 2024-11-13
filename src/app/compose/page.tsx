@@ -19,6 +19,7 @@ export default async function ComposePage() {
         sections: {
           orderBy: { order: "asc" },
         },
+        variables: true,
       },
       orderBy: { name: "asc" },
     }),
