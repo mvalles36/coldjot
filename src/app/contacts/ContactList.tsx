@@ -15,7 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Edit2, Trash2 } from "lucide-react";
+import { Edit2, Trash2, Mail } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,6 +41,7 @@ export default function ContactList({
   initialContacts,
   companies,
 }: ContactListProps) {
+  const router = useRouter();
   const [contacts, setContacts] =
     useState<ContactWithCompany[]>(initialContacts);
   const [editingContact, setEditingContact] =
@@ -60,6 +61,20 @@ export default function ContactList({
     if (response.ok) {
       setContacts(contacts.filter((c) => c.id !== contact.id));
     }
+  };
+
+  const handleComposeEmail = (contact: ContactWithCompany) => {
+    localStorage.setItem(
+      "selectedContact",
+      JSON.stringify({
+        id: contact.id,
+        name: contact.name,
+        email: contact.email,
+        companyId: contact.companyId,
+        company: contact.company,
+      })
+    );
+    router.push("/compose");
   };
 
   const columns: ColumnDef<ContactWithCompany>[] = [
@@ -86,6 +101,13 @@ export default function ContactList({
         const contact = row.original;
         return (
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => handleComposeEmail(contact)}
+            >
+              <Mail className="h-4 w-4" />
+            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -134,6 +156,13 @@ export default function ContactList({
               </TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleComposeEmail(contact)}
+                  >
+                    <Mail className="h-4 w-4" />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon"

@@ -21,12 +21,7 @@ export async function POST(request: Request) {
     const { apolloContactId, domain, firstName, lastName } =
       await request.json();
 
-    const url = `${APOLLO_API_URL}/people/match?name=${encodeURIComponent(
-      `${firstName} ${lastName}`
-    )}&domain=${encodeURIComponent(
-      domain
-    )}&reveal_personal_emails=true&reveal_phone_number=false`;
-    const options = {
+    const response = await fetch(`${APOLLO_API_URL}/people/match`, {
       method: "POST",
       headers: {
         accept: "application/json",
@@ -34,16 +29,20 @@ export async function POST(request: Request) {
         "Content-Type": "application/json",
         "x-api-key": APOLLO_API_KEY,
       },
-    };
-    const response = await fetch(url, options);
+      body: JSON.stringify({
+        api_key: APOLLO_API_KEY,
+        domain: domain,
+        first_name: firstName,
+        last_name: lastName,
+        reveal_personal_emails: true,
+      }),
+    });
 
     if (!response.ok) {
       throw new Error("Apollo API request failed");
     }
 
     const data = await response.json();
-    console.log("Apollo enrichment URL:", response);
-    console.log("Apollo enrichment response:", data);
     return NextResponse.json(data);
   } catch (error) {
     console.error("Apollo enrichment failed:", error);

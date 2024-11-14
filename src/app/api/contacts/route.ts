@@ -34,37 +34,42 @@ export async function POST(request: Request) {
 
     // If company data is provided, create or find the company first
     let savedCompany = null;
-    if (company) {
-      savedCompany = await prisma.company.upsert({
-        where: {
-          name_userId: {
+    if (company && company.name) {
+      try {
+        savedCompany = await prisma.company.upsert({
+          where: {
+            name_userId: {
+              name: company.name,
+              userId: session.user.id,
+            },
+          },
+          create: {
             name: company.name,
+            website: company.website || null,
+            domain: company.domain || null,
+            address: company.address || null,
             userId: session.user.id,
           },
-        },
-        create: {
-          name: company.name,
-          website: company.website,
-          domain: company.domain,
-          address: company.address,
-          userId: session.user.id,
-        },
-        update: {
-          website: company.website,
-          domain: company.domain,
-          address: company.address,
-        },
-      });
+          update: {
+            website: company.website || undefined,
+            domain: company.domain || undefined,
+            address: company.address || undefined,
+          },
+        });
+      } catch (error) {
+        console.error("Failed to create/update company:", error);
+        // Continue without company if it fails
+      }
     }
 
     // Create the contact with all fields
     const contact = await prisma.contact.create({
       data: {
-        name,
-        email,
-        title,
-        linkedinUrl,
-        domain,
+        name: name || "",
+        email: email || "",
+        title: title || null,
+        linkedinUrl: linkedinUrl || null,
+        domain: domain || null,
         companyId: savedCompany?.id || null,
         userId: session.user.id,
       },
@@ -77,7 +82,10 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Failed to create contact:", error);
     return NextResponse.json(
-      { error: "Failed to create contact" },
+      {
+        error: "Failed to create contact",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 }
     );
   }

@@ -1,5 +1,4 @@
 import { auth } from "@/auth";
-// import { saveToFile } from "@/lib/utils";
 import { NextResponse } from "next/server";
 
 const APOLLO_API_KEY = process.env.APOLLO_API_KEY;
@@ -21,25 +20,7 @@ export async function POST(request: Request) {
   try {
     const { domain, role } = await request.json();
 
-    // const response = await fetch(`${APOLLO_API_URL}/people/match`, {
-    //   method: "POST",
-    //   headers: {
-    //     accept: "application/json",
-    //     "Cache-Control": "no-cache",
-    //     "Content-Type": "application/json",
-    //     "x-api-key": APOLLO_API_KEY,
-    //   },
-    //   body: JSON.stringify({
-    //     domain: domain,
-    //     reveal_personal_emails: true,
-    //     reveal_phone_number: false,
-    //     organization_titles: role ? [role] : undefined,
-    //   }),
-    // });
-
-    // const url = 'https://api.apollo.io/api/v1/mixed_people/search?q_organization_domains=depexel.com';
-
-    const response = await fetch(`${APOLLO_API_URL}/mixed_people/search`, {
+    const response = await fetch(`${APOLLO_API_URL}/people/match`, {
       method: "POST",
       headers: {
         accept: "application/json",
@@ -48,9 +29,9 @@ export async function POST(request: Request) {
         "x-api-key": APOLLO_API_KEY,
       },
       body: JSON.stringify({
-        q_organization_domains: domain,
+        domain: domain,
         reveal_personal_emails: true,
-        // reveal_phone_number: false,
+        reveal_phone_number: true,
         organization_titles: role ? [role] : undefined,
       }),
     });
@@ -64,7 +45,6 @@ export async function POST(request: Request) {
     }
 
     const data = await response.json();
-    // saveToFile("./json/apollo-response.json", data);
     console.log("Apollo API Data:", data);
     return NextResponse.json(data);
   } catch (error) {

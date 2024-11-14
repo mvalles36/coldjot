@@ -14,53 +14,77 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Send, Save, Grip, Eye, Loader2 } from "lucide-react";
-import { Contact, TemplateWithSections } from "@/types";
+import { Contact, Company, Template } from "@prisma/client";
 import { toast } from "react-hot-toast";
 import PreviewEmail from "./PreviewEmail";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { ContactSearch } from "./ContactSearch";
 
-type Section = {
-  id: string;
-  name: string;
-  content: string;
+type ContactWithCompany = Contact & {
+  company: Company | null;
 };
 
-type Variable = {
-  name: string;
-  label: string;
-  value: string;
+type TemplateWithDetails = Template & {
+  sections: {
+    id: string;
+    name: string;
+    content: string;
+    order: number;
+  }[];
+  variables: {
+    id: string;
+    name: string;
+    label: string;
+  }[];
 };
 
-export default function EmailComposer({
-  contacts,
-  templates,
-}: {
-  contacts: Contact[];
-  templates: TemplateWithSections[];
-}) {
-  const [selectedContact, setSelectedContact] = useState<string>("");
+interface Props {
+  templates: TemplateWithDetails[];
+}
+
+export default function EmailComposer({ templates }: Props) {
+  const [selectedContact, setSelectedContact] =
+    useState<ContactWithCompany | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
-  const [sections, setSections] = useState<Section[]>([]);
+  const [sections, setSections] = useState<
+    { id: string; name: string; content: string }[]
+  >([]);
   const [baseContent, setBaseContent] = useState("");
   const [showPreview, setShowPreview] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSending, setIsSending] = useState(false);
-  const [variables, setVariables] = useState<Variable[]>([]);
+  const [variables, setVariables] = useState<
+    { name: string; label: string; value: string }[]
+  >([]);
 
   useEffect(() => {
-    if (selectedTemplate) {
+    try {
+      const savedContactStr = localStorage.getItem("selectedContact");
+      if (savedContactStr) {
+        const contact = JSON.parse(savedContactStr);
+        setSelectedContact(contact);
+        localStorage.removeItem("selectedContact");
+      }
+    } catch (error) {
+      console.error("Error loading saved contact:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedTemplate && templates) {
       const template = templates.find((t) => t.id === selectedTemplate);
       if (template) {
-        setBaseContent(template.content);
+        setBaseContent(template.content || "");
+        const templateSections = template.sections || [];
         setSections(
-          template.sections.map((section) => ({
+          templateSections.map((section) => ({
             id: section.id,
             name: section.name,
-            content: section.content,
+            content: section.content || "",
           }))
         );
-        if (template.variables) {
+        if (template.variables && Array.isArray(template.variables)) {
           setVariables(
             template.variables.map((v) => ({
               name: v.name,
@@ -80,7 +104,7 @@ export default function EmailComposer({
   }, [selectedTemplate, templates]);
 
   const handleDragEnd = (result: any) => {
-    if (!result.destination) return;
+    if (!result.destination || !sections) return;
 
     const items = Array.from(sections);
     const [reorderedItem] = items.splice(result.source.index, 1);
@@ -120,7 +144,7 @@ export default function EmailComposer({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contactId: selectedContact,
+          contactId: selectedContact.id,
           templateId: selectedTemplate,
           content: processed.base,
           sections: processed.sections,
@@ -146,7 +170,7 @@ export default function EmailComposer({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contactId: selectedContact,
+          contactId: selectedContact.id,
           templateId: selectedTemplate,
           content: baseContent,
           sections: sections,
@@ -179,19 +203,11 @@ export default function EmailComposer({
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="text-sm font-medium">Select Contact</label>
-          <Select value={selectedContact} onValueChange={setSelectedContact}>
-            <SelectTrigger>
-              <SelectValue placeholder="Choose a contact" />
-            </SelectTrigger>
-            <SelectContent>
-              {contacts.map((contact) => (
-                <SelectItem key={contact.id} value={contact.id}>
-                  {contact.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <label className="text-sm font-medium">Contact</label>
+          <ContactSearch
+            selectedContact={selectedContact}
+            onSelect={setSelectedContact}
+          />
         </div>
 
         <div>

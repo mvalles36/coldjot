@@ -7,23 +7,17 @@ export default async function ComposePage() {
   const session = await auth();
   if (!session?.user?.id) return null;
 
-  // Fetch contacts and templates for the user
-  const [contacts, templates] = await Promise.all([
-    prisma.contact.findMany({
-      where: { userId: session.user.id },
-      orderBy: { name: "asc" },
-    }),
-    prisma.template.findMany({
-      where: { userId: session.user.id },
-      include: {
-        sections: {
-          orderBy: { order: "asc" },
-        },
-        variables: true,
+  // Only fetch templates, contacts will be fetched via search API
+  const templates = await prisma.template.findMany({
+    where: { userId: session.user.id },
+    include: {
+      sections: {
+        orderBy: { order: "asc" },
       },
-      orderBy: { name: "asc" },
-    }),
-  ]);
+      variables: true,
+    },
+    orderBy: { name: "asc" },
+  });
 
   return (
     <div className="max-w-5xl mx-auto py-8 space-y-6">
@@ -34,7 +28,7 @@ export default async function ComposePage() {
         </p>
       </div>
       <Separator />
-      <EmailComposer contacts={contacts} templates={templates} />
+      <EmailComposer templates={templates} />
     </div>
   );
 }

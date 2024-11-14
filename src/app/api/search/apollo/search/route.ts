@@ -18,7 +18,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { domain, titles } = await request.json();
+    const { domain } = await request.json();
     const sanitizedDomain = domain.replace(/^(https?:\/\/)?(www\.)?/, "");
 
     const response = await fetch(`${APOLLO_API_URL}/mixed_people/search`, {
@@ -31,15 +31,6 @@ export async function POST(request: Request) {
       },
       body: JSON.stringify({
         q_organization_domains: sanitizedDomain,
-        // person_titles: titles,
-        // person_seniorities: [
-        //   "founder",
-        //   "vp",
-        //   "executive",
-        //   "senior",
-        //   "director",
-        // ],
-        // q_keywords: "founder, ceo, cto",
         person_seniorities: [
           "c_suite",
           "founder",
@@ -47,15 +38,34 @@ export async function POST(request: Request) {
           "vp",
           "partner",
           "head",
+          "director",
         ],
+        person_titles: [
+          "CEO",
+          "CTO",
+          "Founder",
+          "Co-Founder",
+          "Chief Executive Officer",
+          "Chief Technology Officer",
+          "Managing Director",
+          "Director",
+          "VP",
+          "Head",
+        ],
+        page: 1,
+        per_page: 25,
+        reveal_personal_emails: true,
       }),
     });
 
     if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Apollo API Error:", errorData);
       throw new Error("Apollo API request failed");
     }
 
     const data = await response.json();
+    console.log("Apollo API Data:", data);
     return NextResponse.json(data);
   } catch (error) {
     console.error("Apollo search failed:", error);
