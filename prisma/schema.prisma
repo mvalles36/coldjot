@@ -139,4 +139,6 @@ model Company {
     drafts    Draft[]
     userId    String
     user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([name, userId], name: "name_userId")
 }

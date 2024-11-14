@@ -25,9 +25,7 @@ export default function RootLayout({
             <div className="hidden w-64 shrink-0 border-r md:block">
               <Sidebar />
             </div>
-            <main className="flex-1 overflow-y-auto">
-              {children}
-            </main>
+            <main className="flex-1 overflow-y-auto">{children}</main>
           </div>
           <Toaster position="bottom-right" />
         </Providers>

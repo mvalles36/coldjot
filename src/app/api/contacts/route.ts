@@ -28,13 +28,33 @@ export async function POST(request: Request) {
 
   try {
     const json = await request.json();
-    const { name, email, companyId } = json;
+    const { name, email, companyId, companyName, title } = json;
+
+    // If companyName is provided, create or find the company first
+    let company = null;
+    if (companyName) {
+      company = await prisma.company.upsert({
+        where: {
+          name_userId: {
+            name: companyName,
+            userId: session.user.id,
+          },
+        },
+        create: {
+          name: companyName,
+          userId: session.user.id,
+        },
+        update: {},
+      });
+    }
+
+    console.log("Person Data:", json);
 
     const contact = await prisma.contact.create({
       data: {
         name,
         email,
-        companyId: companyId || null,
+        companyId: company?.id || companyId || null,
         userId: session.user.id,
       },
       include: {

@@ -13,6 +13,7 @@ import {
   Menu,
   X,
   ChevronLeft,
+  Search,
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -58,6 +59,11 @@ const routes = [
     label: "Settings",
     icon: Settings,
     href: "/settings",
+  },
+  {
+    label: "Apollo Search",
+    icon: Search,
+    href: "/apollo",
   },
 ];
 
