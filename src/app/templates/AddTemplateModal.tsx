@@ -12,10 +12,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Loader2 } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { PlaceholderButton } from "@/components/email/PlaceholderButton";
+import { RichTextEditor } from "@/components/editor/RichTextEditor";
 
 type FormData = {
   name: string;
@@ -109,17 +108,10 @@ export default function AddTemplateModal({
               </div>
 
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Content</Label>
-                  <PlaceholderButton onSelectPlaceholder={insertPlaceholder} />
-                </div>
-                <Textarea
-                  {...register("content", { required: "Content is required" })}
-                  ref={contentRef}
-                  value={content}
-                  onChange={(e) => setValue("content", e.target.value)}
-                  rows={12}
-                  className="font-mono"
+                <Label>Content</Label>
+                <RichTextEditor
+                  initialContent={content}
+                  onChange={(newContent) => setValue("content", newContent)}
                   placeholder="Write your template content here..."
                 />
               </div>

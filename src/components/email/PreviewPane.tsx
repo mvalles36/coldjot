@@ -1,20 +1,27 @@
+"use client";
+
 import { useEffect, useState } from "react";
 import { Contact, Company } from "@prisma/client";
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { replacePlaceholders, validatePlaceholders } from "@/lib/placeholders";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import {
+  ResizablePanel,
+  ResizablePanelGroup,
+  ResizableHandle,
+} from "@/components/ui/resizable";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { RichTextEditor } from "@/components/editor/RichTextEditor";
+import { replacePlaceholders, validatePlaceholders } from "@/lib/placeholders";
+
+type ContactWithCompany = Contact & {
+  company: Company | null;
+};
 
 interface PreviewPaneProps {
   content: string;
-  contact: (Contact & { company: Company | null }) | null;
+  contact: ContactWithCompany | null;
   fallbacks: Record<string, string>;
-  customValues?: Record<string, string>;
+  customValues: Record<string, string>;
 }
 
 export function PreviewPane({
@@ -33,7 +40,10 @@ export function PreviewPane({
       fallbacks,
       customValues,
     });
-    setProcessedContent(processed);
+
+    // Convert any plain text placeholders to HTML
+    const htmlContent = processed.replace(/\n/g, "<br />");
+    setProcessedContent(htmlContent);
 
     // Validate for any remaining unprocessed placeholders
     const missing = validatePlaceholders(processed);
@@ -46,9 +56,12 @@ export function PreviewPane({
         <div className="h-full p-4">
           <h3 className="text-sm font-medium mb-2">Original Content</h3>
           <ScrollArea className="h-[calc(100vh-12rem)]">
-            <pre className="whitespace-pre-wrap font-mono text-sm">
-              {content}
-            </pre>
+            <RichTextEditor
+              initialContent={content}
+              onChange={() => {}}
+              readOnly={true}
+              placeholder=""
+            />
           </ScrollArea>
         </div>
       </ResizablePanel>
@@ -66,13 +79,12 @@ export function PreviewPane({
             </Alert>
           )}
           <ScrollArea className="h-[calc(100vh-12rem)]">
-            <div className="prose prose-sm max-w-none">
-              {processedContent.split("\n").map((line, i) => (
-                <p key={i} className={line.trim() === "" ? "h-4" : ""}>
-                  {line}
-                </p>
-              ))}
-            </div>
+            <RichTextEditor
+              initialContent={processedContent}
+              onChange={() => {}}
+              readOnly={true}
+              placeholder=""
+            />
           </ScrollArea>
         </div>
       </ResizablePanel>

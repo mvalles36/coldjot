@@ -15,6 +15,8 @@ export async function PUT(
   const json = await request.json();
   const { name, email } = json;
 
+  console.log(json);
+
   const contact = await prisma.contact.update({
     where: {
       id,

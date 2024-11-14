@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Copy } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { RichTextEditor } from "@/components/editor/RichTextEditor";
 
 export default function PreviewTemplateModal({
   template,
@@ -27,14 +28,6 @@ export default function PreviewTemplateModal({
     } catch (err) {
       toast.error("Failed to copy to clipboard");
     }
-  };
-
-  const formatContent = (content: string) => {
-    return content.split("\n").map((line, i) => (
-      <p key={i} className={line.trim() === "" ? "h-4" : ""}>
-        {line}
-      </p>
-    ));
   };
 
   return (
@@ -63,9 +56,12 @@ export default function PreviewTemplateModal({
                     <Copy className="h-4 w-4" />
                   </Button>
                 </div>
-                <div className="prose prose-sm max-w-none rounded-md bg-muted p-4 whitespace-pre-wrap">
-                  {formatContent(template.content)}
-                </div>
+                <RichTextEditor
+                  initialContent={template.content}
+                  onChange={() => {}}
+                  readOnly={true}
+                  placeholder=""
+                />
               </div>
             </div>
           </ScrollArea>

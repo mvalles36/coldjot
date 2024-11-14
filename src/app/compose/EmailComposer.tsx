@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   Select,
   SelectContent,
@@ -9,14 +9,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Send, Save, Eye, Loader2 } from "lucide-react";
 import { Contact, Company, Template } from "@prisma/client";
 import { toast } from "react-hot-toast";
 import { PreviewPane } from "@/components/email/PreviewPane";
 import { Label } from "@/components/ui/label";
 import { ContactSearch } from "./ContactSearch";
-import { PlaceholderButton } from "@/components/email/PlaceholderButton";
+import { RichTextEditor } from "@/components/editor/RichTextEditor";
+import { Input } from "@/components/ui/input";
 
 type ContactWithCompany = Contact & {
   company: Company | null;
@@ -36,11 +36,9 @@ export default function EmailComposer({ templates }: Props) {
   const [showPreview, setShowPreview] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSending, setIsSending] = useState(false);
-  const [variables, setVariables] = useState<
-    { name: string; label: string; value: string }[]
-  >([]);
-  const contentRef = useRef<HTMLTextAreaElement>(null);
+  const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
   const [fallbacks, setFallbacks] = useState<Record<string, string>>({});
+  const [subject, setSubject] = useState("");
 
   useEffect(() => {
     try {
@@ -63,7 +61,6 @@ export default function EmailComposer({ templates }: Props) {
       }
     } else {
       setContent("");
-      setVariables([]);
     }
   }, [selectedTemplate, templates]);
 
@@ -79,6 +76,9 @@ export default function EmailComposer({ templates }: Props) {
           contactId: selectedContact.id,
           templateId: selectedTemplate,
           content: content,
+          subject: "",
+          fallbacks: fallbacks,
+          customValues: {},
         }),
       });
 
@@ -103,6 +103,9 @@ export default function EmailComposer({ templates }: Props) {
           contactId: selectedContact.id,
           templateId: selectedTemplate,
           content: content,
+          subject: "",
+          fallbacks: fallbacks,
+          customValues: {},
         }),
       });
 
@@ -114,6 +117,8 @@ export default function EmailComposer({ templates }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           draftId: draft.id,
+          fallbacks: fallbacks,
+          customValues: {},
         }),
       });
 
@@ -125,27 +130,6 @@ export default function EmailComposer({ templates }: Props) {
     } finally {
       setIsSending(false);
     }
-  };
-
-  const insertPlaceholder = (placeholder: string) => {
-    if (!contentRef.current) return;
-
-    const textarea = contentRef.current;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const text = textarea.value;
-    const before = text.substring(0, start);
-    const after = text.substring(end);
-
-    const newText = before + placeholder + after;
-    setContent(newText);
-
-    // Set cursor position after the placeholder
-    setTimeout(() => {
-      textarea.focus();
-      const newPosition = start + placeholder.length;
-      textarea.setSelectionRange(newPosition, newPosition);
-    }, 0);
   };
 
   return (
@@ -176,52 +160,33 @@ export default function EmailComposer({ templates }: Props) {
         </div>
       </div>
 
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <Label>Content</Label>
-          <PlaceholderButton onSelectPlaceholder={insertPlaceholder} />
-        </div>
-        <Textarea
-          ref={contentRef}
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          rows={12}
-          className="font-mono"
+      <div className="space-y-2">
+        <Label htmlFor="subject">Subject</Label>
+        <Input
+          id="subject"
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
+          placeholder="Enter email subject"
         />
       </div>
 
-      {variables.length > 0 && (
-        <div className="space-y-4">
-          <h3 className="text-sm font-medium">Template Variables</h3>
-          <div className="grid grid-cols-2 gap-4">
-            {variables.map((variable) => (
-              <div key={variable.name} className="space-y-2">
-                <Label htmlFor={variable.name}>{variable.label}</Label>
-                <input
-                  id={variable.name}
-                  value={variable.value}
-                  onChange={(e) => {
-                    const newVariables = variables.map((v) =>
-                      v.name === variable.name
-                        ? { ...v, value: e.target.value }
-                        : v
-                    );
-                    setVariables(newVariables);
-                  }}
-                  className="w-full p-2 border rounded"
-                  placeholder={`Enter ${variable.label.toLowerCase()}`}
-                />
-              </div>
-            ))}
-          </div>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Label>Content</Label>
         </div>
-      )}
+        <RichTextEditor
+          initialContent={content}
+          onChange={setContent}
+          placeholder="Write your email content here..."
+          onLinkDialogChange={setIsLinkDialogOpen}
+        />
+      </div>
 
       <div className="flex justify-end gap-3">
         <Button
           variant="outline"
           onClick={() => setShowPreview(true)}
-          disabled={!selectedContact || !selectedTemplate}
+          disabled={!selectedContact || !selectedTemplate || isLinkDialogOpen}
         >
           <Eye className="h-4 w-4 mr-2" />
           Preview
@@ -229,7 +194,12 @@ export default function EmailComposer({ templates }: Props) {
         <Button
           variant="outline"
           onClick={handleSaveAsDraft}
-          disabled={!selectedContact || !selectedTemplate || isSaving}
+          disabled={
+            !selectedContact ||
+            !selectedTemplate ||
+            isSaving ||
+            isLinkDialogOpen
+          }
         >
           {isSaving ? (
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -240,7 +210,12 @@ export default function EmailComposer({ templates }: Props) {
         </Button>
         <Button
           onClick={handleSendEmail}
-          disabled={!selectedContact || !selectedTemplate || isSending}
+          disabled={
+            !selectedContact ||
+            !selectedTemplate ||
+            isSending ||
+            isLinkDialogOpen
+          }
         >
           {isSending ? (
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -256,13 +231,7 @@ export default function EmailComposer({ templates }: Props) {
           content={content}
           contact={selectedContact}
           fallbacks={fallbacks}
-          customValues={variables.reduce(
-            (acc: Record<string, string>, curr) => {
-              acc[curr.name] = curr.value;
-              return acc;
-            },
-            {}
-          )}
+          customValues={{}}
         />
       )}
     </div>

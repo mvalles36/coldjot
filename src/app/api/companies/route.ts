@@ -39,7 +39,6 @@ export async function POST(request: Request) {
       data: {
         name,
         website,
-        address,
         userId: session.user.id,
       },
     });

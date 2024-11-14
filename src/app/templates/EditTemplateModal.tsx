@@ -12,10 +12,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Loader2 } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { PlaceholderButton } from "@/components/email/PlaceholderButton";
+import { RichTextEditor } from "@/components/editor/RichTextEditor";
 
 interface Props {
   template: Template;
@@ -34,6 +33,7 @@ export default function EditTemplateModal({
   onSave,
 }: Props) {
   const [isSaving, setIsSaving] = useState(false);
+  const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
   const contentRef = useRef<HTMLTextAreaElement>(null);
   const { register, handleSubmit, setValue, watch } = useForm<FormData>({
     defaultValues: {
@@ -44,28 +44,23 @@ export default function EditTemplateModal({
 
   const content = watch("content");
 
-  const insertPlaceholder = (placeholder: string) => {
-    if (!contentRef.current) return;
-
-    const textarea = contentRef.current;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const text = textarea.value;
-    const before = text.substring(0, start);
-    const after = text.substring(end);
-
-    const newText = before + placeholder + after;
-    setValue("content", newText);
-
-    // Set cursor position after the placeholder
-    setTimeout(() => {
-      textarea.focus();
-      const newPosition = start + placeholder.length;
-      textarea.setSelectionRange(newPosition, newPosition);
-    }, 0);
+  const handleCloseAttempt = () => {
+    if (!isLinkDialogOpen) {
+      onClose();
+    }
   };
 
-  const onSubmit = async (data: FormData) => {
+  const onSubmit = async (e: React.FormEvent) => {
+    if (isLinkDialogOpen) {
+      e.preventDefault();
+      return;
+    }
+
+    const data = {
+      name: watch("name"),
+      content: watch("content"),
+    };
+
     try {
       setIsSaving(true);
       const response = await fetch(`/api/templates/${template.id}`, {
@@ -88,12 +83,9 @@ export default function EditTemplateModal({
   };
 
   return (
-    <Sheet open onOpenChange={onClose}>
+    <Sheet open onOpenChange={handleCloseAttempt} modal={false}>
       <SheetContent className="w-[800px] sm:max-w-[800px] h-[100dvh] p-0">
-        <form
-          onSubmit={handleSubmit(onSubmit)}
-          className="flex flex-col h-full"
-        >
+        <form onSubmit={onSubmit} className="flex flex-col h-full">
           <SheetHeader className="px-6 py-4 border-b">
             <SheetTitle>Edit Template</SheetTitle>
           </SheetHeader>
@@ -112,18 +104,12 @@ export default function EditTemplateModal({
               </div>
 
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Content</Label>
-                  <PlaceholderButton onSelectPlaceholder={insertPlaceholder} />
-                </div>
-                <Textarea
-                  {...register("content", { required: "Content is required" })}
-                  ref={contentRef}
-                  value={content}
-                  onChange={(e) => setValue("content", e.target.value)}
-                  rows={12}
-                  className="font-mono"
+                <Label>Content</Label>
+                <RichTextEditor
+                  initialContent={content}
+                  onChange={(newContent) => setValue("content", newContent)}
                   placeholder="Write your template content here..."
+                  onLinkDialogChange={setIsLinkDialogOpen}
                 />
               </div>
             </div>
@@ -131,10 +117,22 @@ export default function EditTemplateModal({
 
           <div className="px-6 py-4 border-t mt-auto">
             <div className="flex justify-end gap-3">
-              <Button type="button" variant="outline" onClick={onClose}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCloseAttempt}
+              >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSaving}>
+              <Button
+                type="submit"
+                disabled={isSaving || isLinkDialogOpen}
+                onClick={(e) => {
+                  if (isLinkDialogOpen) {
+                    e.preventDefault();
+                  }
+                }}
+              >
                 {isSaving ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />

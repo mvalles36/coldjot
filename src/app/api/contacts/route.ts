@@ -2,22 +2,33 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
-    return new NextResponse("Unauthorized", { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const contacts = await prisma.contact.findMany({
-    where: {
-      userId: session.user.id,
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
+  try {
+    const contacts = await prisma.contact.findMany({
+      where: {
+        userId: session.user.id,
+      },
+      include: {
+        company: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
 
-  return NextResponse.json(contacts);
+    return NextResponse.json(contacts);
+  } catch (error) {
+    console.error("Error fetching contacts:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch contacts" },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(request: Request) {
@@ -28,49 +39,40 @@ export async function POST(request: Request) {
 
   try {
     const json = await request.json();
-    console.log("Creating contact with data:", json);
+    const { name, email, title, company } = json;
 
-    const { name, email, title, linkedinUrl, domain, company } = json;
+    let companyId: string | undefined;
 
-    // If company data is provided, create or find the company first
-    let savedCompany = null;
-    if (company && company.name) {
-      try {
-        savedCompany = await prisma.company.upsert({
-          where: {
-            name_userId: {
-              name: company.name,
-              userId: session.user.id,
-            },
-          },
-          create: {
+    if (company) {
+      // First try to find existing company
+      const existingCompany = await prisma.company.findFirst({
+        where: {
+          name: company.name,
+          userId: session.user.id,
+        },
+      });
+
+      if (existingCompany) {
+        companyId = existingCompany.id;
+      } else {
+        // Create new company if it doesn't exist
+        const newCompany = await prisma.company.create({
+          data: {
             name: company.name,
-            website: company.website || null,
-            domain: company.domain || null,
-            address: company.address || null,
+            website: company.website,
             userId: session.user.id,
           },
-          update: {
-            website: company.website || undefined,
-            domain: company.domain || undefined,
-            address: company.address || undefined,
-          },
         });
-      } catch (error) {
-        console.error("Failed to create/update company:", error);
-        // Continue without company if it fails
+        companyId = newCompany.id;
       }
     }
 
-    // Create the contact with all fields
     const contact = await prisma.contact.create({
       data: {
-        name: name || "",
-        email: email || "",
-        title: title || null,
-        linkedinUrl: linkedinUrl || null,
-        domain: domain || null,
-        companyId: savedCompany?.id || null,
+        name,
+        email,
+        title,
+        companyId,
         userId: session.user.id,
       },
       include: {
@@ -80,12 +82,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json(contact);
   } catch (error) {
-    console.error("Failed to create contact:", error);
+    console.error("Error creating contact:", error);
     return NextResponse.json(
-      {
-        error: "Failed to create contact",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
+      { error: "Failed to create contact" },
       { status: 500 }
     );
   }
