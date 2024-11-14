@@ -45,11 +45,17 @@ type ApolloContact = {
   linkedin_url?: string;
   enriched?: boolean;
   organization?: {
+    name: string;
     primary_domain: string;
+    website_url?: string;
   };
   account?: {
     domain: string;
+    website_url?: string;
   };
+  city?: string;
+  state?: string;
+  country?: string;
 };
 
 interface Props {
@@ -87,14 +93,17 @@ export default function ApolloSearchComponent({ userId }: Props) {
 
   const enrichContact = async (contact: ApolloContact) => {
     setIsEnriching((prev) => ({ ...prev, [contact.id]: true }));
-    console.log("Enriching contact:", contact);
     try {
       const response = await fetch("/api/search/apollo/enrich", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           apolloContactId: contact.id,
-          domain: contact.organization?.primary_domain.toLowerCase(),
+          domain:
+            contact.organization?.primary_domain ||
+            contact.account?.domain ||
+            contact.organization_name.toLowerCase().replace(/[^a-z0-9]/g, "") +
+              ".com",
           firstName: contact.first_name,
           lastName: contact.last_name,
         }),
@@ -105,7 +114,7 @@ export default function ApolloSearchComponent({ userId }: Props) {
       const enrichedData = await response.json();
       const enrichedContact = enrichedData.person || enrichedData;
 
-      // Save to database
+      // Save to database with company
       const saveResponse = await fetch("/api/contacts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -117,11 +126,38 @@ export default function ApolloSearchComponent({ userId }: Props) {
             contact.email,
           title: contact.title,
           linkedinUrl: contact.linkedin_url,
-          companyName: contact.organization_name,
+          domain:
+            contact.organization?.primary_domain ||
+            contact.account?.domain ||
+            contact.organization_name.toLowerCase().replace(/[^a-z0-9]/g, "") +
+              ".com",
+          company: {
+            name: contact.organization?.name || contact.organization_name,
+            website:
+              contact.organization?.website_url || contact.account?.website_url,
+            domain:
+              contact.organization?.primary_domain ||
+              contact.account?.domain ||
+              contact.organization_name
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, "") + ".com",
+            address: `${contact.city || ""}, ${contact.state || ""}, ${
+              contact.country || ""
+            }`
+              .trim()
+              .replace(/^,\s*|,\s*$/g, ""),
+          },
         }),
       });
 
-      if (!saveResponse.ok) throw new Error("Failed to save contact");
+      if (!saveResponse.ok) {
+        const errorData = await saveResponse.json();
+        console.error("Save response error:", errorData);
+        throw new Error("Failed to save contact");
+      }
+
+      const savedContact = await saveResponse.json();
+      console.log("Saved contact:", savedContact);
 
       // Update the contact in the list
       setSearchResults((prev) =>

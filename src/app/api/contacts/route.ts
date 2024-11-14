@@ -28,33 +28,44 @@ export async function POST(request: Request) {
 
   try {
     const json = await request.json();
-    const { name, email, companyId, companyName, title } = json;
+    console.log("Creating contact with data:", json);
 
-    // If companyName is provided, create or find the company first
-    let company = null;
-    if (companyName) {
-      company = await prisma.company.upsert({
+    const { name, email, title, linkedinUrl, domain, company } = json;
+
+    // If company data is provided, create or find the company first
+    let savedCompany = null;
+    if (company) {
+      savedCompany = await prisma.company.upsert({
         where: {
           name_userId: {
-            name: companyName,
+            name: company.name,
             userId: session.user.id,
           },
         },
         create: {
-          name: companyName,
+          name: company.name,
+          website: company.website,
+          domain: company.domain,
+          address: company.address,
           userId: session.user.id,
         },
-        update: {},
+        update: {
+          website: company.website,
+          domain: company.domain,
+          address: company.address,
+        },
       });
     }
 
-    console.log("Person Data:", json);
-
+    // Create the contact with all fields
     const contact = await prisma.contact.create({
       data: {
         name,
         email,
-        companyId: company?.id || companyId || null,
+        title,
+        linkedinUrl,
+        domain,
+        companyId: savedCompany?.id || null,
         userId: session.user.id,
       },
       include: {
