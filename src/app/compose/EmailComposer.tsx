@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 // import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import {
@@ -16,10 +16,11 @@ import { Separator } from "@/components/ui/separator";
 import { Send, Save, Grip, Eye, Loader2 } from "lucide-react";
 import { Contact, Company, Template } from "@prisma/client";
 import { toast } from "react-hot-toast";
-import PreviewEmail from "./PreviewEmail";
+import { PreviewPane } from "@/components/email/PreviewPane";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { ContactSearch } from "./ContactSearch";
+import { PlaceholderButton } from "@/components/email/PlaceholderButton";
 
 type ContactWithCompany = Contact & {
   company: Company | null;
@@ -57,6 +58,8 @@ export default function EmailComposer({ templates }: Props) {
   const [variables, setVariables] = useState<
     { name: string; label: string; value: string }[]
   >([]);
+  const baseContentRef = useRef<HTMLTextAreaElement>(null);
+  const [fallbacks, setFallbacks] = useState<Record<string, string>>({});
 
   useEffect(() => {
     try {
@@ -102,6 +105,28 @@ export default function EmailComposer({ templates }: Props) {
       setVariables([]);
     }
   }, [selectedTemplate, templates]);
+
+  useEffect(() => {
+    async function loadFallbacks() {
+      try {
+        const response = await fetch("/api/placeholders/fallback");
+        if (response.ok) {
+          const data = await response.json();
+          const fallbackMap = data.reduce(
+            (acc: Record<string, string>, curr: any) => {
+              acc[curr.name] = curr.value;
+              return acc;
+            },
+            {}
+          );
+          setFallbacks(fallbackMap);
+        }
+      } catch (error) {
+        console.error("Failed to load fallbacks:", error);
+      }
+    }
+    loadFallbacks();
+  }, []);
 
   const handleDragEnd = (result: any) => {
     if (!result.destination || !sections) return;
@@ -199,8 +224,72 @@ export default function EmailComposer({ templates }: Props) {
     }
   };
 
+  const insertPlaceholder = (placeholder: string) => {
+    console.log("Inserting placeholder:", placeholder);
+
+    // Get the currently focused textarea
+    const activeElement = document.activeElement as HTMLTextAreaElement;
+
+    if (!activeElement || !(activeElement instanceof HTMLTextAreaElement)) {
+      console.log("No active textarea found");
+      // If no textarea is focused, insert into base content
+      if (baseContentRef.current) {
+        const textarea = baseContentRef.current;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const text = textarea.value;
+        const before = text.substring(0, start);
+        const after = text.substring(end);
+
+        const newText = before + placeholder + after;
+        setBaseContent(newText);
+
+        // Set cursor position after the placeholder
+        setTimeout(() => {
+          textarea.focus();
+          textarea.setSelectionRange(
+            start + placeholder.length,
+            start + placeholder.length
+          );
+        }, 0);
+      }
+      return;
+    }
+
+    // Get the cursor position
+    const start = activeElement.selectionStart;
+    const end = activeElement.selectionEnd;
+    const text = activeElement.value;
+
+    // Insert the placeholder at cursor position
+    const before = text.substring(0, start);
+    const after = text.substring(end);
+    const newText = before + placeholder + after;
+
+    // Update the appropriate state based on which textarea was focused
+    if (activeElement === baseContentRef.current) {
+      setBaseContent(newText);
+    } else {
+      // For section textareas
+      const sectionId = activeElement.getAttribute("data-section-id");
+      if (sectionId) {
+        const newSections = sections.map((section) =>
+          section.id === sectionId ? { ...section, content: newText } : section
+        );
+        setSections(newSections);
+      }
+    }
+
+    // Set cursor position after the placeholder
+    setTimeout(() => {
+      activeElement.focus();
+      const newPosition = start + placeholder.length;
+      activeElement.setSelectionRange(newPosition, newPosition);
+    }, 0);
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="text-sm font-medium">Contact</label>
@@ -228,70 +317,79 @@ export default function EmailComposer({ templates }: Props) {
       </div>
 
       <div className="space-y-4">
-        <div>
-          <label className="text-sm font-medium">Base Content</label>
-          <Textarea
-            value={baseContent}
-            onChange={(e) => setBaseContent(e.target.value)}
-            rows={6}
-            className="font-mono"
+        <div className="flex items-center justify-between">
+          <Label>Base Content</Label>
+          <PlaceholderButton
+            onSelectPlaceholder={insertPlaceholder}
+            textareaId="base-content"
           />
         </div>
+        <Textarea
+          id="base-content"
+          ref={baseContentRef}
+          value={baseContent}
+          onChange={(e) => setBaseContent(e.target.value)}
+          rows={6}
+          className="font-mono"
+        />
+      </div>
 
-        <Separator />
+      <Separator />
 
-        <DragDropContext onDragEnd={handleDragEnd}>
-          <Droppable droppableId="sections">
-            {(provided) => (
-              <div
-                {...provided.droppableProps}
-                ref={provided.innerRef}
-                className="space-y-4"
-              >
-                {sections.map((section, index) => (
-                  <Draggable
-                    key={section.id}
-                    draggableId={section.id}
-                    index={index}
-                  >
-                    {(provided) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        className="border rounded-lg p-4"
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <div
-                            {...provided.dragHandleProps}
-                            className="flex items-center gap-2"
-                          >
-                            <Grip className="h-4 w-4 text-muted-foreground" />
-                            <span className="font-medium">{section.name}</span>
-                          </div>
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <Droppable droppableId="sections">
+          {(provided) => (
+            <div
+              {...provided.droppableProps}
+              ref={provided.innerRef}
+              className="space-y-4"
+            >
+              {sections.map((section, index) => (
+                <Draggable
+                  key={section.id}
+                  draggableId={section.id}
+                  index={index}
+                >
+                  {(provided) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.draggableProps}
+                      className="border rounded-lg p-4"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div
+                          {...provided.dragHandleProps}
+                          className="flex items-center gap-2"
+                        >
+                          <Grip className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">{section.name}</span>
                         </div>
-                        <Textarea
-                          value={section.content}
-                          onChange={(e) => {
-                            const newSections = [...sections];
-                            newSections[index] = {
-                              ...section,
-                              content: e.target.value,
-                            };
-                            setSections(newSections);
-                          }}
-                          rows={4}
-                          className="font-mono"
+                        <PlaceholderButton
+                          onSelectPlaceholder={insertPlaceholder}
+                          textareaId={`section-${section.id}`}
                         />
                       </div>
-                    )}
-                  </Draggable>
-                ))}
-                {provided.placeholder}
-              </div>
-            )}
-          </Droppable>
-        </DragDropContext>
-      </div>
+                      <Textarea
+                        id={`section-${section.id}`}
+                        data-section-id={section.id}
+                        value={section.content}
+                        onChange={(e) => {
+                          const newSections = [...sections];
+                          newSections[index].content = e.target.value;
+                          setSections(newSections);
+                        }}
+                        rows={4}
+                        className="font-mono"
+                      />
+                    </div>
+                  )}
+                </Draggable>
+              ))}
+              {provided.placeholder}
+            </div>
+          )}
+        </Droppable>
+      </DragDropContext>
 
       {variables.length > 0 && (
         <div className="space-y-4">
@@ -354,11 +452,19 @@ export default function EmailComposer({ templates }: Props) {
       </div>
 
       {showPreview && (
-        <PreviewEmail
-          content={`${replaceVariables(baseContent)}\n\n${sections
-            .map((section) => replaceVariables(section.content))
+        <PreviewPane
+          content={`${baseContent}\n\n${sections
+            .map((section) => section.content)
             .join("\n\n")}`}
-          onClose={() => setShowPreview(false)}
+          contact={selectedContact}
+          fallbacks={fallbacks}
+          customValues={variables.reduce(
+            (acc: Record<string, string>, curr) => {
+              acc[curr.name] = curr.value;
+              return acc;
+            },
+            {}
+          )}
         />
       )}
     </div>
