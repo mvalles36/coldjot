@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import TemplateList from "./TemplateList";
 import { Separator } from "@/components/ui/separator";
+import { Template } from "@/types";
 
 export default async function TemplatesPage() {
   const session = await auth();
@@ -10,14 +11,6 @@ export default async function TemplatesPage() {
   const templates = await prisma.template.findMany({
     where: {
       userId: session.user.id,
-    },
-    include: {
-      sections: {
-        orderBy: {
-          order: "asc",
-        },
-      },
-      variables: true,
     },
     orderBy: {
       createdAt: "desc",

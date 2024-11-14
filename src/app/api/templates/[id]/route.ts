@@ -13,21 +13,7 @@ export async function PUT(
   }
 
   const json = await request.json();
-  const { name, content, sections, variables } = json;
-
-  // Delete existing sections and variables
-  await Promise.all([
-    prisma.templateSection.deleteMany({
-      where: {
-        templateId: id,
-      },
-    }),
-    prisma.templateVariable.deleteMany({
-      where: {
-        templateId: id,
-      },
-    }),
-  ]);
+  const { name, content } = json;
 
   const template = await prisma.template.update({
     where: {
@@ -37,27 +23,6 @@ export async function PUT(
     data: {
       name,
       content,
-      sections: {
-        create: sections.map((section: any, index: number) => ({
-          name: section.name,
-          content: section.content,
-          order: index,
-        })),
-      },
-      variables: {
-        create: variables.map((variable: any) => ({
-          name: variable.name,
-          label: variable.label,
-        })),
-      },
-    },
-    include: {
-      sections: {
-        orderBy: {
-          order: "asc",
-        },
-      },
-      variables: true,
     },
   });
 

@@ -1,304 +1,152 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
-import { toast } from "react-hot-toast";
+import { Template } from "@/types";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Plus, Trash } from "lucide-react";
-import { TemplateWithSections } from "@/types";
+import { Loader2 } from "lucide-react";
+import { toast } from "react-hot-toast";
+import { PlaceholderButton } from "@/components/email/PlaceholderButton";
+
+interface Props {
+  template: Template;
+  onClose: () => void;
+  onSave: (template: Template) => void;
+}
 
 type FormData = {
   name: string;
   content: string;
-  sections: {
-    name: string;
-    content: string;
-  }[];
-  variables: {
-    name: string;
-    label: string;
-  }[];
-};
-
-const defaultSection = {
-  name: "",
-  content: "",
 };
 
 export default function EditTemplateModal({
   template,
   onClose,
   onSave,
-}: {
-  template: TemplateWithSections;
-  onClose: () => void;
-  onSave: (template: TemplateWithSections) => void;
-}) {
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    setValue,
-    watch,
-  } = useForm<FormData>({
+}: Props) {
+  const [isSaving, setIsSaving] = useState(false);
+  const contentRef = useRef<HTMLTextAreaElement>(null);
+  const { register, handleSubmit, setValue, watch } = useForm<FormData>({
     defaultValues: {
       name: template.name,
       content: template.content,
-      sections: template.sections.map((section) => ({
-        name: section.name,
-        content: section.content,
-      })),
-      variables:
-        template.variables?.map((variable) => ({
-          name: variable.name,
-          label: variable.label,
-        })) || [],
     },
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const sections = watch("sections");
 
-  const addSection = () => {
-    const currentSections = watch("sections");
-    setValue("sections", [...currentSections, defaultSection]);
-  };
+  const content = watch("content");
 
-  const removeSection = (index: number) => {
-    const currentSections = watch("sections");
-    setValue(
-      "sections",
-      currentSections.filter((_, i) => i !== index)
-    );
-  };
+  const insertPlaceholder = (placeholder: string) => {
+    if (!contentRef.current) return;
 
-  const addVariable = () => {
-    const currentVariables = watch("variables");
-    setValue("variables", [...currentVariables, { name: "", label: "" }]);
-  };
+    const textarea = contentRef.current;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const before = text.substring(0, start);
+    const after = text.substring(end);
 
-  const removeVariable = (index: number) => {
-    const currentVariables = watch("variables");
-    setValue(
-      "variables",
-      currentVariables.filter((_, i) => i !== index)
-    );
+    const newText = before + placeholder + after;
+    setValue("content", newText);
+
+    // Set cursor position after the placeholder
+    setTimeout(() => {
+      textarea.focus();
+      const newPosition = start + placeholder.length;
+      textarea.setSelectionRange(newPosition, newPosition);
+    }, 0);
   };
 
   const onSubmit = async (data: FormData) => {
-    setIsSubmitting(true);
     try {
+      setIsSaving(true);
       const response = await fetch(`/api/templates/${template.id}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
 
       if (!response.ok) throw new Error("Failed to update template");
 
       const updatedTemplate = await response.json();
-      toast.success("Template updated successfully");
       onSave(updatedTemplate);
+      toast.success("Template updated successfully");
     } catch (error) {
+      console.error("Error updating template:", error);
       toast.error("Failed to update template");
     } finally {
-      setIsSubmitting(false);
+      setIsSaving(false);
     }
   };
 
   return (
-    <Sheet open onOpenChange={onClose} modal={false}>
-      <SheetContent
-        side="right"
-        className="w-[600px] sm:max-w-[600px] h-full p-0"
-      >
-        <div className="h-full flex flex-col">
-          <SheetHeader className="p-6">
+    <Sheet open onOpenChange={onClose}>
+      <SheetContent className="w-[800px] sm:max-w-[800px] h-[100dvh] p-0">
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="flex flex-col h-full"
+        >
+          <SheetHeader className="px-6 py-4 border-b">
             <SheetTitle>Edit Template</SheetTitle>
           </SheetHeader>
-          <Separator />
-          <ScrollArea className="flex-1">
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 p-6">
+
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            <div className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="name">Template Name</Label>
                 <Input
                   id="name"
-                  {...register("name", { required: "Name is required" })}
+                  {...register("name", {
+                    required: "Template name is required",
+                  })}
+                  placeholder="Enter template name"
                 />
-                {errors.name && (
-                  <p className="text-sm text-destructive">
-                    {errors.name.message}
-                  </p>
-                )}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="content">Base Content</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Content</Label>
+                  <PlaceholderButton onSelectPlaceholder={insertPlaceholder} />
+                </div>
                 <Textarea
-                  id="content"
-                  rows={8}
-                  className="font-mono whitespace-pre-wrap"
                   {...register("content", { required: "Content is required" })}
-                  placeholder="Enter the main template content..."
+                  ref={contentRef}
+                  value={content}
+                  onChange={(e) => setValue("content", e.target.value)}
+                  rows={12}
+                  className="font-mono"
+                  placeholder="Write your template content here..."
                 />
-                {errors.content && (
-                  <p className="text-sm text-destructive">
-                    {errors.content.message}
-                  </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="px-6 py-4 border-t mt-auto">
+            <div className="flex justify-end gap-3">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSaving}>
+                {isSaving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Changes"
                 )}
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <Label>Template Variables</Label>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={addVariable}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Variable
-                  </Button>
-                </div>
-
-                {watch("variables").map((_, index) => (
-                  <div key={index} className="space-y-4 p-4 border rounded-lg">
-                    <div className="flex justify-between items-start">
-                      <div className="grid grid-cols-2 gap-4 flex-1">
-                        <div className="space-y-2">
-                          <Label htmlFor={`variables.${index}.name`}>
-                            Variable Name
-                          </Label>
-                          <Input
-                            id={`variables.${index}.name`}
-                            {...register(`variables.${index}.name` as const, {
-                              required: "Variable name is required",
-                            })}
-                            placeholder="e.g., companyName"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor={`variables.${index}.label`}>
-                            Display Label
-                          </Label>
-                          <Input
-                            id={`variables.${index}.label`}
-                            {...register(`variables.${index}.label` as const, {
-                              required: "Display label is required",
-                            })}
-                            placeholder="e.g., Company Name"
-                          />
-                        </div>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="ml-2"
-                        onClick={() => removeVariable(index)}
-                      >
-                        <Trash className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <Label>Template Sections</Label>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={addSection}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Section
-                  </Button>
-                </div>
-
-                {sections.map((_, index) => (
-                  <div key={index} className="space-y-4 p-4 border rounded-lg">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1 space-y-2">
-                        <Label htmlFor={`sections.${index}.name`}>
-                          Section Name
-                        </Label>
-                        <Input
-                          id={`sections.${index}.name`}
-                          {...register(`sections.${index}.name` as const, {
-                            required: "Section name is required",
-                          })}
-                        />
-                        {errors.sections?.[index]?.name && (
-                          <p className="text-sm text-destructive">
-                            {errors.sections[index]?.name?.message}
-                          </p>
-                        )}
-                      </div>
-                      {sections.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="ml-2"
-                          onClick={() => removeSection(index)}
-                        >
-                          <Trash className="h-4 w-4 text-destructive" />
-                        </Button>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor={`sections.${index}.content`}>
-                        Section Content
-                      </Label>
-                      <Textarea
-                        id={`sections.${index}.content`}
-                        rows={6}
-                        className="font-mono whitespace-pre-wrap"
-                        {...register(`sections.${index}.content` as const, {
-                          required: "Section content is required",
-                        })}
-                      />
-                      {errors.sections?.[index]?.content && (
-                        <p className="text-sm text-destructive">
-                          {errors.sections[index]?.content?.message}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex justify-end gap-3">
-                <Button type="button" variant="outline" onClick={onClose}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  Save Changes
-                </Button>
-              </div>
-            </form>
-          </ScrollArea>
-        </div>
+              </Button>
+            </div>
+          </div>
+        </form>
       </SheetContent>
     </Sheet>
   );

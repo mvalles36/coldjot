@@ -1,6 +1,6 @@
 "use client";
 
-import { TemplateWithSections } from "@/types";
+import { Template } from "@/types";
 import {
   Sheet,
   SheetContent,
@@ -17,7 +17,7 @@ export default function PreviewTemplateModal({
   template,
   onClose,
 }: {
-  template: TemplateWithSections;
+  template: Template;
   onClose: () => void;
 }) {
   const copyToClipboard = async (text: string) => {
@@ -53,7 +53,7 @@ export default function PreviewTemplateModal({
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-medium text-muted-foreground">
-                    Base Content
+                    Template Content
                   </h3>
                   <Button
                     variant="ghost"
@@ -67,26 +67,6 @@ export default function PreviewTemplateModal({
                   {formatContent(template.content)}
                 </div>
               </div>
-
-              {template.sections.map((section) => (
-                <div key={section.id}>
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-medium text-muted-foreground">
-                      {section.name}
-                    </h3>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => copyToClipboard(section.content)}
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <div className="prose prose-sm max-w-none rounded-md bg-muted p-4 whitespace-pre-wrap">
-                    {formatContent(section.content)}
-                  </div>
-                </div>
-              ))}
             </div>
           </ScrollArea>
         </div>

@@ -12,13 +12,7 @@ export async function GET() {
     where: {
       userId: session.user.id,
     },
-    include: {
-      sections: {
-        orderBy: {
-          order: "asc",
-        },
-      },
-    },
+    include: {},
     orderBy: {
       createdAt: "desc",
     },
@@ -41,24 +35,8 @@ export async function POST(request: Request) {
       name,
       content,
       userId: session.user.id,
-      sections: {
-        create: sections.map((section: any, index: number) => ({
-          name: section.name,
-          content: section.content,
-          order: index,
-        })),
-      },
-      variables: {
-        create: variables.map((variable: any) => ({
-          name: variable.name,
-          label: variable.label,
-        })),
-      },
     },
-    include: {
-      sections: true,
-      variables: true,
-    },
+    include: {},
   });
 
   return NextResponse.json(template);

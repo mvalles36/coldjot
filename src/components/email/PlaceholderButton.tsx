@@ -29,7 +29,7 @@ export const DEFAULT_PLACEHOLDERS: Placeholder[] = [
     description: "The full name of the email recipient",
   },
   {
-    name: "company",
+    name: "company_name",
     label: "Company Name",
     description: "The name of the recipient's company",
   },
@@ -37,16 +37,6 @@ export const DEFAULT_PLACEHOLDERS: Placeholder[] = [
     name: "job_title",
     label: "Job Title",
     description: "The job title being applied for",
-  },
-  {
-    name: "portfolio",
-    label: "Portfolio Link",
-    description: "Your portfolio website URL",
-  },
-  {
-    name: "opensource_projects",
-    label: "Open Source Projects",
-    description: "Summary or links to your open source work",
   },
 ];
 
@@ -106,7 +96,7 @@ export function PlaceholderButton({
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm">
           <BracesIcon className="h-4 w-4 mr-2" />
-          Insert Placeholder
+          Insert Variable
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[300px] p-0" align="start">

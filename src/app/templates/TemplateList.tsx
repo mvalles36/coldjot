@@ -1,10 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { TemplateWithSections } from "@/types";
-import EditTemplateModal from "./EditTemplateModal";
-import PreviewTemplateModal from "./PreviewTemplateModal";
-import AddTemplateButton from "./AddTemplateButton";
+import { Template } from "@/types";
 import {
   Table,
   TableBody,
@@ -14,44 +11,38 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Edit2, Eye, Trash2 } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { Eye, Edit2, Trash2 } from "lucide-react";
+import AddTemplateButton from "./AddTemplateButton";
+import EditTemplateModal from "./EditTemplateModal";
+import PreviewTemplateModal from "./PreviewTemplateModal";
+import DeleteTemplateDialog from "./DeleteTemplateDialog";
 
-export default function TemplateList({
-  initialTemplates,
-}: {
-  initialTemplates: TemplateWithSections[];
-}) {
-  const [templates, setTemplates] =
-    useState<TemplateWithSections[]>(initialTemplates);
-  const [editingTemplate, setEditingTemplate] =
-    useState<TemplateWithSections | null>(null);
-  const [previewTemplate, setPreviewTemplate] =
-    useState<TemplateWithSections | null>(null);
-  const [deletingTemplate, setDeletingTemplate] =
-    useState<TemplateWithSections | null>(null);
+interface Props {
+  initialTemplates: Template[];
+}
 
-  const handleAddTemplate = (newTemplate: TemplateWithSections) => {
-    setTemplates((prev) => [newTemplate, ...prev]);
+export default function TemplateList({ initialTemplates }: Props) {
+  const [templates, setTemplates] = useState<Template[]>(initialTemplates);
+  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
+  const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
+  const [deletingTemplate, setDeletingTemplate] = useState<Template | null>(
+    null
+  );
+
+  const handleAddTemplate = (template: Template) => {
+    setTemplates((prev) => [template, ...prev]);
   };
 
-  const handleDelete = async (template: TemplateWithSections) => {
-    const response = await fetch(`/api/templates/${template.id}`, {
-      method: "DELETE",
-    });
+  const handleUpdateTemplate = (updatedTemplate: Template) => {
+    setTemplates((prev) =>
+      prev.map((t) => (t.id === updatedTemplate.id ? updatedTemplate : t))
+    );
+    setEditingTemplate(null);
+  };
 
-    if (response.ok) {
-      setTemplates(templates.filter((t) => t.id !== template.id));
-    }
+  const handleDeleteTemplate = (templateId: string) => {
+    setTemplates((prev) => prev.filter((t) => t.id !== templateId));
+    setDeletingTemplate(null);
   };
 
   return (
@@ -64,7 +55,6 @@ export default function TemplateList({
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
-            <TableHead>Sections</TableHead>
             <TableHead className="w-[150px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -72,7 +62,6 @@ export default function TemplateList({
           {templates.map((template) => (
             <TableRow key={template.id}>
               <TableCell className="font-medium">{template.name}</TableCell>
-              <TableCell>{template.sections.length} sections</TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
                   <Button
@@ -107,14 +96,7 @@ export default function TemplateList({
         <EditTemplateModal
           template={editingTemplate}
           onClose={() => setEditingTemplate(null)}
-          onSave={(updatedTemplate) => {
-            setTemplates(
-              templates.map((t) =>
-                t.id === updatedTemplate.id ? updatedTemplate : t
-              )
-            );
-            setEditingTemplate(null);
-          }}
+          onSave={handleUpdateTemplate}
         />
       )}
 
@@ -125,34 +107,13 @@ export default function TemplateList({
         />
       )}
 
-      <AlertDialog
-        open={!!deletingTemplate}
-        onOpenChange={() => setDeletingTemplate(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the
-              template and all its sections.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (deletingTemplate) {
-                  handleDelete(deletingTemplate);
-                  setDeletingTemplate(null);
-                }
-              }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {deletingTemplate && (
+        <DeleteTemplateDialog
+          template={deletingTemplate}
+          onClose={() => setDeletingTemplate(null)}
+          onDelete={handleDeleteTemplate}
+        />
+      )}
     </div>
   );
 }
