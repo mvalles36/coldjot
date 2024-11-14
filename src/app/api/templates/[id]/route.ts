@@ -13,7 +13,7 @@ export async function PUT(
   }
 
   const json = await request.json();
-  const { name, content } = json;
+  const { name, content, subject } = json;
 
   const template = await prisma.template.update({
     where: {
@@ -22,6 +22,7 @@ export async function PUT(
     },
     data: {
       name,
+      subject,
       content,
     },
   });

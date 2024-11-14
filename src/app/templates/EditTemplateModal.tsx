@@ -24,6 +24,7 @@ interface Props {
 
 type FormData = {
   name: string;
+  subject: string;
   content: string;
 };
 
@@ -38,6 +39,7 @@ export default function EditTemplateModal({
   const { register, handleSubmit, setValue, watch } = useForm<FormData>({
     defaultValues: {
       name: template.name,
+      subject: template.subject,
       content: template.content,
     },
   });
@@ -51,18 +53,21 @@ export default function EditTemplateModal({
   };
 
   const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
     if (isLinkDialogOpen) {
-      e.preventDefault();
       return;
     }
 
     const data = {
       name: watch("name"),
+      subject: watch("subject"),
       content: watch("content"),
     };
 
     try {
       setIsSaving(true);
+      console.log(data);
       const response = await fetch(`/api/templates/${template.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -104,6 +109,17 @@ export default function EditTemplateModal({
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="subject">Email Subject</Label>
+                <Input
+                  id="subject"
+                  {...register("subject", {
+                    required: "Email subject is required",
+                  })}
+                  placeholder="Enter email subject"
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label>Content</Label>
                 <RichTextEditor
                   initialContent={content}
@@ -124,15 +140,7 @@ export default function EditTemplateModal({
               >
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                disabled={isSaving || isLinkDialogOpen}
-                onClick={(e) => {
-                  if (isLinkDialogOpen) {
-                    e.preventDefault();
-                  }
-                }}
-              >
+              <Button type="submit" disabled={isSaving || isLinkDialogOpen}>
                 {isSaving ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />

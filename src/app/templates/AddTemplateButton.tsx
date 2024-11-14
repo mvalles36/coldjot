@@ -1,32 +1,38 @@
 "use client";
 
 import { useState } from "react";
-import { TemplateWithSections } from "@/types";
-import AddTemplateModal from "./AddTemplateModal";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
+import AddTemplateModal from "./AddTemplateModal";
+import { Template } from "@/types";
+
+interface AddTemplateButtonProps {
+  onAddTemplate: (template: Template) => void;
+}
 
 export default function AddTemplateButton({
   onAddTemplate,
-}: {
-  onAddTemplate: (template: TemplateWithSections) => void;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
+}: AddTemplateButtonProps) {
+  const [showModal, setShowModal] = useState(false);
+
+  const handleClose = () => {
+    setShowModal(false);
+  };
+
+  const handleSave = (template: Template) => {
+    onAddTemplate(template);
+    setShowModal(false);
+  };
 
   return (
     <>
-      <Button onClick={() => setIsOpen(true)}>
-        <Plus className="mr-2 h-4 w-4" /> New Template
+      <Button onClick={() => setShowModal(true)}>
+        <Plus className="h-4 w-4 mr-2" />
+        Add Template
       </Button>
 
-      {isOpen && (
-        <AddTemplateModal
-          onClose={() => setIsOpen(false)}
-          onAdd={(template) => {
-            onAddTemplate(template);
-            setIsOpen(false);
-          }}
-        />
+      {showModal && (
+        <AddTemplateModal onClose={handleClose} onSave={handleSave} />
       )}
     </>
   );

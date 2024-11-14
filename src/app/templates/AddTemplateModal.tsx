@@ -2,7 +2,6 @@
 
 import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
-import { Template } from "@/types";
 import {
   Sheet,
   SheetContent,
@@ -15,52 +14,28 @@ import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { RichTextEditor } from "@/components/editor/RichTextEditor";
+import { Template } from "@/types";
 
 type FormData = {
   name: string;
+  subject: string;
   content: string;
 };
 
-export default function AddTemplateModal({
-  onClose,
-  onAdd,
-}: {
+interface Props {
   onClose: () => void;
-  onAdd: (template: Template) => void;
-}) {
-  const [isSaving, setIsSaving] = useState(false);
-  const contentRef = useRef<HTMLTextAreaElement>(null);
-  const { register, handleSubmit, setValue, watch } = useForm<FormData>({
-    defaultValues: {
-      name: "",
-      content: "",
-    },
-  });
+  onSave: (template: Template) => void;
+}
 
+export default function AddTemplateModal({ onClose, onSave }: Props) {
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
+  const { register, handleSubmit, setValue, watch } = useForm<FormData>();
   const content = watch("content");
 
-  const insertPlaceholder = (placeholder: string) => {
-    if (!contentRef.current) return;
-
-    const textarea = contentRef.current;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const text = textarea.value;
-    const before = text.substring(0, start);
-    const after = text.substring(end);
-
-    const newText = before + placeholder + after;
-    setValue("content", newText);
-
-    // Set cursor position after the placeholder
-    setTimeout(() => {
-      textarea.focus();
-      const newPosition = start + placeholder.length;
-      textarea.setSelectionRange(newPosition, newPosition);
-    }, 0);
-  };
-
   const onSubmit = async (data: FormData) => {
+    if (isLinkDialogOpen) return;
+
     try {
       setIsSaving(true);
       const response = await fetch("/api/templates", {
@@ -72,7 +47,7 @@ export default function AddTemplateModal({
       if (!response.ok) throw new Error("Failed to create template");
 
       const template = await response.json();
-      onAdd(template);
+      onSave(template);
       toast.success("Template created successfully");
       onClose();
     } catch (error) {
@@ -108,11 +83,23 @@ export default function AddTemplateModal({
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="subject">Email Subject</Label>
+                <Input
+                  id="subject"
+                  {...register("subject", {
+                    required: "Email subject is required",
+                  })}
+                  placeholder="Enter email subject"
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label>Content</Label>
                 <RichTextEditor
                   initialContent={content}
                   onChange={(newContent) => setValue("content", newContent)}
                   placeholder="Write your template content here..."
+                  onLinkDialogChange={setIsLinkDialogOpen}
                 />
               </div>
             </div>
@@ -123,7 +110,7 @@ export default function AddTemplateModal({
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSaving}>
+              <Button type="submit" disabled={isSaving || isLinkDialogOpen}>
                 {isSaving ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />

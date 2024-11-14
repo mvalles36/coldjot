@@ -11,7 +11,6 @@ export default async function ComposePage() {
     where: {
       userId: session.user.id,
     },
-
     orderBy: {
       name: "asc",
     },

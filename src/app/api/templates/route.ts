@@ -28,12 +28,13 @@ export async function POST(request: Request) {
   }
 
   const json = await request.json();
-  const { name, content, sections, variables } = json;
+  const { name, content, subject } = json;
 
   const template = await prisma.template.create({
     data: {
       name,
       content,
+      subject,
       userId: session.user.id,
     },
     include: {},

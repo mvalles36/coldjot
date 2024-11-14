@@ -58,9 +58,11 @@ export default function EmailComposer({ templates }: Props) {
       const template = templates.find((t) => t.id === selectedTemplate);
       if (template) {
         setContent(template.content || "");
+        setSubject(template.subject || "");
       }
     } else {
       setContent("");
+      setSubject("");
     }
   }, [selectedTemplate, templates]);
 
@@ -76,7 +78,7 @@ export default function EmailComposer({ templates }: Props) {
           contactId: selectedContact.id,
           templateId: selectedTemplate,
           content: content,
-          subject: "",
+          subject: subject,
           fallbacks: fallbacks,
           customValues: {},
         }),
@@ -103,7 +105,7 @@ export default function EmailComposer({ templates }: Props) {
           contactId: selectedContact.id,
           templateId: selectedTemplate,
           content: content,
-          subject: "",
+          subject: subject,
           fallbacks: fallbacks,
           customValues: {},
         }),
@@ -160,26 +162,26 @@ export default function EmailComposer({ templates }: Props) {
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="subject">Subject</Label>
-        <Input
-          id="subject"
-          value={subject}
-          onChange={(e) => setSubject(e.target.value)}
-          placeholder="Enter email subject"
-        />
-      </div>
-
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <Label>Content</Label>
+        <div className="space-y-2">
+          <Label htmlFor="subject">Subject</Label>
+          <Input
+            id="subject"
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            placeholder="Enter email subject"
+          />
         </div>
-        <RichTextEditor
-          initialContent={content}
-          onChange={setContent}
-          placeholder="Write your email content here..."
-          onLinkDialogChange={setIsLinkDialogOpen}
-        />
+
+        <div className="space-y-2">
+          <Label>Content</Label>
+          <RichTextEditor
+            initialContent={content}
+            onChange={setContent}
+            placeholder="Write your email content here..."
+            onLinkDialogChange={setIsLinkDialogOpen}
+          />
+        </div>
       </div>
 
       <div className="flex justify-end gap-3">
@@ -226,14 +228,15 @@ export default function EmailComposer({ templates }: Props) {
         </Button>
       </div>
 
-      {showPreview && (
-        <PreviewPane
-          content={content}
-          contact={selectedContact}
-          fallbacks={fallbacks}
-          customValues={{}}
-        />
-      )}
+      <PreviewPane
+        subject={subject}
+        content={content}
+        contact={selectedContact}
+        fallbacks={fallbacks}
+        customValues={{}}
+        open={showPreview}
+        onClose={() => setShowPreview(false)}
+      />
     </div>
   );
 }
