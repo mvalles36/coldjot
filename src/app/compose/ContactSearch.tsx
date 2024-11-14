@@ -76,16 +76,18 @@ export function ContactSearch({ selectedContact, onSelect }: Props) {
             aria-expanded={open}
             className="w-full justify-between"
           >
-            {selectedContact ? (
-              <span className="flex items-center gap-2">
-                <span>{selectedContact.name}</span>
-                <span className="text-muted-foreground">
-                  ({selectedContact.email})
-                </span>
-              </span>
-            ) : (
-              "Search contacts..."
-            )}
+            <div className="flex items-center truncate">
+              {selectedContact ? (
+                <div className="flex items-center gap-2 truncate">
+                  <span className="truncate">{selectedContact.name}</span>
+                  <span className="text-muted-foreground truncate">
+                    ({selectedContact.email})
+                  </span>
+                </div>
+              ) : (
+                "Search contacts..."
+              )}
+            </div>
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
@@ -112,21 +114,26 @@ export function ContactSearch({ selectedContact, onSelect }: Props) {
                         onSelect(contact);
                         setOpen(false);
                       }}
+                      className="flex flex-col items-start"
                     >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4",
-                          selectedContact?.id === contact.id
-                            ? "opacity-100"
-                            : "opacity-0"
-                        )}
-                      />
-                      <div className="flex flex-col">
-                        <span>{contact.name}</span>
-                        <span className="text-sm text-muted-foreground">
-                          {contact.email}
-                          {contact.company && ` • ${contact.company.name}`}
-                        </span>
+                      <div className="flex w-full items-center gap-2">
+                        <Check
+                          className={cn(
+                            "h-4 w-4",
+                            selectedContact?.id === contact.id
+                              ? "opacity-100"
+                              : "opacity-0"
+                          )}
+                        />
+                        <div className="flex flex-col overflow-hidden">
+                          <span className="truncate font-medium">
+                            {contact.name}
+                          </span>
+                          <span className="truncate text-sm text-muted-foreground">
+                            {contact.email}
+                            {contact.company && ` • ${contact.company.name}`}
+                          </span>
+                        </div>
                       </div>
                     </CommandItem>
                   ))}
