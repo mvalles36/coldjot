@@ -32,7 +32,6 @@ export async function PATCH(
       data: {
         name,
         website,
-        address,
       },
     });
 

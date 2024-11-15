@@ -5,7 +5,6 @@ import { Contact, Company } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import EditContactModal from "./EditContactModal";
 import AddContactButton from "./AddContactButton";
-import ApolloSearch from "./ApolloSearch";
 import {
   Table,
   TableBody,
@@ -27,6 +26,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ColumnDef } from "@tanstack/react-table";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 
 type ContactWithCompany = Contact & {
   company: Company | null;
@@ -131,7 +136,6 @@ export default function ContactList({
   return (
     <div className="space-y-4">
       <div className="flex justify-end gap-2">
-        <ApolloSearch onAddContact={handleAddContact} />
         <AddContactButton
           onAddContact={handleAddContact}
           companies={companies}

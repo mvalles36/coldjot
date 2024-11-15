@@ -5,15 +5,16 @@ import { useForm } from "react-hook-form";
 import { toast } from "react-hot-toast";
 import { Contact, Company } from "@prisma/client";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
+import { CompanySearch } from "./CompanySearch";
 
 type ContactWithCompany = Contact & {
   company: Company | null;
@@ -42,6 +43,7 @@ export default function AddContactModal({
     formState: { errors },
   } = useForm<FormData>();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true);
@@ -51,22 +53,23 @@ export default function AddContactModal({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          companyId: selectedCompany?.id,
+        }),
       });
 
       if (!response.ok) throw new Error("Failed to add contact");
 
       const contact = await response.json();
-      // Transform the response to match ContactWithCompany type
       const contactWithCompany: ContactWithCompany = {
         ...contact,
-        company: contact.companyId
-          ? companies.find((c) => c.id === contact.companyId) || null
-          : null,
+        company: selectedCompany,
       };
 
       toast.success("Contact added successfully");
       onAdd(contactWithCompany);
+      onClose();
     } catch (error) {
       toast.error("Failed to add contact");
     } finally {
@@ -75,70 +78,83 @@ export default function AddContactModal({
   };
 
   return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add New Contact</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Name</Label>
-            <Input
-              id="name"
-              {...register("name", { required: "Name is required" })}
-            />
-            {errors.name && (
-              <p className="text-sm text-destructive">{errors.name.message}</p>
-            )}
+    <Sheet open onOpenChange={onClose}>
+      <SheetContent className="w-[800px] sm:max-w-[800px] h-[100dvh] p-0">
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="flex flex-col h-full"
+        >
+          <SheetHeader className="px-6 py-4 border-b">
+            <SheetTitle>Add New Contact</SheetTitle>
+          </SheetHeader>
+
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  {...register("name", { required: "Name is required" })}
+                  placeholder="Enter contact name"
+                />
+                {errors.name && (
+                  <p className="text-sm text-destructive">
+                    {errors.name.message}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  {...register("email", {
+                    required: "Email is required",
+                    pattern: {
+                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                      message: "Invalid email address",
+                    },
+                  })}
+                  placeholder="Enter email address"
+                />
+                {errors.email && (
+                  <p className="text-sm text-destructive">
+                    {errors.email.message}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label>Company</Label>
+                <CompanySearch
+                  companies={companies}
+                  selectedCompany={selectedCompany}
+                  onSelect={setSelectedCompany}
+                />
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              {...register("email", {
-                required: "Email is required",
-                pattern: {
-                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                  message: "Invalid email address",
-                },
-              })}
-            />
-            {errors.email && (
-              <p className="text-sm text-destructive">{errors.email.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="companyId">Company</Label>
-            <select
-              id="companyId"
-              className="w-full rounded-md border border-input bg-background px-3 py-2"
-              {...register("companyId")}
-            >
-              <option value="">Select a company</option>
-              {companies.map((company) => (
-                <option key={company.id} value={company.id}>
-                  {company.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex justify-end gap-3">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              Add Contact
-            </Button>
+          <div className="px-6 py-4 border-t mt-auto">
+            <div className="flex justify-end gap-3">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  "Create Contact"
+                )}
+              </Button>
+            </div>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

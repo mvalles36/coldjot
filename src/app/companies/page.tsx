@@ -10,7 +10,9 @@ export default async function CompaniesPage() {
   const companies = await prisma.company.findMany({
     where: { userId: session.user.id },
     include: {
-      contacts: true,
+      contacts: {
+        orderBy: { name: "asc" },
+      },
     },
     orderBy: { name: "asc" },
   });
@@ -20,7 +22,7 @@ export default async function CompaniesPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Companies</h1>
         <p className="text-muted-foreground">
-          Manage your companies and their associated contacts.
+          Manage your companies and view their associated contacts.
         </p>
       </div>
       <Separator />

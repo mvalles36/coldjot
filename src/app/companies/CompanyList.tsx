@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Company } from "@prisma/client";
+import { useRouter } from "next/navigation";
+import { Company, Contact } from "@prisma/client";
 import {
   Table,
   TableBody,
@@ -11,26 +12,43 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Edit2, Trash2, Plus, Users } from "lucide-react";
+import { Edit2, Trash2, Building2, Users } from "lucide-react";
 import AddCompanyModal from "./AddCompanyModal";
 import EditCompanyModal from "./EditCompanyModal";
 import DeleteCompanyDialog from "./DeleteCompanyDialog";
-
+import CompanyDetails from "./CompanyDetails";
+import { Plus } from "lucide-react";
 type CompanyWithContacts = Company & {
-  contacts: { id: string; name: string; email: string }[];
+  contacts: Contact[];
 };
 
-export default function CompanyList({
-  initialCompanies,
-}: {
+interface CompanyListProps {
   initialCompanies: CompanyWithContacts[];
-}) {
-  const [companies, setCompanies] =
-    useState<CompanyWithContacts[]>(initialCompanies);
+}
+
+export default function CompanyList({ initialCompanies }: CompanyListProps) {
+  const router = useRouter();
+  const [companies, setCompanies] = useState(initialCompanies);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingCompany, setEditingCompany] =
     useState<CompanyWithContacts | null>(null);
   const [deletingCompany, setDeletingCompany] = useState<Company | null>(null);
+  const [selectedCompany, setSelectedCompany] =
+    useState<CompanyWithContacts | null>(null);
+
+  const handleContactClick = (contact: Contact) => {
+    localStorage.setItem(
+      "selectedContact",
+      JSON.stringify({
+        id: contact.id,
+        name: contact.name,
+        email: contact.email,
+        companyId: contact.companyId,
+        company: selectedCompany,
+      })
+    );
+    router.push("/compose");
+  };
 
   return (
     <div className="space-y-4">
@@ -53,12 +71,37 @@ export default function CompanyList({
         <TableBody>
           {companies.map((company) => (
             <TableRow key={company.id}>
-              <TableCell className="font-medium">{company.name}</TableCell>
-              <TableCell>{company.website}</TableCell>
               <TableCell>
-                <div className="flex items-center gap-1">
-                  <Users className="h-4 w-4" />
-                  <span>{company.contacts.length}</span>
+                <Button
+                  variant="link"
+                  className="p-0 h-auto font-medium"
+                  onClick={() => setSelectedCompany(company)}
+                >
+                  {company.name}
+                </Button>
+              </TableCell>
+              <TableCell>
+                {company.website ? (
+                  <a
+                    href={
+                      company.website.startsWith("http")
+                        ? company.website
+                        : `https://${company.website}`
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:underline"
+                  >
+                    {company.website}
+                  </a>
+                ) : (
+                  "-"
+                )}
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  {company.contacts.length}
                 </div>
               </TableCell>
               <TableCell>
@@ -87,7 +130,7 @@ export default function CompanyList({
       {showAddModal && (
         <AddCompanyModal
           onClose={() => setShowAddModal(false)}
-          onAdd={(newCompany: Company) => {
+          onAdd={(newCompany) => {
             setCompanies((prev) => [...prev, { ...newCompany, contacts: [] }]);
             setShowAddModal(false);
           }}
@@ -98,7 +141,7 @@ export default function CompanyList({
         <EditCompanyModal
           company={editingCompany}
           onClose={() => setEditingCompany(null)}
-          onSave={(updatedCompany: Company) => {
+          onSave={(updatedCompany) => {
             setCompanies((prev) =>
               prev.map((c) =>
                 c.id === updatedCompany.id
@@ -115,12 +158,20 @@ export default function CompanyList({
         <DeleteCompanyDialog
           company={deletingCompany}
           onClose={() => setDeletingCompany(null)}
-          onDelete={(deletedCompany: Company) => {
+          onDelete={(deletedCompany) => {
             setCompanies((prev) =>
               prev.filter((c) => c.id !== deletedCompany.id)
             );
             setDeletingCompany(null);
           }}
+        />
+      )}
+
+      {selectedCompany && (
+        <CompanyDetails
+          company={selectedCompany}
+          onClose={() => setSelectedCompany(null)}
+          onContactClick={handleContactClick}
         />
       )}
     </div>

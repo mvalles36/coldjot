@@ -21,19 +21,17 @@ type FormData = {
   address?: string;
 };
 
-type CompanyWithContacts = Company & {
-  contacts: { id: string; name: string; email: string }[];
-};
+interface EditCompanyModalProps {
+  company: Company;
+  onClose: () => void;
+  onSave: (company: Company) => void;
+}
 
 export default function EditCompanyModal({
   company,
   onClose,
   onSave,
-}: {
-  company: CompanyWithContacts;
-  onClose: () => void;
-  onSave: (company: Company) => void;
-}) {
+}: EditCompanyModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const {
     register,
@@ -43,7 +41,6 @@ export default function EditCompanyModal({
     defaultValues: {
       name: company.name,
       website: company.website || "",
-      address: company.address || "",
     },
   });
 
