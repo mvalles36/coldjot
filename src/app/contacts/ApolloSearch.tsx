@@ -70,6 +70,8 @@ export default function ApolloSearch({ onAddContact }: ApolloSearchProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: `${apolloContact.first_name} ${apolloContact.last_name}`,
+          firstName: `${apolloContact.first_name}`,
+          lastName: `${apolloContact.last_name}`,
           email: apolloContact.email,
         }),
       });
