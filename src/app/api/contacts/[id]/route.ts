@@ -41,9 +41,17 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const { id } = params;
     const json = await request.json();
-    const { name, email, companyId } = json;
+    const { firstName, lastName, email, linkedinUrl, companyId } = json;
+
+    // Basic validation
+    if (!firstName || !lastName || !email) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
 
     // Verify ownership
     const existingContact = await prisma.contact.findFirst({
@@ -57,13 +65,40 @@ export async function PATCH(
       return NextResponse.json({ error: "Contact not found" }, { status: 404 });
     }
 
+    // Create update data object
+    const updateData = {
+      firstName,
+      lastName,
+      name: `${firstName} ${lastName}`,
+      email,
+      linkedinUrl,
+      companyId: null, // Default to null
+    };
+
+    // Only add companyId if it exists and is not null/undefined
+    if (companyId) {
+      // Verify the company exists and belongs to the user
+      const company = await prisma.company.findFirst({
+        where: {
+          id: companyId,
+          userId: session.user.id,
+        },
+      });
+
+      if (!company) {
+        return NextResponse.json(
+          { error: "Invalid company selected" },
+          { status: 400 }
+        );
+      }
+
+      updateData.companyId = companyId;
+    }
+
+    // Update the contact
     const contact = await prisma.contact.update({
       where: { id },
-      data: {
-        name,
-        email,
-        companyId: companyId || null,
-      },
+      data: updateData,
       include: {
         company: true,
       },
@@ -89,7 +124,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const { id } = params;
 
     // Verify ownership
     const existingContact = await prisma.contact.findFirst({

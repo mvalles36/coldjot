@@ -21,8 +21,10 @@ type ContactWithCompany = Contact & {
 };
 
 type FormData = {
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
+  linkedinUrl?: string;
 };
 
 interface EditContactModalProps {
@@ -48,8 +50,10 @@ export default function EditContactModal({
     formState: { errors },
   } = useForm<FormData>({
     defaultValues: {
-      name: contact.name,
+      firstName: contact.firstName,
+      lastName: contact.lastName,
       email: contact.email,
+      linkedinUrl: contact.linkedinUrl || "",
     },
   });
 
@@ -85,28 +89,49 @@ export default function EditContactModal({
 
   return (
     <Sheet open onOpenChange={onClose}>
-      <SheetContent className="sm:max-w-[600px] w-[90vw]">
-        <SheetHeader>
-          <SheetTitle>Edit Contact</SheetTitle>
-        </SheetHeader>
+      <SheetContent className="w-[800px] sm:max-w-[800px] h-[100dvh] p-0">
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="flex flex-col h-full"
+        >
+          <SheetHeader className="px-6 py-4 border-b">
+            <SheetTitle>Edit Contact</SheetTitle>
+          </SheetHeader>
 
-        <div className="flex flex-col h-full">
-          <form
-            onSubmit={handleSubmit(onSubmit)}
-            className="flex flex-col h-full"
-          >
-            <div className="flex-1 py-6 space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
-                <Input
-                  id="name"
-                  {...register("name", { required: "Name is required" })}
-                />
-                {errors.name && (
-                  <p className="text-sm text-destructive">
-                    {errors.name.message}
-                  </p>
-                )}
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">First Name</Label>
+                  <Input
+                    id="firstName"
+                    {...register("firstName", {
+                      required: "First name is required",
+                    })}
+                    placeholder="Enter first name"
+                  />
+                  {errors.firstName && (
+                    <p className="text-sm text-destructive">
+                      {errors.firstName.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Last Name</Label>
+                  <Input
+                    id="lastName"
+                    {...register("lastName", {
+                      required: "Last name is required",
+                    })}
+                    placeholder="Enter last name"
+                  />
+                  {errors.lastName && (
+                    <p className="text-sm text-destructive">
+                      {errors.lastName.message}
+                    </p>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -121,6 +146,7 @@ export default function EditContactModal({
                       message: "Invalid email address",
                     },
                   })}
+                  placeholder="Enter email address"
                 />
                 {errors.email && (
                   <p className="text-sm text-destructive">
@@ -137,21 +163,36 @@ export default function EditContactModal({
                   onSelect={setSelectedCompany}
                 />
               </div>
-            </div>
 
-            <div className="flex justify-end gap-4 py-4 border-t">
+              <div className="space-y-2">
+                <Label htmlFor="linkedinUrl">LinkedIn URL</Label>
+                <Input
+                  id="linkedinUrl"
+                  {...register("linkedinUrl")}
+                  placeholder="Enter LinkedIn profile URL"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="px-6 py-4 border-t mt-auto">
+            <div className="flex justify-end gap-3">
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
               </Button>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Changes"
                 )}
-                Save Changes
               </Button>
             </div>
-          </form>
-        </div>
+          </div>
+        </form>
       </SheetContent>
     </Sheet>
   );

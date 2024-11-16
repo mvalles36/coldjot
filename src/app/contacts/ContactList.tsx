@@ -14,7 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Edit2, Trash2, Mail } from "lucide-react";
+import { Edit2, Trash2, Mail, ExternalLink } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,12 +26,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ColumnDef } from "@tanstack/react-table";
+import Link from "next/link";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type ContactWithCompany = Contact & {
   company: Company | null;
@@ -41,6 +42,21 @@ interface ContactListProps {
   initialContacts: ContactWithCompany[];
   companies: Company[];
 }
+
+// Helper function to format LinkedIn URL
+const formatLinkedInUrl = (url: string | null) => {
+  if (!url) return null;
+  try {
+    const urlObj = new URL(url);
+    // Get the path without leading/trailing slashes
+    const path = urlObj.pathname.replace(/^\/|\/$/g, "");
+    // Get the last part of the path (usually the profile name/id)
+    const profileName = path.split("/").pop();
+    return profileName || url;
+  } catch {
+    return url;
+  }
+};
 
 export default function ContactList({
   initialContacts,
@@ -96,7 +112,45 @@ export default function ContactList({
       header: "Company",
       cell: ({ row }) => {
         const company = row.original.company;
-        return company ? company.name : "-";
+        return company ? (
+          <Link
+            href={`/companies/${company.id}`}
+            className="text-primary hover:underline"
+          >
+            {company.name}
+          </Link>
+        ) : (
+          "—"
+        );
+      },
+    },
+    {
+      accessorKey: "linkedinUrl",
+      header: "LinkedIn",
+      cell: ({ row }) => {
+        const linkedinUrl = row.original.linkedinUrl;
+        return linkedinUrl ? (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <a
+                  href={linkedinUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-primary hover:underline"
+                >
+                  {formatLinkedInUrl(linkedinUrl)}
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Open LinkedIn profile</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ) : (
+          "—"
+        );
       },
     },
     {
@@ -147,16 +201,52 @@ export default function ContactList({
             <TableHead>Name</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Company</TableHead>
+            <TableHead>LinkedIn</TableHead>
             <TableHead className="w-[100px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {contacts.map((contact) => (
             <TableRow key={contact.id}>
-              <TableCell className="font-medium">{contact.name}</TableCell>
+              <TableCell className="font-medium">
+                {contact.firstName} {contact.lastName}
+              </TableCell>
               <TableCell>{contact.email}</TableCell>
               <TableCell>
-                {contact.company ? contact.company.name : "-"}
+                {contact.company ? (
+                  <Link
+                    href={`/companies/${contact.company.id}`}
+                    className="text-primary hover:underline"
+                  >
+                    {contact.company.name}
+                  </Link>
+                ) : (
+                  "—"
+                )}
+              </TableCell>
+              <TableCell>
+                {contact.linkedinUrl ? (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <a
+                          href={contact.linkedinUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-primary hover:underline"
+                        >
+                          {formatLinkedInUrl(contact.linkedinUrl)}
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Open LinkedIn profile</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : (
+                  "—"
+                )}
               </TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">

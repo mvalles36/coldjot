@@ -21,9 +21,11 @@ type ContactWithCompany = Contact & {
 };
 
 type FormData = {
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   companyId?: string;
+  linkedinUrl?: string;
 };
 
 interface AddContactModalProps {
@@ -90,18 +92,38 @@ export default function AddContactModal({
 
           <div className="flex-1 overflow-y-auto px-6 py-4">
             <div className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
-                <Input
-                  id="name"
-                  {...register("name", { required: "Name is required" })}
-                  placeholder="Enter contact name"
-                />
-                {errors.name && (
-                  <p className="text-sm text-destructive">
-                    {errors.name.message}
-                  </p>
-                )}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">First Name</Label>
+                  <Input
+                    id="firstName"
+                    {...register("firstName", {
+                      required: "First name is required",
+                    })}
+                    placeholder="Enter first name"
+                  />
+                  {errors.firstName && (
+                    <p className="text-sm text-destructive">
+                      {errors.firstName.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Last Name</Label>
+                  <Input
+                    id="lastName"
+                    {...register("lastName", {
+                      required: "Last name is required",
+                    })}
+                    placeholder="Enter last name"
+                  />
+                  {errors.lastName && (
+                    <p className="text-sm text-destructive">
+                      {errors.lastName.message}
+                    </p>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -131,6 +153,15 @@ export default function AddContactModal({
                   companies={companies}
                   selectedCompany={selectedCompany}
                   onSelect={setSelectedCompany}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="linkedinUrl">LinkedIn URL</Label>
+                <Input
+                  id="linkedinUrl"
+                  {...register("linkedinUrl")}
+                  placeholder="Enter LinkedIn profile URL"
                 />
               </div>
             </div>

@@ -39,44 +39,51 @@ export async function POST(request: Request) {
 
   try {
     const json = await request.json();
-    const { name, email, title, company } = json;
+    const { firstName, lastName, email, linkedinUrl, companyId } = json;
 
-    let companyId: string | undefined;
+    // Basic validation
+    if (!firstName || !lastName || !email) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
 
-    if (company) {
-      // First try to find existing company
-      const existingCompany = await prisma.company.findFirst({
+    // Create contact data object
+    const contactData = {
+      firstName,
+      lastName,
+      name: `${firstName} ${lastName}`,
+      email,
+      linkedinUrl,
+      userId: session.user.id,
+    };
+
+    // Only add companyId if it exists and is not null/undefined
+    if (companyId) {
+      // Verify the company exists and belongs to the user
+      const company = await prisma.company.findFirst({
         where: {
-          name: company.name,
+          id: companyId,
           userId: session.user.id,
         },
       });
 
-      if (existingCompany) {
-        companyId = existingCompany.id;
-      } else {
-        // Create new company if it doesn't exist
-        const newCompany = await prisma.company.create({
-          data: {
-            name: company.name,
-            website: company.website,
-            userId: session.user.id,
-          },
-        });
-        companyId = newCompany.id;
+      if (!company) {
+        return NextResponse.json(
+          { error: "Invalid company selected" },
+          { status: 400 }
+        );
       }
+
+      Object.assign(contactData, { companyId });
     }
 
+    // Create the contact
     const contact = await prisma.contact.create({
-      data: {
-        name,
-        email,
-        title,
-        companyId,
-        userId: session.user.id,
-      },
+      data: contactData,
       include: {
-        company: true,
+        company: true, // Always include company data in response, even if null
       },
     });
 

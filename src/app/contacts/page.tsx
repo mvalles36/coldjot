@@ -3,6 +3,11 @@ import { prisma } from "@/lib/prisma";
 import ContactList from "./ContactList";
 import { Separator } from "@/components/ui/separator";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { Contact, Company } from "@prisma/client";
+
+type ContactWithCompany = Contact & {
+  company: Company | null;
+};
 
 export default async function ContactsPage() {
   const session = await auth();
@@ -27,7 +32,10 @@ export default async function ContactsPage() {
         description="Manage your contacts and their associated companies."
       />
       <Separator />
-      <ContactList initialContacts={contacts} companies={companies} />
+      <ContactList
+        initialContacts={contacts as ContactWithCompany[]}
+        companies={companies}
+      />
     </div>
   );
 }
