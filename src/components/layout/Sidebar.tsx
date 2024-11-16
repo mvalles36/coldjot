@@ -85,7 +85,7 @@ export default function Sidebar() {
   const SectionTitle = ({ children }: { children: React.ReactNode }) => (
     <h3
       className={cn(
-        "text-xs font-semibold text-muted-foreground px-3 mb-2",
+        "text-xs font-medium text-muted-foreground px-3 mb-2",
         isCollapsed && "hidden"
       )}
     >
@@ -162,6 +162,7 @@ export default function Sidebar() {
           {/* Management Section */}
           <div className="space-y-2">
             <SectionTitle>Management</SectionTitle>
+
             {managementRoutes.map((route) => (
               <Link
                 key={route.href}
