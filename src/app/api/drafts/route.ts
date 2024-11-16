@@ -10,7 +10,7 @@ export async function POST(request: Request) {
   }
 
   const json = await request.json();
-  const { contactId, templateId, content, sections } = json;
+  const { contactId, templateId, content } = json;
 
   try {
     // Get the user's account with tokens
@@ -41,10 +41,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Contact not found" }, { status: 404 });
     }
 
-    const fullContent = [
-      content,
-      ...sections.map((section: any) => section.content),
-    ].join("\n\n");
+    const fullContent = [content].join("\n\n");
 
     try {
       // Try to create draft with current access token

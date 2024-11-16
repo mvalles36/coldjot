@@ -31,6 +31,7 @@ type ApolloContact = {
   email: string;
   title: string;
   organization_name: string;
+  linkedin_url?: string;
 };
 
 interface ApolloSearchProps {
@@ -73,6 +74,7 @@ export default function ApolloSearch({ onAddContact }: ApolloSearchProps) {
           firstName: `${apolloContact.first_name}`,
           lastName: `${apolloContact.last_name}`,
           email: apolloContact.email,
+          linkedinUrl: apolloContact.linkedin_url,
         }),
       });
 

@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import ContactList from "./ContactList";
 import { Separator } from "@/components/ui/separator";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 export default async function ContactsPage() {
   const session = await auth();
@@ -21,12 +22,10 @@ export default async function ContactsPage() {
 
   return (
     <div className="max-w-7xl mx-auto py-8 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Contacts</h1>
-        <p className="text-muted-foreground">
-          Manage your contacts and their associated companies.
-        </p>
-      </div>
+      <PageHeader
+        title="Contacts"
+        description="Manage your contacts and their associated companies."
+      />
       <Separator />
       <ContactList initialContacts={contacts} companies={companies} />
     </div>
