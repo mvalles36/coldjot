@@ -24,20 +24,17 @@ type FormData = {
   firstName: string;
   lastName: string;
   email: string;
-  companyId?: string;
   linkedinUrl?: string;
 };
 
 interface AddContactModalProps {
   onClose: () => void;
   onAdd: (contact: ContactWithCompany) => void;
-  companies: Company[];
 }
 
 export default function AddContactModal({
   onClose,
   onAdd,
-  companies,
 }: AddContactModalProps) {
   const {
     register,
@@ -150,7 +147,6 @@ export default function AddContactModal({
               <div className="space-y-2">
                 <Label>Company</Label>
                 <CompanySearch
-                  companies={companies}
                   selectedCompany={selectedCompany}
                   onSelect={setSelectedCompany}
                 />

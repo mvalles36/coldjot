@@ -281,7 +281,6 @@ export default function ContactList({
       {editingContact && (
         <EditContactModal
           contact={editingContact}
-          companies={companies}
           onClose={() => setEditingContact(null)}
           onSave={(updatedContact) => {
             setContacts(

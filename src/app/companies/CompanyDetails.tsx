@@ -17,9 +17,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Mail, Building2, Globe, Loader2 } from "lucide-react";
+import { Mail, Building2, Globe, Loader2, ExternalLink } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import Link from "next/link";
 
 type CompanyWithContacts = Company & {
   contacts: Contact[];
@@ -59,17 +60,26 @@ export default function CompanyDetails({
 
   return (
     <Sheet open onOpenChange={onClose}>
-      <SheetContent className="sm:max-w-[600px] w-[90vw]">
-        <SheetHeader className="border-b pb-4">
+      <SheetContent className="w-[800px] sm:max-w-[800px] h-[100dvh] p-0">
+        <SheetHeader className="px-6 py-4 border-b">
           <SheetTitle>Company Details</SheetTitle>
         </SheetHeader>
 
-        <div className="flex flex-col h-[calc(100vh-8rem)]">
-          <div className="space-y-6 py-6">
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          <div className="space-y-6">
             <div className="space-y-4">
-              <div className="flex items-center gap-2 text-lg font-semibold">
-                <Building2 className="h-5 w-5" />
-                {company.name}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-lg font-semibold">
+                  <Building2 className="h-5 w-5" />
+                  {company.name}
+                </div>
+                <Link
+                  href={`/companies/${company.id}`}
+                  className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1"
+                >
+                  View full details
+                  <ExternalLink className="h-3 w-3" />
+                </Link>
               </div>
 
               {company.website && (
@@ -91,7 +101,7 @@ export default function CompanyDetails({
               )}
             </div>
 
-            <Separator />
+            <Separator className="my-6" />
 
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -106,18 +116,18 @@ export default function CompanyDetails({
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
               ) : (
-                <ScrollArea className="h-[calc(100vh-20rem)]">
-                  {company.contacts.length > 0 ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Email</TableHead>
-                          <TableHead className="w-[100px]">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {company.contacts.map((contact) => (
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead className="w-[100px]">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {company.contacts.length > 0 ? (
+                        company.contacts.map((contact) => (
                           <TableRow key={contact.id}>
                             <TableCell className="font-medium">
                               {contact.name}
@@ -133,15 +143,20 @@ export default function CompanyDetails({
                               </Button>
                             </TableCell>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  ) : (
-                    <div className="text-center py-8 text-sm text-muted-foreground">
-                      No contacts found
-                    </div>
-                  )}
-                </ScrollArea>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell
+                            colSpan={3}
+                            className="h-24 text-center text-muted-foreground"
+                          >
+                            No contacts found
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </div>
           </div>

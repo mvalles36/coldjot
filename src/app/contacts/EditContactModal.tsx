@@ -29,14 +29,12 @@ type FormData = {
 
 interface EditContactModalProps {
   contact: ContactWithCompany;
-  companies: Company[];
   onClose: () => void;
   onSave: (contact: ContactWithCompany) => void;
 }
 
 export default function EditContactModal({
   contact,
-  companies,
   onClose,
   onSave,
 }: EditContactModalProps) {
@@ -158,7 +156,6 @@ export default function EditContactModal({
               <div className="space-y-2">
                 <Label>Company</Label>
                 <CompanySearch
-                  companies={companies}
                   selectedCompany={selectedCompany}
                   onSelect={setSelectedCompany}
                 />

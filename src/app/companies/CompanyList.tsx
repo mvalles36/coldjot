@@ -12,12 +12,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Edit2, Trash2, Building2, Users } from "lucide-react";
+import { Edit2, Trash2, Building2, Users, ExternalLink } from "lucide-react";
 import AddCompanyModal from "./AddCompanyModal";
 import EditCompanyModal from "./EditCompanyModal";
 import DeleteCompanyDialog from "./DeleteCompanyDialog";
 import CompanyDetails from "./CompanyDetails";
 import { Plus } from "lucide-react";
+import Link from "next/link";
+
 type CompanyWithContacts = Company & {
   contacts: Contact[];
 };
@@ -70,15 +72,22 @@ export default function CompanyList({ initialCompanies }: CompanyListProps) {
         </TableHeader>
         <TableBody>
           {companies.map((company) => (
-            <TableRow key={company.id}>
+            <TableRow
+              key={company.id}
+              className="cursor-pointer hover:bg-muted/50"
+              onClick={() => setSelectedCompany(company)}
+            >
               <TableCell>
-                <Button
-                  variant="link"
-                  className="p-0 h-auto font-medium"
-                  onClick={() => setSelectedCompany(company)}
-                >
-                  {company.name}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{company.name}</span>
+                  <Link
+                    href={`/companies/${company.id}`}
+                    className="text-sm text-muted-foreground hover:text-primary"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                  </Link>
+                </div>
               </TableCell>
               <TableCell>
                 {company.website ? (
@@ -91,11 +100,12 @@ export default function CompanyList({ initialCompanies }: CompanyListProps) {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="hover:underline"
+                    onClick={(e) => e.stopPropagation()}
                   >
                     {company.website}
                   </a>
                 ) : (
-                  "-"
+                  "—"
                 )}
               </TableCell>
               <TableCell>
@@ -109,14 +119,20 @@ export default function CompanyList({ initialCompanies }: CompanyListProps) {
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setEditingCompany(company)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingCompany(company);
+                    }}
                   >
                     <Edit2 className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setDeletingCompany(company)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeletingCompany(company);
+                    }}
                   >
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>

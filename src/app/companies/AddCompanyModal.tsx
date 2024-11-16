@@ -5,11 +5,11 @@ import { useForm } from "react-hook-form";
 import { toast } from "react-hot-toast";
 import { Company } from "@prisma/client";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,16 +18,17 @@ import { Loader2 } from "lucide-react";
 type FormData = {
   name: string;
   website?: string;
-  address?: string;
 };
+
+interface AddCompanyModalProps {
+  onClose: () => void;
+  onAdd: (company: Company) => void;
+}
 
 export default function AddCompanyModal({
   onClose,
   onAdd,
-}: {
-  onClose: () => void;
-  onAdd: (company: Company) => void;
-}) {
+}: AddCompanyModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const {
     register,
@@ -58,47 +59,64 @@ export default function AddCompanyModal({
   };
 
   return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add Company</DialogTitle>
-        </DialogHeader>
+    <Sheet open onOpenChange={onClose}>
+      <SheetContent className="w-[800px] sm:max-w-[800px] h-[100dvh] p-0">
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="flex flex-col h-full"
+        >
+          <SheetHeader className="px-6 py-4 border-b">
+            <SheetTitle>Add New Company</SheetTitle>
+          </SheetHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Company Name</Label>
-            <Input
-              id="name"
-              {...register("name", { required: "Company name is required" })}
-            />
-            {errors.name && (
-              <p className="text-sm text-destructive">{errors.name.message}</p>
-            )}
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="name">Company Name</Label>
+                <Input
+                  id="name"
+                  {...register("name", {
+                    required: "Company name is required",
+                  })}
+                  placeholder="Enter company name"
+                />
+                {errors.name && (
+                  <p className="text-sm text-destructive">
+                    {errors.name.message}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="website">Website</Label>
+                <Input
+                  id="website"
+                  {...register("website")}
+                  placeholder="Enter company website"
+                />
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="website">Website</Label>
-            <Input id="website" {...register("website")} />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="address">Address</Label>
-            <Input id="address" {...register("address")} />
-          </div>
-
-          <div className="flex justify-end gap-4">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              Add Company
-            </Button>
+          <div className="px-6 py-4 border-t mt-auto">
+            <div className="flex justify-end gap-3">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  "Create Company"
+                )}
+              </Button>
+            </div>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

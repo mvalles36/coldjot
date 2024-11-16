@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Company } from "@prisma/client";
-import { Check, ChevronsUpDown, X } from "lucide-react";
+import { Check, ChevronsUpDown, X, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,18 +20,51 @@ import {
 } from "@/components/ui/popover";
 
 interface Props {
-  companies: Company[];
   selectedCompany: Company | null;
   onSelect: (company: Company | null) => void;
 }
 
-export function CompanySearch({ companies, selectedCompany, onSelect }: Props) {
+export function CompanySearch({ selectedCompany, onSelect }: Props) {
   const [open, setOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [inputValue, setInputValue] = useState("");
+  const [searchResults, setSearchResults] = useState<Company[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const filteredCompanies = companies.filter((company) =>
-    company.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Set initial value if company is pre-selected
+  useEffect(() => {
+    if (selectedCompany) {
+      setInputValue(selectedCompany.name);
+      setOpen(false);
+    }
+  }, [selectedCompany]);
+
+  // Handle search
+  useEffect(() => {
+    const searchCompanies = async () => {
+      if (!inputValue || inputValue.length < 2) {
+        setSearchResults([]);
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        const response = await fetch(
+          `/api/companies/search?q=${encodeURIComponent(inputValue)}`
+        );
+        if (!response.ok) throw new Error("Search failed");
+        const data = await response.json();
+        setSearchResults(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error("Search error:", error);
+        setSearchResults([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    const timer = setTimeout(searchCompanies, 300);
+    return () => clearTimeout(timer);
+  }, [inputValue]);
 
   return (
     <div className="flex gap-2">
@@ -43,40 +76,71 @@ export function CompanySearch({ companies, selectedCompany, onSelect }: Props) {
             aria-expanded={open}
             className="w-full justify-between"
           >
-            {selectedCompany ? selectedCompany.name : "Select company..."}
+            <div className="flex items-center gap-2 truncate">
+              {selectedCompany ? (
+                <>
+                  <Building2 className="h-4 w-4 shrink-0 opacity-50" />
+                  <span className="truncate">{selectedCompany.name}</span>
+                </>
+              ) : (
+                <>
+                  <Building2 className="h-4 w-4 shrink-0 opacity-50" />
+                  <span className="text-muted-foreground">
+                    Select company...
+                  </span>
+                </>
+              )}
+            </div>
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-[400px] p-0" align="start">
-          <Command>
+          <Command shouldFilter={false}>
             <CommandInput
               placeholder="Search companies..."
-              value={searchQuery}
-              onValueChange={setSearchQuery}
+              value={inputValue}
+              onValueChange={(value) => {
+                setInputValue(value);
+                setOpen(true);
+              }}
             />
             <CommandList>
-              <CommandEmpty>No company found</CommandEmpty>
-              <CommandGroup>
-                {filteredCompanies.map((company) => (
-                  <CommandItem
-                    key={company.id}
-                    onSelect={() => {
-                      onSelect(company);
-                      setOpen(false);
-                    }}
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 h-4 w-4",
-                        selectedCompany?.id === company.id
-                          ? "opacity-100"
-                          : "opacity-0"
-                      )}
-                    />
-                    {company.name}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
+              <CommandEmpty>
+                {isLoading ? "Searching..." : "No company found"}
+              </CommandEmpty>
+              {searchResults.length > 0 && (
+                <CommandGroup>
+                  {searchResults.map((company) => (
+                    <CommandItem
+                      key={company.id}
+                      onSelect={() => {
+                        onSelect(company);
+                        setOpen(false);
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      <div className="flex w-full items-center gap-2">
+                        <Check
+                          className={cn(
+                            "h-4 w-4",
+                            selectedCompany?.id === company.id
+                              ? "opacity-100"
+                              : "opacity-0"
+                          )}
+                        />
+                        <div className="flex flex-col">
+                          <span className="font-medium">{company.name}</span>
+                          {company.website && (
+                            <span className="text-sm text-muted-foreground">
+                              {company.website}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
             </CommandList>
           </Command>
         </PopoverContent>
@@ -87,7 +151,8 @@ export function CompanySearch({ companies, selectedCompany, onSelect }: Props) {
           size="icon"
           onClick={() => {
             onSelect(null);
-            setSearchQuery("");
+            setInputValue("");
+            setSearchResults([]);
           }}
           className="shrink-0"
         >

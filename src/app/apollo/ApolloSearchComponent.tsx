@@ -186,7 +186,7 @@ export default function ApolloSearchComponent({ userId }: Props) {
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="shadow-none">
         <CardHeader>
           <CardTitle>Search Company</CardTitle>
           <CardDescription>
@@ -196,7 +196,7 @@ export default function ApolloSearchComponent({ userId }: Props) {
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="flex gap-4">
-              <div className="flex-1">
+              <div className="flex flex-col flex-1 gap-2">
                 <Label htmlFor="domain">Company Domain</Label>
                 <Input
                   id="domain"
