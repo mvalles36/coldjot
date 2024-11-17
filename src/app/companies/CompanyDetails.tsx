@@ -17,10 +17,20 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Mail, Building2, Globe, Loader2, ExternalLink } from "lucide-react";
+import {
+  Mail,
+  Building2,
+  Globe,
+  Loader2,
+  ExternalLink,
+  Edit2,
+  Trash2,
+} from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
+import { User } from "lucide-react";
+import { toast } from "react-hot-toast";
 
 type CompanyWithContacts = Company & {
   contacts: Contact[];
@@ -130,17 +140,66 @@ export default function CompanyDetails({
                         company.contacts.map((contact) => (
                           <TableRow key={contact.id}>
                             <TableCell className="font-medium">
-                              {contact.name}
+                              <div className="flex items-center gap-2">
+                                <User className="h-4 w-4 text-muted-foreground/70" />
+                                <span>
+                                  {contact.firstName} {contact.lastName}
+                                </span>
+                              </div>
                             </TableCell>
                             <TableCell>{contact.email}</TableCell>
                             <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => onContactClick?.(contact)}
-                              >
-                                <Mail className="h-4 w-4" />
-                              </Button>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => onContactClick?.(contact)}
+                                >
+                                  <Mail className="h-4 w-4" />
+                                </Button>
+                                <Link href={`/contacts/${contact.id}/edit`}>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <Edit2 className="h-4 w-4" />
+                                  </Button>
+                                </Link>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    try {
+                                      const response = await fetch(
+                                        `/api/contacts/${contact.id}`,
+                                        {
+                                          method: "DELETE",
+                                        }
+                                      );
+                                      if (!response.ok)
+                                        throw new Error(
+                                          "Failed to delete contact"
+                                        );
+
+                                      setCompany((prev) => ({
+                                        ...prev,
+                                        contacts: prev.contacts.filter(
+                                          (c) => c.id !== contact.id
+                                        ),
+                                      }));
+                                      toast.success(
+                                        "Contact deleted successfully"
+                                      );
+                                    } catch (error) {
+                                      toast.error("Failed to delete contact");
+                                    }
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))

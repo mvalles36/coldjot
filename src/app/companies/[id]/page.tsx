@@ -3,15 +3,14 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Separator } from "@/components/ui/separator";
-import { Contact } from "@prisma/client";
+import ContactList from "@/app/contacts/ContactList";
+import { Globe, Building2 } from "lucide-react";
 
-interface CompanyPageProps {
-  params: {
-    id: string;
-  };
-}
-
-export default async function CompanyPage({ params }: CompanyPageProps) {
+export default async function CompanyPage({
+  params,
+}: {
+  params: { id: string };
+}) {
   const session = await auth();
   if (!session?.user?.id) return null;
 
@@ -20,47 +19,58 @@ export default async function CompanyPage({ params }: CompanyPageProps) {
       id: params.id,
       userId: session.user.id,
     },
-    include: {
-      contacts: true,
-    },
   });
 
   if (!company) {
     notFound();
   }
 
+  const contacts = await prisma.contact.findMany({
+    where: {
+      companyId: company.id,
+      userId: session.user.id,
+    },
+    include: { company: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const companies = await prisma.company.findMany({
+    where: { userId: session.user.id },
+    orderBy: { name: "asc" },
+  });
+
   return (
     <div className="max-w-7xl mx-auto py-8 space-y-6">
-      <PageHeader
-        title={company.name}
-        description={`View details and contacts for ${company.name}`}
-      />
+      <div className="space-y-4">
+        <PageHeader
+          title={company.name}
+          description="View and manage company details and contacts."
+        />
+
+        {company.website && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Globe className="h-4 w-4" />
+            <a
+              href={
+                company.website.startsWith("http")
+                  ? company.website
+                  : `https://${company.website}`
+              }
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:underline"
+            >
+              {company.website}
+            </a>
+          </div>
+        )}
+      </div>
+
       <Separator />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold">Company Details</h2>
-          <div className="space-y-2">
-            <p>
-              <span className="font-medium">Website:</span>{" "}
-              {company.website || "N/A"}
-            </p>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold">Contacts</h2>
-          <div className="space-y-2">
-            {company.contacts.map((contact: Contact) => (
-              <div key={contact.id} className="p-3 border rounded-lg">
-                <p className="font-medium">
-                  {contact.firstName} {contact.lastName}
-                </p>
-                <p className="text-sm text-muted-foreground">{contact.email}</p>
-              </div>
-            ))}
-          </div>
-        </div>
+      <div className="space-y-6">
+        <h2 className="text-lg font-semibold">Contacts</h2>
+        <ContactList initialContacts={contacts} companies={companies} />
       </div>
     </div>
   );
