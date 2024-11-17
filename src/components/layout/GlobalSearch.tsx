@@ -15,7 +15,14 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { DialogTitle } from "@/components/ui/dialog";
-import { Search, User, Building2, FileText, Loader2 } from "lucide-react";
+import {
+  Search,
+  User,
+  Building2,
+  FileText,
+  Loader2,
+  ArrowRight,
+} from "lucide-react";
 import { SearchResult, SearchResultType } from "@/types/search";
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
 import { v4 as uuidv4 } from "uuid";
@@ -115,15 +122,15 @@ export function GlobalSearch() {
       }
     };
 
-    searchItems();
-
+    const timeoutId = setTimeout(searchItems, 300);
     return () => {
       active = false;
+      clearTimeout(timeoutId);
     };
   }, [query]);
 
   React.useEffect(() => {
-    console.log("Results updated:", results);
+    console.log("Results Length:", results.length);
   }, [results]);
 
   const groupedResults = useMemo(() => {
@@ -136,11 +143,32 @@ export function GlobalSearch() {
     return grouped;
   }, [results]);
 
+  const viewAllItem: SearchResult = {
+    id: "view-all",
+    type: "action",
+    title: "View all results",
+    subtitle: ``,
+    url: `/search?q=${encodeURIComponent(query)}`,
+  };
+
+  console.log("Results:", results);
+  console.log("ViewAllItem:", viewAllItem);
+
+  const displayedResults =
+    results.length > 0 ? [...results.slice(0, 2), viewAllItem] : [];
+
+  console.log("DisplayedResults:", displayedResults);
+
+  const handleViewAll = () => {
+    setOpen(false);
+    router.push(`/search?q=${encodeURIComponent(query)}`);
+  };
+
   return (
     <>
       <Button
         variant="outline"
-        className="relative h-9 w-full justify-start text-sm text-muted-foreground sm:pr-12 md:w-40 lg:w-80"
+        className="relative h-9 w-full justify-start text-sm text-muted-foreground sm:pr-12 md:w-40 lg:w-80 hover:border-primary/50 transition-colors"
         onClick={() => setOpen(true)}
       >
         <Search className="mr-2 h-4 w-4" />
@@ -152,14 +180,14 @@ export function GlobalSearch() {
       </Button>
 
       <CommandDialog open={open} onOpenChange={handleOpenChange}>
-        <VisuallyHidden.Root asChild>
+        <VisuallyHidden.Root>
           <DialogTitle>Search</DialogTitle>
         </VisuallyHidden.Root>
         <Command
           className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0"
           filter={(value, search) => {
-            if (value.toLowerCase().includes(search.toLowerCase())) return 1;
-            return 0;
+            if (value === "view-all") return 1;
+            return value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
           }}
         >
           <CommandInput
@@ -168,74 +196,76 @@ export function GlobalSearch() {
             onValueChange={setQuery}
             className="border-none focus:ring-0"
           />
-          <CommandList className="max-h-[500px] overflow-y-auto py-2">
+          <CommandList className="max-h-[500px] overflow-y-auto py-2 pb-0">
             {query.length === 0 ? (
-              <CommandEmpty>Type to start searching...</CommandEmpty>
+              <CommandEmpty className="py-6 text-center text-sm">
+                Type to start searching...
+              </CommandEmpty>
             ) : isLoading ? (
               <div className="flex items-center justify-center py-6">
                 <Loader2 className="h-4 w-4 animate-spin" />
               </div>
             ) : results.length === 0 ? (
-              <CommandEmpty>No results found.</CommandEmpty>
+              <CommandEmpty className="py-6 text-center text-sm">
+                No results found.
+              </CommandEmpty>
             ) : (
               <>
-                {/* Contacts Section */}
-                {results.some((item) => item.type === "contact") && (
-                  <CommandGroup heading="Contacts">
-                    {results
-                      .filter((item) => item.type === "contact")
-                      .map((item) => (
-                        <CommandItem
-                          key={item.id}
-                          value={`${item.title} ${item.subtitle}`}
-                          onSelect={() => {
-                            router.push(item.url!);
-                            setOpen(false);
-                          }}
-                          className="flex items-center gap-2 px-2"
-                        >
-                          <User className="h-4 w-4" />
-                          <div className="flex flex-col">
-                            <span className="font-medium">{item.title}</span>
-                            {item.subtitle && (
-                              <span className="text-xs text-muted-foreground">
-                                {item.subtitle}
-                              </span>
-                            )}
-                          </div>
-                        </CommandItem>
-                      ))}
-                  </CommandGroup>
-                )}
-
-                {/* Companies Section */}
-                {results.some((item) => item.type === "company") && (
-                  <CommandGroup heading="Companies">
-                    {results
-                      .filter((item) => item.type === "company")
-                      .map((item) => (
-                        <CommandItem
-                          key={item.id}
-                          value={`${item.title} ${item.subtitle}`}
-                          onSelect={() => {
-                            router.push(item.url!);
-                            setOpen(false);
-                          }}
-                          className="flex items-center gap-2 px-2"
-                        >
-                          <Building2 className="h-4 w-4" />
-                          <div className="flex flex-col">
-                            <span className="font-medium">{item.title}</span>
-                            {item.subtitle && (
-                              <span className="text-xs text-muted-foreground">
-                                {item.subtitle}
-                              </span>
-                            )}
-                          </div>
-                        </CommandItem>
-                      ))}
-                  </CommandGroup>
-                )}
+                {displayedResults.map((item) => (
+                  <CommandItem
+                    key={item.id}
+                    value={
+                      item.type === "action"
+                        ? "view-all"
+                        : `${item.title} ${item.subtitle}`
+                    }
+                    onSelect={() => {
+                      if (item.type === "action") {
+                        handleViewAll();
+                      } else {
+                        router.push(item.url!);
+                        setOpen(false);
+                      }
+                    }}
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2 mx-2 rounded-md cursor-pointer transition-colors",
+                      item.type === "action"
+                        ? "justify-center text-sm hover:text-primary border-t mt-2 pt-4 mx-0 rounded-none hover:bg-transparent"
+                        : "hover:bg-primary/5"
+                    )}
+                  >
+                    {item.type === "contact" ? (
+                      <User className="h-4 w-4 text-muted-foreground/70" />
+                    ) : item.type === "company" ? (
+                      <Building2 className="h-4 w-4 text-muted-foreground/70" />
+                    ) : null}
+                    <div className="flex flex-col flex-1 min-w-0">
+                      {item.type === "action" ? (
+                        <span className="pl-2 flex items-center gap-2">
+                          <span className="font-medium truncate">
+                            {item.title}
+                          </span>
+                        </span>
+                      ) : item.subtitle ? (
+                        <>
+                          <span className="font-medium truncate">
+                            {item.title}
+                          </span>
+                          <span className="text-xs text-muted-foreground truncate">
+                            {item.subtitle}
+                          </span>
+                        </>
+                      ) : null}
+                    </div>
+                    {item.type === "action" ? (
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    ) : (
+                      <kbd className="ml-auto text-xs text-muted-foreground/50">
+                        ↵
+                      </kbd>
+                    )}
+                  </CommandItem>
+                ))}
               </>
             )}
           </CommandList>

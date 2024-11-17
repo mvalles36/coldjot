@@ -61,87 +61,83 @@ export default function CompanyList({ initialCompanies }: CompanyListProps) {
         </Button>
       </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Website</TableHead>
-            <TableHead>Contacts</TableHead>
-            <TableHead className="w-[100px]">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {companies.map((company) => (
-            <TableRow
-              key={company.id}
-              className="cursor-pointer hover:bg-muted/50"
-              onClick={() => setSelectedCompany(company)}
-            >
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">{company.name}</span>
-                  <Link
-                    href={`/companies/${company.id}`}
-                    className="text-sm text-muted-foreground hover:text-primary"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                  </Link>
-                </div>
-              </TableCell>
-              <TableCell>
-                {company.website ? (
-                  <a
-                    href={
-                      company.website.startsWith("http")
-                        ? company.website
-                        : `https://${company.website}`
-                    }
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hover:underline"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {company.website}
-                  </a>
-                ) : (
-                  "—"
-                )}
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                  {company.contacts.length}
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditingCompany(company);
-                    }}
-                  >
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeletingCompany(company);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
-              </TableCell>
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Website</TableHead>
+              <TableHead>Contacts</TableHead>
+              <TableHead className="w-[100px]">Actions</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {companies.map((company) => (
+              <TableRow
+                key={company.id}
+                className="cursor-pointer hover:bg-muted/50"
+                onClick={() => setSelectedCompany(company)}
+              >
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-muted-foreground/70" />
+                    <span className="font-medium">{company.name}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  {company.website ? (
+                    <a
+                      href={
+                        company.website.startsWith("http")
+                          ? company.website
+                          : `https://${company.website}`
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {company.website}
+                    </a>
+                  ) : (
+                    "—"
+                  )}
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    {company.contacts.length}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingCompany(company);
+                      }}
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeletingCompany(company);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
 
       {showAddModal && (
         <AddCompanyModal

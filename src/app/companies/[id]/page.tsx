@@ -5,11 +5,13 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Separator } from "@/components/ui/separator";
 import { Contact } from "@prisma/client";
 
-export default async function CompanyPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+interface CompanyPageProps {
+  params: {
+    id: string;
+  };
+}
+
+export default async function CompanyPage({ params }: CompanyPageProps) {
   const session = await auth();
   if (!session?.user?.id) return null;
 

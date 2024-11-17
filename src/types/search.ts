@@ -1,4 +1,4 @@
-export type SearchResultType = "contact" | "template" | "company";
+export type SearchResultType = "contact" | "company" | "action";
 
 export interface SearchResult {
   id: string;

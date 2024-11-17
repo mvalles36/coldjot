@@ -77,6 +77,13 @@ const apolloRoute = {
   description: "Find new prospects",
 };
 
+const searchRoute = {
+  label: "Search",
+  icon: Search,
+  href: "/search",
+  description: "Search across all data",
+};
+
 export default function Sidebar() {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -220,6 +227,33 @@ export default function Sidebar() {
                   <span>{apolloRoute.label}</span>
                   <span className="text-xs text-muted-foreground">
                     {apolloRoute.description}
+                  </span>
+                </div>
+              )}
+            </Link>
+
+            <Link
+              href={searchRoute.href}
+              className={cn(
+                "flex items-center gap-x-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:bg-gray-100",
+                "text-gray-500 hover:text-gray-900",
+                pathname === searchRoute.href && "bg-gray-100 text-gray-900",
+                isCollapsed && "justify-center px-2"
+              )}
+            >
+              <searchRoute.icon
+                className={cn(
+                  "h-5 w-5 flex-shrink-0",
+                  pathname === searchRoute.href
+                    ? "text-gray-900"
+                    : "text-gray-500"
+                )}
+              />
+              {!isCollapsed && (
+                <div className="flex flex-col">
+                  <span>{searchRoute.label}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {searchRoute.description}
                   </span>
                 </div>
               )}
