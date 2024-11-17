@@ -108,3 +108,37 @@ body {
 [data-radix-popper-content-wrapper] {
   z-index: 100 !important;
 }
+
+@layer components {
+  .cmd-dialog-overlay {
+    @apply animate-in fade-in-0;
+  }
+
+  .cmd-dialog-content {
+    @apply animate-in fade-in-0 zoom-in-95;
+  }
+
+  .cmd-dialog-exit {
+    @apply animate-out fade-out-0 zoom-out-95;
+  }
+}
+
+[cmdk-dialog] {
+  @apply transition-all duration-200;
+}
+
+[cmdk-overlay] {
+  @apply transition-opacity duration-200;
+}
+
+[cmdk-content] {
+  @apply transition-all duration-200;
+}
+
+[cmdk-group] {
+  @apply transition-opacity duration-200;
+}
+
+[cmdk-item] {
+  @apply transition-colors duration-200;
+}

@@ -10,17 +10,17 @@ export async function GET(request: Request) {
   }
 
   try {
-    const companies = await prisma.company.findMany({
+    const templates = await prisma.template.findMany({
       where: {
         OR: [
           { name: { contains: query, mode: "insensitive" } },
-          { website: { contains: query, mode: "insensitive" } },
+          //   { description: { contains: query, mode: "insensitive" } },
         ],
       },
       take: 20,
     });
 
-    return NextResponse.json(companies);
+    return NextResponse.json(templates);
   } catch (error) {
     console.error("Search error:", error);
     return NextResponse.json({ error: "Search failed" }, { status: 500 });
