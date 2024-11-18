@@ -3,15 +3,17 @@ import { GlobalSearch } from "./GlobalSearch";
 interface PageHeaderProps {
   title: string;
   description?: string;
+  children?: React.ReactNode;
 }
 
-export function PageHeader({ title, description }: PageHeaderProps) {
+export function PageHeader({ title, description, children }: PageHeaderProps) {
   return (
-    <div className="flex flex-col space-y-6 sm:flex-row sm:space-y-0 sm:items-center sm:justify-between">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
-        {description && <p className="text-muted-foreground">{description}</p>}
-      </div>
+    <div className="flex flex-col gap-2">
+      <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+      {description && (
+        <p className="text-sm text-muted-foreground">{description}</p>
+      )}
+      {children}
     </div>
   );
 }

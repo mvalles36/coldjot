@@ -176,7 +176,7 @@ export function GlobalSearch({ isCollapsed }: { isCollapsed?: boolean }) {
         )}
         onClick={() => setOpen(true)}
       >
-        <Search className={cn("h-4 w-4", !isCollapsed && "mr-2")} />
+        <Search className={cn("h-4 w-4", !isCollapsed && "mr-0")} />
         {!isCollapsed && (
           <>
             <span className="hidden lg:inline-flex">Search...</span>

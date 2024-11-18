@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Template } from "@/types";
+import { useState, useEffect } from "react";
+import { Template } from "@prisma/client";
 import {
   Table,
   TableBody,
@@ -11,109 +11,94 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Eye, Edit2, Trash2 } from "lucide-react";
-import AddTemplateButton from "./AddTemplateButton";
-import EditTemplateModal from "./EditTemplateModal";
-import PreviewTemplateModal from "./PreviewTemplateModal";
-import DeleteTemplateDialog from "./DeleteTemplateDialog";
+import { Edit2, Trash2, FileText, Plus } from "lucide-react";
 
-interface Props {
-  initialTemplates: Template[];
+interface TemplateListProps {
+  searchQuery?: string;
+  onSearchStart?: () => void;
+  onSearchEnd?: () => void;
 }
 
-export default function TemplateList({ initialTemplates }: Props) {
-  const [templates, setTemplates] = useState<Template[]>(initialTemplates);
-  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
-  const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
-  const [deletingTemplate, setDeletingTemplate] = useState<Template | null>(
-    null
-  );
+export default function TemplateList({
+  searchQuery = "",
+  onSearchStart,
+  onSearchEnd,
+}: TemplateListProps) {
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleAddTemplate = (template: Template) => {
-    setTemplates((prev) => [template, ...prev]);
-  };
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      if (!searchQuery || searchQuery.length >= 2) {
+        onSearchStart?.();
+        try {
+          const response = await fetch(
+            `/api/templates/search?q=${encodeURIComponent(searchQuery)}`
+          );
+          const data = await response.json();
+          setTemplates(data);
+        } catch (error) {
+          console.error("Failed to fetch templates:", error);
+        } finally {
+          onSearchEnd?.();
+        }
+      }
+    };
 
-  const handleUpdateTemplate = (updatedTemplate: Template) => {
-    setTemplates((prev) =>
-      prev.map((t) => (t.id === updatedTemplate.id ? updatedTemplate : t))
-    );
-    setEditingTemplate(null);
-  };
+    if (searchQuery.length === 1) {
+      return;
+    }
 
-  const handleDeleteTemplate = (templateId: string) => {
-    setTemplates((prev) => prev.filter((t) => t.id !== templateId));
-    setDeletingTemplate(null);
-  };
+    fetchTemplates();
+  }, [searchQuery, onSearchStart, onSearchEnd]);
 
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <AddTemplateButton onAddTemplate={handleAddTemplate} />
+        <Button>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Template
+        </Button>
       </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead className="w-[150px]">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {templates.map((template) => (
-            <TableRow key={template.id}>
-              <TableCell className="font-medium">{template.name}</TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setPreviewTemplate(template)}
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setEditingTemplate(template)}
-                  >
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setDeletingTemplate(template)}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
-              </TableCell>
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Subject</TableHead>
+              <TableHead>Updated</TableHead>
+              <TableHead className="w-[100px]">Actions</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-
-      {editingTemplate && (
-        <EditTemplateModal
-          template={editingTemplate}
-          onClose={() => setEditingTemplate(null)}
-          onSave={handleUpdateTemplate}
-        />
-      )}
-
-      {previewTemplate && (
-        <PreviewTemplateModal
-          template={previewTemplate}
-          onClose={() => setPreviewTemplate(null)}
-        />
-      )}
-
-      {deletingTemplate && (
-        <DeleteTemplateDialog
-          template={deletingTemplate}
-          onClose={() => setDeletingTemplate(null)}
-          onDelete={handleDeleteTemplate}
-        />
-      )}
+          </TableHeader>
+          <TableBody>
+            {templates.map((template) => (
+              <TableRow key={template.id} className="hover:bg-muted/50">
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-muted-foreground/70" />
+                    <span className="font-medium">{template.name}</span>
+                  </div>
+                </TableCell>
+                <TableCell>{template.subject}</TableCell>
+                <TableCell>
+                  {new Date(template.updatedAt).toLocaleDateString()}
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="icon">
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon">
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

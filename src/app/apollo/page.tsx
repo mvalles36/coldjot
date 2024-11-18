@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { Separator } from "@/components/ui/separator";
+import { PageHeader } from "@/components/layout/PageHeader";
 import ApolloSearchComponent from "./ApolloSearchComponent";
 
 export default async function ApolloPage() {
@@ -8,14 +9,13 @@ export default async function ApolloPage() {
 
   return (
     <div className="max-w-7xl mx-auto py-8 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Apollo Search</h1>
-        <p className="text-muted-foreground">
-          Search for decision makers by company domain and enrich their contact
-          information.
-        </p>
+      <div className="flex flex-col gap-6">
+        <PageHeader
+          title="Apollo Search"
+          description="Search for decision makers by company domain and enrich their contact information."
+        />
+        <Separator />
       </div>
-      <Separator />
       <ApolloSearchComponent userId={session.user.id} />
     </div>
   );

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { Separator } from "@/components/ui/separator";
 import { SearchResult, SearchResultType } from "@/types/search";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -23,7 +25,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
 
@@ -99,31 +100,31 @@ export default function SearchPage() {
 
   return (
     <div className="max-w-7xl mx-auto py-8 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Search</h1>
-          <p className="text-muted-foreground">
-            {query ? `Results for "${query}"` : "Search across all data"}
-          </p>
-        </div>
-
-        <div className="max-w-2xl w-full">
+      <div className="flex flex-col gap-6">
+        <div className="flex items-center justify-between">
+          <PageHeader
+            title="Search"
+            description="Search across all your contacts, companies, and templates."
+          />
           <form onSubmit={handleSearch} className="flex gap-2">
             <Input
+              type="search"
+              placeholder="Search..."
+              className="w-[300px]"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search contacts, companies..."
-              className="flex-1"
             />
-            <Button type="submit">
-              <Search className="h-4 w-4 mr-2" />
-              Search
+            <Button type="submit" variant="outline">
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Search className="h-4 w-4" />
+              )}
             </Button>
           </form>
         </div>
+        <Separator />
       </div>
-
-      <Separator />
 
       <div className="space-y-6">
         <Tabs

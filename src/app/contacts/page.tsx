@@ -1,40 +1,42 @@
-import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+"use client";
+
+import { useState } from "react";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { LocalSearch } from "@/components/ui/local-search";
 import ContactList from "./ContactList";
 import { Separator } from "@/components/ui/separator";
-import { PageHeader } from "@/components/layout/PageHeader";
-import { Contact, Company } from "@prisma/client";
 
-type ContactWithCompany = Contact & {
-  company: Company | null;
-};
+export default function ContactsPage() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeSearch, setActiveSearch] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
 
-export default async function ContactsPage() {
-  const session = await auth();
-  if (!session?.user?.id) return null;
-
-  const [contacts, companies] = await Promise.all([
-    prisma.contact.findMany({
-      where: { userId: session.user.id },
-      include: { company: true },
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.company.findMany({
-      where: { userId: session.user.id },
-      orderBy: { name: "asc" },
-    }),
-  ]);
+  const handleSearch = (value: string) => {
+    setActiveSearch(value);
+    setIsSearching(true);
+  };
 
   return (
     <div className="max-w-7xl mx-auto py-8 space-y-6">
-      <PageHeader
-        title="Contacts"
-        description="Manage your contacts and their associated companies."
-      />
-      <Separator />
+      <div className="flex flex-col gap-6">
+        <div className="flex items-center justify-between">
+          <PageHeader
+            title="Contacts"
+            description="Manage your contacts and their associated companies."
+          />
+          <LocalSearch
+            placeholder="Search contacts..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onSearch={handleSearch}
+            isLoading={isSearching}
+          />
+        </div>
+        <Separator />
+      </div>
       <ContactList
-        initialContacts={contacts as ContactWithCompany[]}
-        companies={companies}
+        searchQuery={activeSearch}
+        onSearchEnd={() => setIsSearching(false)}
       />
     </div>
   );

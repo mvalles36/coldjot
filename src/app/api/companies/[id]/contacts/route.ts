@@ -6,34 +6,14 @@ export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id: companyId } = await params;
+
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Ensure params.id exists
-    const companyId = params.id;
-    if (!companyId) {
-      return NextResponse.json(
-        { error: "Company ID is required" },
-        { status: 400 }
-      );
-    }
-
-    // Verify company ownership
-    const company = await prisma.company.findFirst({
-      where: {
-        id: companyId,
-        userId: session.user.id,
-      },
-    });
-
-    if (!company) {
-      return NextResponse.json({ error: "Company not found" }, { status: 404 });
-    }
-
-    // Get contacts
     const contacts = await prisma.contact.findMany({
       where: {
         userId: session.user.id,

@@ -11,6 +11,8 @@ export async function PATCH(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const id = await params.id;
+
   try {
     const json = await request.json();
     const { name, website, address } = json;
@@ -18,7 +20,7 @@ export async function PATCH(
     // Verify ownership
     const existingCompany = await prisma.company.findFirst({
       where: {
-        id: params.id,
+        id: id,
         userId: session.user.id,
       },
     });
@@ -28,7 +30,7 @@ export async function PATCH(
     }
 
     const company = await prisma.company.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         name,
         website,
@@ -54,11 +56,13 @@ export async function DELETE(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const id = await params.id;
+
   try {
     // Verify ownership
     const existingCompany = await prisma.company.findFirst({
       where: {
-        id: params.id,
+        id: id,
         userId: session.user.id,
       },
     });
@@ -68,7 +72,7 @@ export async function DELETE(
     }
 
     await prisma.company.delete({
-      where: { id: params.id },
+      where: { id: id },
     });
 
     return NextResponse.json({ success: true });

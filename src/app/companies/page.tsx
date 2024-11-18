@@ -1,32 +1,43 @@
-import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
-import { Separator } from "@/components/ui/separator";
+"use client";
+
+import { useState } from "react";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { LocalSearch } from "@/components/ui/local-search";
 import CompanyList from "./CompanyList";
+import { Separator } from "@/components/ui/separator";
 
-export default async function CompaniesPage() {
-  const session = await auth();
-  if (!session?.user?.id) return null;
+export default function CompaniesPage() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeSearch, setActiveSearch] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
 
-  const companies = await prisma.company.findMany({
-    where: { userId: session.user.id },
-    include: {
-      contacts: {
-        orderBy: { name: "asc" },
-      },
-    },
-    orderBy: { name: "asc" },
-  });
+  const handleSearch = (value: string) => {
+    setActiveSearch(value);
+    setIsSearching(true);
+  };
 
   return (
     <div className="max-w-7xl mx-auto py-8 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Companies</h1>
-        <p className="text-muted-foreground">
-          Manage your companies and view their associated contacts.
-        </p>
+      <div className="flex flex-col gap-6">
+        <div className="flex items-center justify-between">
+          <PageHeader
+            title="Companies"
+            description="Manage your company database."
+          />
+          <LocalSearch
+            placeholder="Search companies..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onSearch={handleSearch}
+            isLoading={isSearching}
+          />
+        </div>
+        <Separator />
       </div>
-      <Separator />
-      <CompanyList initialCompanies={companies} />
+      <CompanyList
+        searchQuery={activeSearch}
+        onSearchEnd={() => setIsSearching(false)}
+      />
     </div>
   );
 }

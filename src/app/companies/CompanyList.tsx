@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Company, Contact } from "@prisma/client";
 import {
@@ -25,18 +25,50 @@ type CompanyWithContacts = Company & {
 };
 
 interface CompanyListProps {
-  initialCompanies: CompanyWithContacts[];
+  searchQuery?: string;
+  onSearchStart?: () => void;
+  onSearchEnd?: () => void;
 }
 
-export default function CompanyList({ initialCompanies }: CompanyListProps) {
+export default function CompanyList({
+  searchQuery = "",
+  onSearchStart,
+  onSearchEnd,
+}: CompanyListProps) {
   const router = useRouter();
-  const [companies, setCompanies] = useState(initialCompanies);
+  const [companies, setCompanies] = useState<CompanyWithContacts[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingCompany, setEditingCompany] =
     useState<CompanyWithContacts | null>(null);
   const [deletingCompany, setDeletingCompany] = useState<Company | null>(null);
   const [selectedCompany, setSelectedCompany] =
     useState<CompanyWithContacts | null>(null);
+
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      if (!searchQuery || searchQuery.length >= 2) {
+        onSearchStart?.();
+        try {
+          const response = await fetch(
+            `/api/companies/search?q=${encodeURIComponent(searchQuery)}`
+          );
+          const data = await response.json();
+          setCompanies(data);
+        } catch (error) {
+          console.error("Failed to fetch companies:", error);
+        } finally {
+          onSearchEnd?.();
+        }
+      }
+    };
+
+    if (searchQuery.length === 1) {
+      return;
+    }
+
+    fetchCompanies();
+  }, [searchQuery, onSearchStart, onSearchEnd]);
 
   const handleContactClick = (contact: Contact) => {
     localStorage.setItem(

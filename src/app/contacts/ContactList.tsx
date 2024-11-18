@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Contact, Company } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import EditContactModal from "./EditContactModal";
@@ -40,8 +40,9 @@ type ContactWithCompany = Contact & {
 };
 
 interface ContactListProps {
-  initialContacts: ContactWithCompany[];
-  companies: Company[];
+  searchQuery?: string;
+  onSearchStart?: () => void;
+  onSearchEnd?: () => void;
 }
 
 // Helper function to format LinkedIn URL
@@ -60,16 +61,41 @@ const formatLinkedInUrl = (url: string | null) => {
 };
 
 export default function ContactList({
-  initialContacts,
-  companies,
+  searchQuery = "",
+  onSearchStart,
+  onSearchEnd,
 }: ContactListProps) {
   const router = useRouter();
-  const [contacts, setContacts] =
-    useState<ContactWithCompany[]>(initialContacts);
+  const [contacts, setContacts] = useState<ContactWithCompany[]>([]);
   const [editingContact, setEditingContact] =
     useState<ContactWithCompany | null>(null);
   const [deletingContact, setDeletingContact] =
     useState<ContactWithCompany | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchContacts = async () => {
+      onSearchStart?.();
+      try {
+        const url =
+          searchQuery.length >= 2
+            ? `/api/contacts/search?q=${encodeURIComponent(searchQuery)}`
+            : "/api/contacts";
+
+        const response = await fetch(url);
+        const data = await response.json();
+        setContacts(data);
+      } catch (error) {
+        console.error("Failed to fetch contacts:", error);
+      } finally {
+        onSearchEnd?.();
+      }
+    };
+
+    if (searchQuery.length === 0 || searchQuery.length >= 2) {
+      fetchContacts();
+    }
+  }, [searchQuery, onSearchStart, onSearchEnd]);
 
   const handleAddContact = (newContact: ContactWithCompany) => {
     setContacts((prev) => [newContact, ...prev]);
@@ -191,10 +217,7 @@ export default function ContactList({
   return (
     <div className="space-y-4">
       <div className="flex justify-end gap-2">
-        <AddContactButton
-          onAddContact={handleAddContact}
-          companies={companies}
-        />
+        <AddContactButton onAddContact={handleAddContact} companies={[]} />
       </div>
 
       <div className="rounded-md border">
