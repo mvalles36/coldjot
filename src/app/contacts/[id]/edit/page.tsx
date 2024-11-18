@@ -14,12 +14,12 @@ export default async function EditContactPage({
   if (!session?.user?.id) {
     redirect("/auth/signin");
   }
-
+  const { id } = await params;
   try {
     const [contact, companies] = await Promise.all([
       prisma.contact.findFirst({
         where: {
-          id: params.id,
+          id: id,
           userId: session.user.id,
         },
         include: { company: true },

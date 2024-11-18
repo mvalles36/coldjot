@@ -2,111 +2,73 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
-export async function PUT(
+export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   const session = await auth();
   if (!session?.user?.id) {
-    return new NextResponse("Unauthorized", { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await params;
-  const json = await request.json();
-  const { name, email } = json;
+  const contactId = context.params.id;
 
-  console.log(json);
-
-  const contact = await prisma.contact.update({
-    where: {
-      id,
-      userId: session.user.id,
-    },
-    data: {
-      name,
-      email,
-    },
-  });
-
-  return NextResponse.json(contact);
-}
-
-export async function PATCH(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { id } = params;
-    const json = await request.json();
-    const { firstName, lastName, email, linkedinUrl, companyId } = json;
-
-    // Basic validation
-    if (!firstName || !lastName || !email) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
-    }
-
-    // Verify ownership
-    const existingContact = await prisma.contact.findFirst({
+    const contact = await prisma.contact.findFirst({
       where: {
-        id,
+        id: contactId,
         userId: session.user.id,
       },
+      include: { company: true },
     });
 
-    if (!existingContact) {
+    if (!contact) {
       return NextResponse.json({ error: "Contact not found" }, { status: 404 });
     }
 
-    // Create update data object
-    const updateData = {
-      firstName,
-      lastName,
-      name: `${firstName} ${lastName}`,
-      email,
-      linkedinUrl,
-      companyId: null, // Default to null
-    };
+    return NextResponse.json(contact);
+  } catch (error) {
+    console.error("Error fetching contact:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch contact" },
+      { status: 500 }
+    );
+  }
+}
 
-    // Only add companyId if it exists and is not null/undefined
-    if (companyId) {
-      // Verify the company exists and belongs to the user
-      const company = await prisma.company.findFirst({
-        where: {
-          id: companyId,
-          userId: session.user.id,
-        },
-      });
+export async function PUT(
+  request: Request,
+  context: { params: { id: string } }
+) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-      if (!company) {
-        return NextResponse.json(
-          { error: "Invalid company selected" },
-          { status: 400 }
-        );
-      }
+  const contactId = context.params.id;
+  const data = await request.json();
 
-      updateData.companyId = companyId;
-    }
-
-    // Update the contact
-    const contact = await prisma.contact.update({
-      where: { id },
-      data: updateData,
+  try {
+    const updatedContact = await prisma.contact.update({
+      where: {
+        id: contactId,
+        userId: session.user.id,
+      },
+      data: {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        linkedinUrl: data.linkedinUrl,
+        companyId: data.companyId,
+      },
       include: {
         company: true,
       },
     });
 
-    return NextResponse.json(contact);
+    return NextResponse.json(updatedContact);
   } catch (error) {
-    console.error("Failed to update contact:", error);
+    console.error("Error updating contact:", error);
     return NextResponse.json(
       { error: "Failed to update contact" },
       { status: 500 }
@@ -114,37 +76,71 @@ export async function PATCH(
   }
 }
 
+export async function PATCH(
+  request: Request,
+  context: { params: { id: string } }
+) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const contactId = context.params.id;
+  const data = await request.json();
+
+  try {
+    // Only update the fields that are provided
+    const updatedContact = await prisma.contact.update({
+      where: {
+        id: contactId,
+        userId: session.user.id,
+      },
+      data: {
+        ...(data.firstName !== undefined && { firstName: data.firstName }),
+        ...(data.lastName !== undefined && { lastName: data.lastName }),
+        ...(data.email !== undefined && { email: data.email }),
+        ...(data.linkedinUrl !== undefined && {
+          linkedinUrl: data.linkedinUrl,
+        }),
+        ...(data.companyId !== undefined && { companyId: data.companyId }),
+      },
+      include: {
+        company: true,
+      },
+    });
+
+    return NextResponse.json(updatedContact);
+  } catch (error) {
+    console.error("Error patching contact:", error);
+    return NextResponse.json(
+      { error: "Failed to patch contact" },
+      { status: 500 }
+    );
+  }
+}
+
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const contactId = context.params.id;
+
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { id } = params;
-
-    // Verify ownership
-    const existingContact = await prisma.contact.findFirst({
+    await prisma.contact.delete({
       where: {
-        id,
+        id: contactId,
         userId: session.user.id,
       },
     });
 
-    if (!existingContact) {
-      return NextResponse.json({ error: "Contact not found" }, { status: 404 });
-    }
-
-    await prisma.contact.delete({
-      where: { id },
-    });
-
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Failed to delete contact:", error);
+    console.error("Error deleting contact:", error);
     return NextResponse.json(
       { error: "Failed to delete contact" },
       { status: 500 }

@@ -32,7 +32,6 @@ export default function AddContactButton({
         <AddContactModal
           onClose={() => setShowModal(false)}
           onAdd={onAddContact}
-          companies={companies}
         />
       )}
     </>

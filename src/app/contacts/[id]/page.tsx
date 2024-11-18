@@ -1,141 +1,183 @@
-import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
-import { notFound, redirect } from "next/navigation";
+"use client";
+
+import { useEffect, useState, use } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Separator } from "@/components/ui/separator";
-import { User, Building2, Globe, Linkedin, Mail } from "lucide-react";
+import { User, Building2, Globe, Linkedin, Mail, Calendar } from "lucide-react";
 import Link from "next/link";
 import { formatLinkedInUrl } from "@/lib/utils";
 import ActionButtons from "./ActionButtons";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import CopyButton from "./CopyButton";
+import { Contact, Company } from "@prisma/client";
+
+type ContactWithCompany = Contact & {
+  company: Company | null;
+};
 
 interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-export default async function ContactPage({ params }: PageProps) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    redirect("/auth/signin");
+export default function ContactPage({ params }: PageProps) {
+  const [contact, setContact] = useState<ContactWithCompany | null>(null);
+  const resolvedParams = use(params);
+  const contactId = resolvedParams.id;
+
+  useEffect(() => {
+    const fetchContact = async () => {
+      try {
+        const response = await fetch(`/api/contacts/${contactId}`);
+        if (!response.ok) {
+          throw new Error("Failed to fetch contact");
+        }
+        const data = await response.json();
+        setContact(data);
+      } catch (error) {
+        console.error("Error loading contact:", error);
+      }
+    };
+
+    if (contactId) {
+      fetchContact();
+    }
+  }, [contactId]);
+
+  if (!contact) {
+    return null; // Or loading state
   }
 
-  try {
-    const { id: contactId } = await params;
-    if (!contactId) {
-      notFound();
-    }
+  const handleContactUpdate = (updatedContact: ContactWithCompany) => {
+    setContact(updatedContact);
+  };
 
-    const contact = await prisma.contact.findFirst({
-      where: {
-        id: contactId,
-        userId: session.user.id,
-      },
-      include: { company: true },
-    });
+  return (
+    <div className="max-w-7xl mx-auto py-8 space-y-8">
+      <div className="flex items-center justify-between">
+        <PageHeader
+          title={`${contact.firstName} ${contact.lastName}`}
+          description="View and manage contact details."
+        />
+        <ActionButtons
+          contact={contact}
+          onContactUpdate={handleContactUpdate}
+        />
+      </div>
 
-    if (!contact) {
-      notFound();
-    }
+      <Separator />
 
-    return (
-      <div className="max-w-7xl mx-auto py-8 space-y-6">
-        <div className="flex items-center justify-between">
-          <PageHeader
-            title={`${contact.firstName} ${contact.lastName}`}
-            description="View and manage contact details."
-          />
-          <ActionButtons contact={contact} />
-        </div>
-
-        <Separator />
-
-        <div className="space-y-8 max-w-3xl">
-          <div className="grid grid-cols-2 gap-8">
-            <div className="space-y-4">
-              <h3 className="text-sm font-medium text-muted-foreground">
-                Contact Information
-              </h3>
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <span>
-                    {contact.firstName} {contact.lastName}
-                  </span>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* Contact Information Card */}
+        <Card className="shadow-none">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold flex items-center gap-2">
+              <User className="h-5 w-5 text-primary" />
+              Contact Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 text-sm">
+                <div className="flex items-center gap-2 min-w-[120px] text-muted-foreground">
+                  <User className="h-4 w-4" />
+                  <span>Full Name</span>
+                </div>
+                <span className="font-medium">
+                  {contact.firstName} {contact.lastName}
+                </span>
+              </div>
+              <div className="flex items-center gap-3 text-sm">
+                <div className="flex items-center gap-2 min-w-[120px] text-muted-foreground">
+                  <Mail className="h-4 w-4" />
+                  <span>Email</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
                   <a
                     href={`mailto:${contact.email}`}
-                    className="text-primary hover:underline"
+                    className="font-medium text-primary hover:underline"
                   >
                     {contact.email}
                   </a>
+                  <CopyButton textToCopy={contact.email} />
                 </div>
-                {contact.linkedinUrl && (
-                  <div className="flex items-center gap-2">
-                    <Linkedin className="h-4 w-4 text-muted-foreground" />
+              </div>
+              {contact.linkedinUrl && (
+                <div className="flex items-center gap-3 text-sm">
+                  <div className="flex items-center gap-2 min-w-[120px] text-muted-foreground">
+                    <Linkedin className="h-4 w-4" />
+                    <span>LinkedIn</span>
+                  </div>
+                  <a
+                    href={contact.linkedinUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-primary hover:underline"
+                  >
+                    {formatLinkedInUrl(contact.linkedinUrl)}
+                  </a>
+                </div>
+              )}
+              <div className="flex items-center gap-3 text-sm">
+                <div className="flex items-center gap-2 min-w-[120px] text-muted-foreground">
+                  <Calendar className="h-4 w-4" />
+                  <span>Added</span>
+                </div>
+                <span className="font-medium">
+                  {new Date(contact.createdAt).toLocaleDateString()}
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Company Information Card */}
+        {contact.company && (
+          <Card className="shadow-none">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-primary" />
+                Company Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 text-sm">
+                  <div className="flex items-center gap-2 min-w-[120px] text-muted-foreground">
+                    <Building2 className="h-4 w-4" />
+                    <span>Company</span>
+                  </div>
+                  <Link
+                    href={`/companies/${contact.company.id}`}
+                    className="font-medium text-primary hover:underline"
+                  >
+                    {contact.company.name}
+                  </Link>
+                </div>
+                {contact.company.website && (
+                  <div className="flex items-center gap-3 text-sm">
+                    <div className="flex items-center gap-2 min-w-[120px] text-muted-foreground">
+                      <Globe className="h-4 w-4" />
+                      <span>Website</span>
+                    </div>
                     <a
-                      href={contact.linkedinUrl}
+                      href={
+                        contact.company.website.startsWith("http")
+                          ? contact.company.website
+                          : `https://${contact.company.website}`
+                      }
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-primary hover:underline"
+                      className="font-medium text-primary hover:underline"
                     >
-                      {formatLinkedInUrl(contact.linkedinUrl)}
+                      {contact.company.website}
                     </a>
                   </div>
                 )}
               </div>
-            </div>
-
-            {contact.company && (
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium text-muted-foreground">
-                  Company Information
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-muted-foreground" />
-                    <Link
-                      href={`/companies/${contact.company.id}`}
-                      className="text-primary hover:underline"
-                    >
-                      {contact.company.name}
-                    </Link>
-                  </div>
-                  {contact.company.website && (
-                    <div className="flex items-center gap-2">
-                      <Globe className="h-4 w-4 text-muted-foreground" />
-                      <a
-                        href={
-                          contact.company.website.startsWith("http")
-                            ? contact.company.website
-                            : `https://${contact.company.website}`
-                        }
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline"
-                      >
-                        {contact.company.website}
-                      </a>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium text-muted-foreground">
-              Timeline
-            </h3>
-            <div className="rounded-md border p-8 flex items-center justify-center text-muted-foreground">
-              Coming soon
-            </div>
-          </div>
-        </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
-    );
-  } catch (error) {
-    console.error("Error loading contact:", error);
-    notFound();
-  }
+    </div>
+  );
 }
