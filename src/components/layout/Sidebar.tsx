@@ -30,6 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
+import { GlobalSearch } from "@/components/layout/GlobalSearch";
 
 const composeRoute = {
   label: "Compose",
@@ -107,7 +108,7 @@ export default function Sidebar() {
         isCollapsed ? "w-16" : "w-64"
       )}
     >
-      <div className="flex h-14 items-center border-b px-4">
+      <div className="flex h-14 items-center px-4">
         <Link
           href="/"
           className={cn(
@@ -142,10 +143,15 @@ export default function Sidebar() {
           />
         </Button>
       </div>
+
+      <div className="px-3 py-2">
+        <GlobalSearch isCollapsed={isCollapsed} />
+      </div>
+
       <ScrollArea className="flex-1 px-3">
         <div className="space-y-6 py-4">
           {/* Compose Section */}
-          <div>
+          {/* <div>
             <Link
               href={composeRoute.href}
               className={cn(
@@ -164,7 +170,7 @@ export default function Sidebar() {
                 {composeRoute.label}
               </span>
             </Link>
-          </div>
+          </div> */}
 
           {/* Management Section */}
           <div className="space-y-2">

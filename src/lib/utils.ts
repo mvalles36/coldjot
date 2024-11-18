@@ -12,3 +12,16 @@ export function cn(...inputs: ClassValue[]) {
 //   }
 //   return;
 // }
+
+export function formatLinkedInUrl(url: string): string {
+  try {
+    const urlObj = new URL(url);
+    // Get the path without leading/trailing slashes
+    const path = urlObj.pathname.replace(/^\/|\/$/g, "");
+    // Get the last part of the path (usually the profile name/id)
+    const profileName = path.split("/").pop();
+    return profileName || url;
+  } catch {
+    return url;
+  }
+}

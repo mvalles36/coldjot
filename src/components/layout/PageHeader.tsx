@@ -12,9 +12,6 @@ export function PageHeader({ title, description }: PageHeaderProps) {
         <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
         {description && <p className="text-muted-foreground">{description}</p>}
       </div>
-      <div className="w-full sm:w-80">
-        <GlobalSearch />
-      </div>
     </div>
   );
 }

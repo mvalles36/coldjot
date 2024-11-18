@@ -26,7 +26,7 @@ import {
 import { SearchResult, SearchResultType } from "@/types/search";
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
 import { v4 as uuidv4 } from "uuid";
-export function GlobalSearch() {
+export function GlobalSearch({ isCollapsed }: { isCollapsed?: boolean }) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
@@ -168,15 +168,24 @@ export function GlobalSearch() {
     <>
       <Button
         variant="outline"
-        className="relative h-9 w-full justify-start text-sm text-muted-foreground sm:pr-12 md:w-40 lg:w-80 hover:border-primary/50 transition-colors"
+        className={cn(
+          "relative h-9 justify-start text-sm text-muted-foreground transition-colors",
+          isCollapsed
+            ? "w-9 px-0 justify-center"
+            : "w-full sm:pr-12 md:max-w-40 lg:max-w-80 hover:border-primary/50"
+        )}
         onClick={() => setOpen(true)}
       >
-        <Search className="mr-2 h-4 w-4" />
-        <span className="hidden lg:inline-flex">Search...</span>
-        <span className="inline-flex lg:hidden">Search...</span>
-        <kbd className="pointer-events-none absolute right-1.5 top-2 hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
-          <span className="text-xs">⌘</span>K
-        </kbd>
+        <Search className={cn("h-4 w-4", !isCollapsed && "mr-2")} />
+        {!isCollapsed && (
+          <>
+            <span className="hidden lg:inline-flex">Search...</span>
+            <span className="inline-flex lg:hidden">Search...</span>
+            <kbd className="pointer-events-none absolute right-1.5 top-2 hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
+              <span className="text-xs">⌘</span>K
+            </kbd>
+          </>
+        )}
       </Button>
 
       <CommandDialog open={open} onOpenChange={handleOpenChange}>
