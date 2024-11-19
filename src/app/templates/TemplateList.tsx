@@ -11,7 +11,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Edit2, Trash2, FileText, Plus } from "lucide-react";
+import { Edit2, Trash2, FileText, Plus, Eye } from "lucide-react";
+import PreviewTemplateModal from "./PreviewTemplateModal";
+import EditTemplateModal from "./EditTemplateModal";
+import DeleteTemplateDialog from "./DeleteTemplateDialog";
+import { toast } from "react-hot-toast";
 
 interface TemplateListProps {
   searchQuery?: string;
@@ -26,6 +30,11 @@ export default function TemplateList({
 }: TemplateListProps) {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
+  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
+  const [deletingTemplate, setDeletingTemplate] = useState<Template | null>(
+    null
+  );
 
   useEffect(() => {
     const fetchTemplates = async () => {
@@ -86,10 +95,25 @@ export default function TemplateList({
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="icon">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setPreviewTemplate(template)}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setEditingTemplate(template)}
+                    >
                       <Edit2 className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setDeletingTemplate(template)}
+                    >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>
@@ -99,6 +123,43 @@ export default function TemplateList({
           </TableBody>
         </Table>
       </div>
+
+      {previewTemplate && (
+        <PreviewTemplateModal
+          template={previewTemplate}
+          onClose={() => setPreviewTemplate(null)}
+        />
+      )}
+
+      {editingTemplate && (
+        <EditTemplateModal
+          template={editingTemplate}
+          onClose={() => setEditingTemplate(null)}
+          onSave={(updatedTemplate) => {
+            setTemplates((prev) =>
+              prev.map((t) =>
+                t.id === updatedTemplate.id ? updatedTemplate : t
+              )
+            );
+            setEditingTemplate(null);
+            toast.success("Template updated successfully");
+          }}
+        />
+      )}
+
+      {deletingTemplate && (
+        <DeleteTemplateDialog
+          template={deletingTemplate}
+          onClose={() => setDeletingTemplate(null)}
+          onDelete={(deletedTemplate) => {
+            setTemplates((prev) =>
+              prev.filter((t) => t.id !== deletedTemplate)
+            );
+            setDeletingTemplate(null);
+            toast.success("Template deleted successfully");
+          }}
+        />
+      )}
     </div>
   );
 }

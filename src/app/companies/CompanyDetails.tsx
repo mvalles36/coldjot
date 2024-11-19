@@ -70,7 +70,7 @@ export default function CompanyDetails({
 
   return (
     <Sheet open onOpenChange={onClose}>
-      <SheetContent className="w-[800px] sm:max-w-[800px] h-[100dvh] p-0">
+      <SheetContent className="w-[800px] sm:max-w-[800px] h-[100dvh] p-0 overflow-hidden flex flex-col">
         <SheetHeader className="px-6 py-4 border-b">
           <SheetTitle>Company Details</SheetTitle>
         </SheetHeader>

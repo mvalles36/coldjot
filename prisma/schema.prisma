@@ -45,6 +45,7 @@ model User {
     templates     Template[]
     contacts      Contact[]
     drafts        Draft[]
+    TestData      TestData[]
 }
 
 model Contact {
@@ -107,4 +108,18 @@ model Draft {
     user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
     contact  Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
     template Template @relation(fields: [templateId], references: [id])
+}
+
+model TestData {
+    id        String   @id @default(cuid())
+    userId    String
+    name      String
+    type      String // 'company', 'contact', 'template'
+    data      Json
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@index([userId])
 }
