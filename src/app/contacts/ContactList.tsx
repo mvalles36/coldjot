@@ -233,11 +233,15 @@ export default function ContactList({
           </TableHeader>
           <TableBody>
             {contacts.map((contact) => (
-              <TableRow key={contact.id} className="hover:bg-muted/50">
-                <TableCell>
+              <TableRow
+                key={contact.id}
+                className="hover:bg-muted/50 cursor-pointer"
+                onClick={() => router.push(`/contacts/${contact.id}`)}
+              >
+                <TableCell className="font-medium">
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4 text-muted-foreground/70" />
-                    <span className="font-medium">
+                    <span>
                       {contact.firstName} {contact.lastName}
                     </span>
                   </div>
@@ -248,6 +252,7 @@ export default function ContactList({
                     <Link
                       href={`/companies/${contact.company.id}`}
                       className="text-primary hover:underline"
+                      onClick={(e) => e.stopPropagation()}
                     >
                       {contact.company.name}
                     </Link>
@@ -265,6 +270,7 @@ export default function ContactList({
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-1 text-primary hover:underline"
+                            onClick={(e) => e.stopPropagation()}
                           >
                             {formatLinkedInUrl(contact.linkedinUrl)}
                             <ExternalLink className="h-3 w-3" />
@@ -284,21 +290,30 @@ export default function ContactList({
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => handleComposeEmail(contact)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleComposeEmail(contact);
+                      }}
                     >
                       <Mail className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => setEditingContact(contact)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingContact(contact);
+                      }}
                     >
                       <Edit2 className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => setDeletingContact(contact)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeletingContact(contact);
+                      }}
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
