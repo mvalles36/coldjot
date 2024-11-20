@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Mail, Edit2, Trash2 } from "lucide-react";
+import { Mail, Edit2, Trash2, ListPlus, MoreHorizontal } from "lucide-react";
 import { Contact, Company } from "@prisma/client";
 import { useState } from "react";
 import EditContactModal from "../EditContactModal";
@@ -17,6 +17,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { AddToListSlider } from "@/components/contacts/AddToListSlider";
 
 type ContactWithCompany = Contact & {
   company: Company | null;
@@ -27,6 +34,9 @@ interface ActionButtonsProps {
   onContactUpdate?: (updatedContact: ContactWithCompany) => void;
 }
 
+const RECENT_CONTACTS_KEY = "recentContacts";
+const MAX_RECENT_CONTACTS = 5;
+
 export default function ActionButtons({
   contact,
   onContactUpdate,
@@ -34,11 +44,43 @@ export default function ActionButtons({
   const [editingContact, setEditingContact] =
     useState<ContactWithCompany | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showAddToList, setShowAddToList] = useState(false);
   const router = useRouter();
 
   const handleSave = (updatedContact: ContactWithCompany) => {
     setEditingContact(null);
     onContactUpdate?.(updatedContact);
+  };
+
+  const handleCompose = () => {
+    // Store the selected contact in localStorage
+    localStorage.setItem(
+      "selectedContact",
+      JSON.stringify({
+        id: contact.id,
+        name: contact.name,
+        email: contact.email,
+        companyId: contact.companyId,
+        company: contact.company,
+      })
+    );
+
+    // Update recent contacts
+    try {
+      const recentContacts = JSON.parse(
+        localStorage.getItem(RECENT_CONTACTS_KEY) || "[]"
+      );
+      const updatedRecents = [
+        contact.id,
+        ...recentContacts.filter((id: string) => id !== contact.id),
+      ].slice(0, MAX_RECENT_CONTACTS);
+
+      localStorage.setItem(RECENT_CONTACTS_KEY, JSON.stringify(updatedRecents));
+    } catch (error) {
+      console.error("Error updating recent contacts:", error);
+    }
+
+    router.push("/compose");
   };
 
   const handleDelete = async () => {
@@ -49,6 +91,22 @@ export default function ActionButtons({
 
       if (!response.ok) {
         throw new Error("Failed to delete contact");
+      }
+
+      // Remove from recent contacts if present
+      try {
+        const recentContacts = JSON.parse(
+          localStorage.getItem(RECENT_CONTACTS_KEY) || "[]"
+        );
+        const updatedRecents = recentContacts.filter(
+          (id: string) => id !== contact.id
+        );
+        localStorage.setItem(
+          RECENT_CONTACTS_KEY,
+          JSON.stringify(updatedRecents)
+        );
+      } catch (error) {
+        console.error("Error updating recent contacts:", error);
       }
 
       toast.success("Contact deleted successfully");
@@ -64,45 +122,43 @@ export default function ActionButtons({
   return (
     <>
       <div className="flex items-center gap-2">
-        <Button variant="outline" onClick={() => setEditingContact(contact)}>
-          <Edit2 className="h-4 w-4 mr-2" />
-          Edit Contact
-        </Button>
-        <Button
-          variant="outline"
-          className="text-destructive hover:bg-destructive/10"
-          onClick={() => setShowDeleteDialog(true)}
-        >
-          <Trash2 className="h-4 w-4 mr-2" />
-          Delete Contact
-        </Button>
-        <Button
-          onClick={() => {
-            localStorage.setItem(
-              "selectedContact",
-              JSON.stringify({
-                id: contact.id,
-                name: `${contact.firstName} ${contact.lastName}`,
-                email: contact.email,
-                companyId: contact.companyId,
-                company: contact.company,
-              })
-            );
-            router.push("/compose");
-          }}
-        >
+        <Button variant="outline" size="sm" onClick={handleCompose}>
           <Mail className="h-4 w-4 mr-2" />
-          Send Email
+          Compose
         </Button>
-
-        {editingContact && (
-          <EditContactModal
-            contact={editingContact}
-            onClose={() => setEditingContact(null)}
-            onSave={handleSave}
-          />
-        )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setEditingContact(contact)}>
+              <Edit2 className="h-4 w-4 mr-2" />
+              Edit Contact
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setShowAddToList(true)}>
+              <ListPlus className="h-4 w-4 mr-2" />
+              Add to List
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => setShowDeleteDialog(true)}
+              className="text-destructive"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Contact
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
+
+      {editingContact && (
+        <EditContactModal
+          contact={editingContact}
+          onClose={() => setEditingContact(null)}
+          onSave={handleSave}
+        />
+      )}
 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
@@ -127,6 +183,12 @@ export default function ActionButtons({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AddToListSlider
+        open={showAddToList}
+        onClose={() => setShowAddToList(false)}
+        contactId={contact.id}
+      />
     </>
   );
 }
