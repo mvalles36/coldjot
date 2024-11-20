@@ -25,3 +25,50 @@ export interface Template {
 }
 
 export type TemplateWithSections = Template;
+
+export interface EmailList {
+  id: string;
+  name: string;
+  userId: string;
+  description?: string;
+  tags?: string[];
+  createdAt: Date;
+  updatedAt: Date;
+  contacts: Contact[];
+}
+
+export interface EmailSequence {
+  id: string;
+  name: string;
+  userId: string;
+  status: "draft" | "active" | "paused" | "completed";
+  emailListId?: string;
+  steps: EmailSequenceStep[];
+  metrics: EmailSequenceMetrics;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface EmailSequenceStep {
+  id: string;
+  sequenceId: string;
+  templateId: string;
+  order: number;
+  delay: number; // Delay in days from previous step
+  metrics: EmailStepMetrics;
+}
+
+export interface EmailSequenceMetrics {
+  totalContacts: number;
+  completedContacts: number;
+  openRate: number;
+  clickRate: number;
+  replyRate: number;
+}
+
+export interface EmailStepMetrics {
+  sent: number;
+  opened: number;
+  clicked: number;
+  replied: number;
+}

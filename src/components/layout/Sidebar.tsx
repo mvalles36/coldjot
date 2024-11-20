@@ -60,6 +60,16 @@ const managementRoutes = [
     icon: FileText,
     href: "/templates",
   },
+  {
+    label: "Lists",
+    icon: Mail, // Assuming Mail icon is suitable; replace with appropriate icon if needed
+    href: "/lists",
+  },
+  {
+    label: "Sequences",
+    icon: Sparkles, // Assuming Sparkles icon is suitable; replace with appropriate icon if needed
+    href: "/sequences",
+  },
 ];
 
 const otherRoutes = [
@@ -173,7 +183,7 @@ export default function Sidebar() {
           </div> */}
 
           {/* Management Section */}
-          <div className="space-y-2">
+          <div className="space-y-1">
             <SectionTitle>Management</SectionTitle>
 
             {managementRoutes.map((route) => (
@@ -189,7 +199,7 @@ export default function Sidebar() {
               >
                 <route.icon
                   className={cn(
-                    "h-5 w-5 flex-shrink-0",
+                    "h-4 w-4 flex-shrink-0",
                     pathname === route.href ? "text-gray-900" : "text-gray-500"
                   )}
                 />
