@@ -9,12 +9,14 @@ import { CreateListModal } from "./CreateListModal";
 import { EmailListCard } from "./EmailListCard";
 import { toast } from "react-hot-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ListDetailsSlider } from "./ListDetailsSlider";
 
 const EmailListsView = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [lists, setLists] = useState<EmailList[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedList, setSelectedList] = useState<EmailList | null>(null);
 
   useEffect(() => {
     fetchLists();
@@ -112,6 +114,57 @@ const EmailListsView = () => {
     fetchLists();
   };
 
+  const handleRemoveContact = async (listId: string, contactId: string) => {
+    try {
+      const list = lists.find((l) => l.id === listId);
+      if (!list) return;
+
+      const updatedContacts = list.contacts
+        .filter((c) => c.id !== contactId)
+        .map((c) => c.id);
+
+      const response = await fetch(`/api/lists/${listId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contacts: updatedContacts,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to update list");
+
+      // Update local state
+      setLists(
+        lists.map((l) => {
+          if (l.id === listId) {
+            return {
+              ...l,
+              contacts: l.contacts.filter((c) => c.id !== contactId),
+            };
+          }
+          return l;
+        })
+      );
+
+      // Update selected list if it's open
+      if (selectedList?.id === listId) {
+        setSelectedList((prev) =>
+          prev
+            ? {
+                ...prev,
+                contacts: prev.contacts.filter((c) => c.id !== contactId),
+              }
+            : null
+        );
+      }
+    } catch (error) {
+      console.error("Failed to remove contact:", error);
+      throw error;
+    }
+  };
+
   return (
     <div className="container mx-auto py-6 space-y-6">
       <PageHeader
@@ -164,9 +217,21 @@ const EmailListsView = () => {
               key={list.id}
               list={list}
               onDelete={handleDeleteList}
+              onView={() => setSelectedList(list)}
             />
           ))}
         </div>
+      )}
+
+      {selectedList && (
+        <ListDetailsSlider
+          open={!!selectedList}
+          onClose={() => setSelectedList(null)}
+          list={selectedList}
+          onContactRemove={(contactId) =>
+            handleRemoveContact(selectedList.id, contactId)
+          }
+        />
       )}
 
       <CreateListModal

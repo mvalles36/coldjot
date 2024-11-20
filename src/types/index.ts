@@ -8,6 +8,8 @@ export interface User {
 export interface Contact {
   id: string;
   userId: string;
+  firstName: string;
+  lastName: string;
   name: string;
   email: string;
   createdAt: Date;

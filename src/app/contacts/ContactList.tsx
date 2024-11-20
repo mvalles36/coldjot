@@ -14,7 +14,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Edit2, Trash2, Mail, ExternalLink } from "lucide-react";
+import {
+  Edit2,
+  Trash2,
+  Mail,
+  ExternalLink,
+  User,
+  ListPlus,
+  MoreHorizontal,
+} from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,7 +41,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { User } from "lucide-react";
+import { AddToListSlider } from "@/components/contacts/AddToListSlider";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type ContactWithCompany = Contact & {
   company: Company | null;
@@ -72,6 +86,8 @@ export default function ContactList({
   const [deletingContact, setDeletingContact] =
     useState<ContactWithCompany | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [contactToAddToList, setContactToAddToList] =
+    useState<ContactWithCompany | null>(null);
 
   useEffect(() => {
     const fetchContacts = async () => {
@@ -194,20 +210,43 @@ export default function ContactList({
             >
               <Mail className="h-4 w-4" />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setEditingContact(contact)}
-            >
-              <Edit2 className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setDeletingContact(contact)}
-            >
-              <Trash2 className="h-4 w-4 text-destructive" />
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                <Button variant="ghost" size="icon">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingContact(contact);
+                  }}
+                >
+                  <Edit2 className="h-4 w-4 mr-2" />
+                  Edit Contact
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setContactToAddToList(contact);
+                  }}
+                >
+                  <ListPlus className="h-4 w-4 mr-2" />
+                  Add to List
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDeletingContact(contact);
+                  }}
+                  className="text-destructive"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Contact
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         );
       },
@@ -297,26 +336,46 @@ export default function ContactList({
                     >
                       <Mail className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditingContact(contact);
-                      }}
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeletingContact(contact);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        asChild
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Button variant="ghost" size="icon">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingContact(contact);
+                          }}
+                        >
+                          <Edit2 className="h-4 w-4 mr-2" />
+                          Edit Contact
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setContactToAddToList(contact);
+                          }}
+                        >
+                          <ListPlus className="h-4 w-4 mr-2" />
+                          Add to List
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeletingContact(contact);
+                          }}
+                          className="text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete Contact
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </TableCell>
               </TableRow>
@@ -368,6 +427,12 @@ export default function ContactList({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AddToListSlider
+        open={!!contactToAddToList}
+        onClose={() => setContactToAddToList(null)}
+        contactId={contactToAddToList?.id || ""}
+      />
     </div>
   );
 }

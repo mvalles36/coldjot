@@ -15,12 +15,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useRouter } from "next/navigation";
 
 interface EmailListCardProps {
   list: EmailList;
   onEdit?: (list: EmailList) => void;
   onDelete?: (list: EmailList) => void;
   onDuplicate?: (list: EmailList) => void;
+  onView?: (list: EmailList) => void;
 }
 
 export const EmailListCard = ({
@@ -28,7 +30,10 @@ export const EmailListCard = ({
   onEdit,
   onDelete,
   onDuplicate,
+  onView,
 }: EmailListCardProps) => {
+  const router = useRouter();
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -75,7 +80,11 @@ export const EmailListCard = ({
         </div>
       </CardContent>
       <CardFooter className="pt-3">
-        <Button variant="outline" className="w-full">
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={() => router.push(`/lists/${list.id}`)}
+        >
           View Details
         </Button>
       </CardFooter>
