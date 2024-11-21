@@ -21,17 +21,17 @@ type FormData = {
   address?: string;
 };
 
-interface EditCompanyModalProps {
+interface EditCompanyDrawerProps {
   company: Company;
   onClose: () => void;
   onSave: (company: Company) => void;
 }
 
-export default function EditCompanyModal({
+export default function EditCompanyDrawer({
   company,
   onClose,
   onSave,
-}: EditCompanyModalProps) {
+}: EditCompanyDrawerProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const {
     register,

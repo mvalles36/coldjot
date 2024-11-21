@@ -13,7 +13,7 @@ import { Send, Save, Code, Loader2 } from "lucide-react";
 import { Contact, Company, Template } from "@prisma/client";
 import { toast } from "react-hot-toast";
 import { Label } from "@/components/ui/label";
-import { ContactSearch } from "./ContactSearch";
+import { ContactSearch } from "../search/contact-search";
 import { RichTextEditor } from "@/components/editor/RichTextEditor";
 import { Input } from "@/components/ui/input";
 

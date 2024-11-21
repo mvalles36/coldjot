@@ -20,15 +20,15 @@ type FormData = {
   website?: string;
 };
 
-interface AddCompanyModalProps {
+interface AddCompanyDrawerProps {
   onClose: () => void;
   onAdd: (company: Company) => void;
 }
 
-export default function AddCompanyModal({
+export default function AddCompanyDrawer({
   onClose,
   onAdd,
-}: AddCompanyModalProps) {
+}: AddCompanyDrawerProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const {
     register,

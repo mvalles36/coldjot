@@ -13,10 +13,10 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Edit2, Trash2, Building2, Users, ExternalLink } from "lucide-react";
-import AddCompanyModal from "./AddCompanyModal";
-import EditCompanyModal from "./EditCompanyModal";
-import DeleteCompanyDialog from "./DeleteCompanyDialog";
-import CompanyDetails from "./CompanyDetails";
+import AddCompanyModal from "./add-company-drawer";
+import EditCompanyModal from "./edit-company-drawer";
+import DeleteCompanyDialog from "./delete-company-dialog";
+import CompanyDetails from "./company-details-drawer";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 

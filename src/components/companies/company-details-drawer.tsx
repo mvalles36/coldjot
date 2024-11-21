@@ -36,17 +36,17 @@ type CompanyWithContacts = Company & {
   contacts: Contact[];
 };
 
-interface CompanyDetailsProps {
+interface CompanyDetailsDrawerProps {
   company: CompanyWithContacts;
   onClose: () => void;
   onContactClick?: (contact: Contact) => void;
 }
 
-export default function CompanyDetails({
+export default function CompanyDetailsDrawer({
   company: initialCompany,
   onClose,
   onContactClick,
-}: CompanyDetailsProps) {
+}: CompanyDetailsDrawerProps) {
   const [company, setCompany] = useState<CompanyWithContacts>(initialCompany);
   const [isLoading, setIsLoading] = useState(true);
 
