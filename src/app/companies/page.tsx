@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { LocalSearch } from "@/components/ui/local-search";
-import CompanyList from "./CompanyList";
+import CompanyList from "@/components/companies/company-list";
 import { Separator } from "@/components/ui/separator";
 
 export default function CompaniesPage() {

@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { Separator } from "@/components/ui/separator";
 import { PageHeader } from "@/components/layout/PageHeader";
-import ApolloSearchComponent from "./ApolloSearchComponent";
+import ApolloSearchComponent from "@/components/search/apollo/apollo-search-component";
 
 export default async function ApolloPage() {
   const session = await auth();

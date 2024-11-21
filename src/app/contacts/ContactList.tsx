@@ -59,6 +59,8 @@ interface ContactListProps {
   searchQuery?: string;
   onSearchStart?: () => void;
   onSearchEnd?: () => void;
+  initialContacts: ContactWithCompany[]; // Replace 'any' with your Contact type
+  companies: Company[]; // Replace 'any' with your Company type
 }
 
 // Helper function to format LinkedIn URL

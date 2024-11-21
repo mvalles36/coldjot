@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Separator } from "@/components/ui/separator";
-import EmailComposer from "./EmailComposer";
+import EmailComposer from "@/components/compose/email-composer";
 
 export default async function ComposePage() {
   const session = await auth();
