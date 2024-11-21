@@ -17,12 +17,14 @@ interface AddToListSliderProps {
   open: boolean;
   onClose: () => void;
   contactId: string;
+  isMultiple?: boolean;
 }
 
 export const AddToListSlider = ({
   open,
   onClose,
   contactId,
+  isMultiple,
 }: AddToListSliderProps) => {
   const [lists, setLists] = useState<EmailList[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -48,6 +50,7 @@ export const AddToListSlider = ({
 
   const handleAddToList = async (listId: string) => {
     try {
+      const contactIds = contactId.split(",");
       const response = await fetch(`/api/lists/${listId}`, {
         method: "PATCH",
         headers: {
@@ -57,18 +60,24 @@ export const AddToListSlider = ({
           contacts: [
             ...(lists.find((l) => l.id === listId)?.contacts.map((c) => c.id) ||
               []),
-            contactId,
+            ...contactIds,
           ],
         }),
       });
 
       if (!response.ok) throw new Error("Failed to add contact to list");
 
-      toast.success("Contact added to list");
+      toast.success(
+        isMultiple ? "Contacts added to list" : "Contact added to list"
+      );
       onClose();
     } catch (error) {
       console.error("Error adding contact to list:", error);
-      toast.error("Failed to add contact to list");
+      toast.error(
+        isMultiple
+          ? "Failed to add contacts to list"
+          : "Failed to add contact to list"
+      );
     }
   };
 

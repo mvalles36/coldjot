@@ -48,6 +48,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ContactDetailsSlider } from "./ContactDetailsSlider";
 
 type ContactWithCompany = Contact & {
   company: Company | null;
@@ -74,6 +76,12 @@ const formatLinkedInUrl = (url: string | null) => {
   }
 };
 
+// Add this interface near the top with other type definitions
+interface ContactToList {
+  id: string;
+  isMultiple?: boolean;
+}
+
 export default function ContactList({
   searchQuery = "",
   onSearchStart,
@@ -87,6 +95,11 @@ export default function ContactList({
     useState<ContactWithCompany | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [contactToAddToList, setContactToAddToList] =
+    useState<ContactToList | null>(null);
+  const [selectedContacts, setSelectedContacts] = useState<Set<string>>(
+    new Set()
+  );
+  const [selectedContactForDetails, setSelectedContactForDetails] =
     useState<ContactWithCompany | null>(null);
 
   useEffect(() => {
@@ -139,6 +152,25 @@ export default function ContactList({
       })
     );
     router.push("/compose");
+  };
+
+  const handleCheckboxChange = (contactId: string, checked: boolean) => {
+    setSelectedContacts((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(contactId);
+      } else {
+        next.delete(contactId);
+      }
+      return next;
+    });
+  };
+
+  const handleBulkAddToList = () => {
+    setContactToAddToList({
+      id: Array.from(selectedContacts).join(","),
+      isMultiple: true,
+    });
   };
 
   const columns: ColumnDef<ContactWithCompany>[] = [
@@ -229,7 +261,10 @@ export default function ContactList({
                 <DropdownMenuItem
                   onClick={(e) => {
                     e.stopPropagation();
-                    setContactToAddToList(contact);
+                    setContactToAddToList({
+                      id: contact.id,
+                      isMultiple: false,
+                    });
                   }}
                 >
                   <ListPlus className="h-4 w-4 mr-2" />
@@ -255,7 +290,15 @@ export default function ContactList({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end gap-2">
+      <div className="flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          {selectedContacts.size > 0 && (
+            <Button variant="outline" size="sm" onClick={handleBulkAddToList}>
+              <ListPlus className="h-4 w-4 mr-2" />
+              Add {selectedContacts.size} to List
+            </Button>
+          )}
+        </div>
         <AddContactButton onAddContact={handleAddContact} companies={[]} />
       </div>
 
@@ -263,6 +306,18 @@ export default function ContactList({
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-[50px]">
+                <Checkbox
+                  checked={selectedContacts.size === contacts.length}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      setSelectedContacts(new Set(contacts.map((c) => c.id)));
+                    } else {
+                      setSelectedContacts(new Set());
+                    }
+                  }}
+                />
+              </TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Company</TableHead>
@@ -275,14 +330,33 @@ export default function ContactList({
               <TableRow
                 key={contact.id}
                 className="hover:bg-muted/50 cursor-pointer"
-                onClick={() => router.push(`/contacts/${contact.id}`)}
+                onClick={(e) => {
+                  if (!(e.target as HTMLElement).closest(".checkbox-cell")) {
+                    setSelectedContactForDetails(contact);
+                  }
+                }}
               >
+                <TableCell
+                  className="checkbox-cell"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Checkbox
+                    checked={selectedContacts.has(contact.id)}
+                    onCheckedChange={(checked) =>
+                      handleCheckboxChange(contact.id, checked as boolean)
+                    }
+                  />
+                </TableCell>
                 <TableCell className="font-medium">
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4 text-muted-foreground/70" />
-                    <span>
+                    <Link
+                      href={`/contacts/${contact.id}`}
+                      className="hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       {contact.firstName} {contact.lastName}
-                    </span>
+                    </Link>
                   </div>
                 </TableCell>
                 <TableCell>{contact.email}</TableCell>
@@ -358,7 +432,10 @@ export default function ContactList({
                         <DropdownMenuItem
                           onClick={(e) => {
                             e.stopPropagation();
-                            setContactToAddToList(contact);
+                            setContactToAddToList({
+                              id: contact.id,
+                              isMultiple: false,
+                            });
                           }}
                         >
                           <ListPlus className="h-4 w-4 mr-2" />
@@ -428,10 +505,19 @@ export default function ContactList({
         </AlertDialogContent>
       </AlertDialog>
 
+      {selectedContactForDetails && (
+        <ContactDetailsSlider
+          contact={selectedContactForDetails}
+          open={!!selectedContactForDetails}
+          onClose={() => setSelectedContactForDetails(null)}
+        />
+      )}
+
       <AddToListSlider
         open={!!contactToAddToList}
         onClose={() => setContactToAddToList(null)}
         contactId={contactToAddToList?.id || ""}
+        isMultiple={contactToAddToList?.isMultiple}
       />
     </div>
   );
