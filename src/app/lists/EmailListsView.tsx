@@ -1,57 +1,85 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, AlertCircle } from "lucide-react";
+import {
+  Plus,
+  AlertCircle,
+  Mail,
+  Users,
+  Tag,
+  MoreHorizontal,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmailList } from "@/types";
-import { PageHeader } from "@/components/layout/PageHeader";
 import { CreateListModal } from "./CreateListModal";
-import { EmailListCard } from "./EmailListCard";
 import { toast } from "react-hot-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ListDetailsSlider } from "./ListDetailsSlider";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useRouter } from "next/navigation";
 
-const EmailListsView = () => {
+interface EmailListsViewProps {
+  searchQuery?: string;
+  onSearchStart?: () => void;
+  onSearchEnd?: () => void;
+}
+
+const EmailListsView = ({
+  searchQuery = "",
+  onSearchStart,
+  onSearchEnd,
+}: EmailListsViewProps) => {
+  const router = useRouter();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [lists, setLists] = useState<EmailList[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedList, setSelectedList] = useState<EmailList | null>(null);
-
-  useEffect(() => {
-    fetchLists();
-  }, []);
 
   const fetchLists = async () => {
+    onSearchStart?.();
     try {
       setError(null);
-      const response = await fetch("/api/lists");
+      const url =
+        searchQuery.length >= 2
+          ? `/api/lists/search?q=${encodeURIComponent(searchQuery)}`
+          : "/api/lists";
 
+      const response = await fetch(url);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || "Failed to fetch lists");
       }
 
       const data = await response.json();
-
-      // Validate the response data
-      if (!Array.isArray(data)) {
-        throw new Error("Invalid response format");
-      }
-
       setLists(data);
     } catch (error) {
       const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "An error occurred while loading lists";
+        error instanceof Error ? error.message : "Failed to load lists";
       setError(errorMessage);
       toast.error("Failed to load email lists");
-      setLists([]);
     } finally {
       setLoading(false);
+      onSearchEnd?.();
     }
   };
+
+  useEffect(() => {
+    if (searchQuery.length === 0 || searchQuery.length >= 2) {
+      fetchLists();
+    }
+  }, [searchQuery]);
 
   const handleCreateList = async (
     list: Omit<EmailList, "id" | "createdAt" | "updatedAt">
@@ -114,69 +142,26 @@ const EmailListsView = () => {
     fetchLists();
   };
 
-  const handleRemoveContact = async (listId: string, contactId: string) => {
-    try {
-      const list = lists.find((l) => l.id === listId);
-      if (!list) return;
-
-      const updatedContacts = list.contacts
-        .filter((c) => c.id !== contactId)
-        .map((c) => c.id);
-
-      const response = await fetch(`/api/lists/${listId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contacts: updatedContacts,
-        }),
-      });
-
-      if (!response.ok) throw new Error("Failed to update list");
-
-      // Update local state
-      setLists(
-        lists.map((l) => {
-          if (l.id === listId) {
-            return {
-              ...l,
-              contacts: l.contacts.filter((c) => c.id !== contactId),
-            };
-          }
-          return l;
-        })
-      );
-
-      // Update selected list if it's open
-      if (selectedList?.id === listId) {
-        setSelectedList((prev) =>
-          prev
-            ? {
-                ...prev,
-                contacts: prev.contacts.filter((c) => c.id !== contactId),
-              }
-            : null
-        );
-      }
-    } catch (error) {
-      console.error("Failed to remove contact:", error);
-      throw error;
-    }
+  const handleComposeToList = (list: EmailList) => {
+    localStorage.setItem(
+      "selectedList",
+      JSON.stringify({
+        id: list.id,
+        name: list.name,
+        contacts: list.contacts,
+      })
+    );
+    router.push("/compose");
   };
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <PageHeader
-        title="Email Lists"
-        description="Create and manage your email lists for targeted campaigns"
-        action={
-          <Button onClick={() => setIsCreateModalOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Create List
-          </Button>
-        }
-      />
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button onClick={() => setIsCreateModalOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Create List
+        </Button>
+      </div>
 
       {error && (
         <Alert variant="destructive">
@@ -191,13 +176,8 @@ const EmailListsView = () => {
       )}
 
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[...Array(3)].map((_, i) => (
-            <div
-              key={i}
-              className="h-[200px] rounded-xl border bg-muted animate-pulse"
-            />
-          ))}
+        <div className="rounded-md border">
+          <div className="p-4">Loading...</div>
         </div>
       ) : lists.length === 0 && !error ? (
         <div className="text-center py-12">
@@ -211,27 +191,95 @@ const EmailListsView = () => {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {lists.map((list) => (
-            <EmailListCard
-              key={list.id}
-              list={list}
-              onDelete={handleDeleteList}
-              onView={() => setSelectedList(list)}
-            />
-          ))}
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Contacts</TableHead>
+                <TableHead>Tags</TableHead>
+                <TableHead className="w-[100px]">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {lists.map((list) => (
+                <TableRow
+                  key={list.id}
+                  className="hover:bg-muted/50 cursor-pointer"
+                  onClick={() => router.push(`/lists/${list.id}`)}
+                >
+                  <TableCell>
+                    <div className="font-medium">{list.name}</div>
+                    {list.description && (
+                      <div className="text-sm text-muted-foreground">
+                        {list.description}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                      <span>{list.contacts.length} contacts</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {list.tags && list.tags.length > 0 ? (
+                      <div className="flex items-center gap-2">
+                        <Tag className="h-4 w-4 text-muted-foreground" />
+                        <span>{list.tags.length} tags</span>
+                      </div>
+                    ) : (
+                      "—"
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleComposeToList(list);
+                        }}
+                      >
+                        <Mail className="h-4 w-4" />
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          asChild
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/lists/${list.id}`);
+                            }}
+                          >
+                            View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteList(list);
+                            }}
+                            className="text-destructive"
+                          >
+                            Delete List
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
-      )}
-
-      {selectedList && (
-        <ListDetailsSlider
-          open={!!selectedList}
-          onClose={() => setSelectedList(null)}
-          list={selectedList}
-          onContactRemove={(contactId) =>
-            handleRemoveContact(selectedList.id, contactId)
-          }
-        />
       )}
 
       <CreateListModal
