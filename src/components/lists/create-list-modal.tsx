@@ -12,7 +12,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { EmailList } from "@/types";
-import { ContactSearch } from "@/components/contacts/ContactSearch";
 
 interface CreateListModalProps {
   open: boolean;
@@ -72,15 +71,6 @@ export const CreateListModal = ({
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Enter list description"
               rows={3}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Add Contacts</Label>
-            <ContactSearch
-              onSelect={(contactId: string) =>
-                setSelectedContacts((prev) => [...prev, contactId])
-              }
-              selectedContacts={selectedContacts}
             />
           </div>
           <div className="flex justify-end space-x-2 pt-4">

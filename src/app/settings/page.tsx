@@ -1,9 +1,9 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Separator } from "@/components/ui/separator";
-import ProfileSettings from "./ProfileSettings";
-import EmailSettings from "./EmailSettings";
-import GoogleIntegration from "./GoogleIntegration";
+import ProfileSettings from "@/components/settings/profile-settings";
+import EmailSettings from "@/components/settings/email-settings";
+import GoogleIntegration from "@/components/settings/google-integration";
 
 export default async function SettingsPage() {
   const session = await auth();

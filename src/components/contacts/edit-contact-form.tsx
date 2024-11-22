@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
-import { CompanySearch } from "../../CompanySearch";
+import CompanySearchDropdown from "@/components/search/company-search-dropdown";
 
 type ContactWithCompany = Contact & {
   company: Company | null;
@@ -127,7 +127,7 @@ export default function EditContactForm({
 
       <div className="space-y-2">
         <Label>Company</Label>
-        <CompanySearch
+        <CompanySearchDropdown
           selectedCompany={selectedCompany}
           onSelect={setSelectedCompany}
         />

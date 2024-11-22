@@ -24,7 +24,10 @@ interface Props {
   onSelect: (company: Company | null) => void;
 }
 
-export function CompanySearch({ selectedCompany, onSelect }: Props) {
+export default function CompanySearchDropdown({
+  selectedCompany,
+  onSelect,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [searchResults, setSearchResults] = useState<Company[]>([]);

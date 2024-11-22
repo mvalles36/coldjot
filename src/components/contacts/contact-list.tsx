@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import { Contact, Company } from "@prisma/client";
 import { useRouter } from "next/navigation";
-import EditContactModal from "./EditContactModal";
-import AddContactButton from "./AddContactButton";
+import EditContactModal from "./edit-contact-drawer";
+import AddContactButton from "./add-contact-button";
 import {
   Table,
   TableBody,
@@ -41,7 +41,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { AddToListSlider } from "@/components/contacts/AddToListSlider";
+import AddToListDrawer from "@/components/lists/add-to-list-drawer";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,7 +49,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ContactDetailsSlider } from "./ContactDetailsSlider";
+import ContactDetailsDrawer from "./contact-details-drawer";
 
 type ContactWithCompany = Contact & {
   company: Company | null;
@@ -508,14 +508,14 @@ export default function ContactList({
       </AlertDialog>
 
       {selectedContactForDetails && (
-        <ContactDetailsSlider
+        <ContactDetailsDrawer
           contact={selectedContactForDetails}
           open={!!selectedContactForDetails}
           onClose={() => setSelectedContactForDetails(null)}
         />
       )}
 
-      <AddToListSlider
+      <AddToListDrawer
         open={!!contactToAddToList}
         onClose={() => setContactToAddToList(null)}
         contactId={contactToAddToList?.id || ""}

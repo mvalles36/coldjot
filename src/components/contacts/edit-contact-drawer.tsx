@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
-import { CompanySearch } from "./CompanySearch";
+import CompanySearchDropdown from "@/components/search/company-search-dropdown";
 
 type ContactWithCompany = Contact & {
   company: Company | null;
@@ -27,17 +27,17 @@ type FormData = {
   linkedinUrl?: string;
 };
 
-interface EditContactModalProps {
+interface EditContactDrawerProps {
   contact: ContactWithCompany;
   onClose: () => void;
   onSave: (contact: ContactWithCompany) => void;
 }
 
-export default function EditContactModal({
+export default function EditContactDrawer({
   contact,
   onClose,
   onSave,
-}: EditContactModalProps) {
+}: EditContactDrawerProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(
     contact.company
@@ -155,7 +155,7 @@ export default function EditContactModal({
 
               <div className="space-y-2">
                 <Label>Company</Label>
-                <CompanySearch
+                <CompanySearchDropdown
                   selectedCompany={selectedCompany}
                   onSelect={setSelectedCompany}
                 />

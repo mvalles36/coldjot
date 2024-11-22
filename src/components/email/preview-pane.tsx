@@ -4,7 +4,7 @@ import { Contact, Company } from "@prisma/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { RichTextEditor } from "@/components/editor/RichTextEditor";
+import { RichTextEditor } from "@/components/editor/rich-text-editor";
 import { replacePlaceholders, validatePlaceholders } from "@/lib/placeholders";
 import {
   Sheet,

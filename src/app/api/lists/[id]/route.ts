@@ -12,9 +12,10 @@ export async function GET(
   }
 
   try {
+    const { id } = await params;
     const list = await prisma.emailList.findUnique({
       where: {
-        id: params.id,
+        id: id,
         userId: session.user.id,
       },
       include: {

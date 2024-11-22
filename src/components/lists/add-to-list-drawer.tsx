@@ -13,19 +13,19 @@ import { EmailList } from "@/types";
 import { Search, Plus } from "lucide-react";
 import { toast } from "react-hot-toast";
 
-interface AddToListSliderProps {
+interface AddToListDrawerProps {
   open: boolean;
   onClose: () => void;
   contactId: string;
   isMultiple?: boolean;
 }
 
-export const AddToListSlider = ({
+export const AddToListDrawer = ({
   open,
   onClose,
   contactId,
   isMultiple,
-}: AddToListSliderProps) => {
+}: AddToListDrawerProps) => {
   const [lists, setLists] = useState<EmailList[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -140,3 +140,5 @@ export const AddToListSlider = ({
     </Sheet>
   );
 };
+
+export default AddToListDrawer;

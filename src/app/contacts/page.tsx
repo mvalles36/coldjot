@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { LocalSearch } from "@/components/ui/local-search";
-import ContactList from "./ContactList";
+import ContactList from "../../components/contacts/contact-list";
 import { Separator } from "@/components/ui/separator";
 
 export default function ContactsPage() {
@@ -37,6 +37,8 @@ export default function ContactsPage() {
       <ContactList
         searchQuery={activeSearch}
         onSearchEnd={() => setIsSearching(false)}
+        initialContacts={[]}
+        companies={[]}
       />
     </div>
   );

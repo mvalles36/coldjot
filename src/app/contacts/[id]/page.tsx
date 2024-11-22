@@ -6,9 +6,9 @@ import { Separator } from "@/components/ui/separator";
 import { User, Building2, Globe, Linkedin, Mail, Calendar } from "lucide-react";
 import Link from "next/link";
 import { formatLinkedInUrl } from "@/lib/utils";
-import ActionButtons from "./ActionButtons";
+import ActionButtons from "../../../components/contacts/action-buttons";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import CopyButton from "./CopyButton";
+import CopyButton from "../../../components/common/copy";
 import { Contact, Company } from "@prisma/client";
 
 type ContactWithCompany = Contact & {

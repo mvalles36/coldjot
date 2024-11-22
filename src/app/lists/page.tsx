@@ -4,7 +4,7 @@ import { useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { LocalSearch } from "@/components/ui/local-search";
 import { Separator } from "@/components/ui/separator";
-import EmailListsView from "./EmailListsView";
+import EmailListsView from "../../components/lists/email-list";
 
 export default function ListsPage() {
   const [searchQuery, setSearchQuery] = useState("");

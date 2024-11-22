@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { notFound, redirect } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Separator } from "@/components/ui/separator";
-import EditContactForm from "./EditContactForm";
+import EditContactForm from "../../../../components/contacts/edit-contact-form";
 
 export default async function EditContactPage({
   params,

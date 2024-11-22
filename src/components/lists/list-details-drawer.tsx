@@ -13,19 +13,19 @@ import { User, Trash2, Mail } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
 
-interface ListDetailsSliderProps {
+interface ListDetailsDrawerProps {
   open: boolean;
   onClose: () => void;
   list: EmailList;
   onContactRemove: (contactId: string) => Promise<void>;
 }
 
-export const ListDetailsSlider = ({
+export const ListDetailsDrawer = ({
   open,
   onClose,
   list,
   onContactRemove,
-}: ListDetailsSliderProps) => {
+}: ListDetailsDrawerProps) => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 

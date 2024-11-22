@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Mail, Edit2, Trash2, ListPlus, MoreHorizontal } from "lucide-react";
 import { Contact, Company } from "@prisma/client";
 import { useState } from "react";
-import EditContactModal from "../EditContactModal";
+import EditContactModal from "./edit-contact-drawer";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 import {
@@ -23,7 +23,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { AddToListSlider } from "@/components/contacts/AddToListSlider";
+import AddToListDrawer from "@/components/lists/add-to-list-drawer";
 
 type ContactWithCompany = Contact & {
   company: Company | null;
@@ -184,7 +184,7 @@ export default function ActionButtons({
         </AlertDialogContent>
       </AlertDialog>
 
-      <AddToListSlider
+      <AddToListDrawer
         open={showAddToList}
         onClose={() => setShowAddToList(false)}
         contactId={contact.id}

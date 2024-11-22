@@ -10,23 +10,23 @@ import { Contact, Company } from "@prisma/client";
 import { Mail, Building2, Globe, Linkedin, Calendar } from "lucide-react";
 import Link from "next/link";
 import { formatLinkedInUrl } from "@/lib/utils";
-import ActionButtons from "./[id]/ActionButtons";
+import ActionButtons from "./action-buttons";
 
 type ContactWithCompany = Contact & {
   company: Company | null;
 };
 
-interface ContactDetailsSliderProps {
+interface ContactDetailsDrawerProps {
   contact: ContactWithCompany;
   open: boolean;
   onClose: () => void;
 }
 
-export function ContactDetailsSlider({
+export default function ContactDetailsDrawer({
   contact,
   open,
   onClose,
-}: ContactDetailsSliderProps) {
+}: ContactDetailsDrawerProps) {
   return (
     <Sheet open={open} onOpenChange={onClose}>
       <SheetContent className="w-[400px] sm:w-[540px]">

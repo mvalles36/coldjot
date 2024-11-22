@@ -3,8 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { notFound, redirect } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Separator } from "@/components/ui/separator";
-import ContactList from "@/app/contacts/ContactList";
-import { Globe, Building2 } from "lucide-react";
+import ContactList from "@/components/contacts/contact-list";
+import { Globe } from "lucide-react";
 
 interface PageProps {
   params: Promise<{ id: string }>;

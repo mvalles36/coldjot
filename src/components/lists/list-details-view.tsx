@@ -34,7 +34,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import Link from "next/link";
 import { Contact, Company } from "@prisma/client";
-import { ContactDetailsSlider } from "@/app/contacts/ContactDetailsSlider";
+import ContactDetailsDrawer from "@/components/contacts/contact-details-drawer";
 
 type ContactWithCompany = Contact & {
   company: Company | null;
@@ -412,7 +412,7 @@ export default function ListDetailsView() {
       </AlertDialog>
 
       {selectedContactForDetails && (
-        <ContactDetailsSlider
+        <ContactDetailsDrawer
           contact={selectedContactForDetails}
           open={!!selectedContactForDetails}
           onClose={() => setSelectedContactForDetails(null)}

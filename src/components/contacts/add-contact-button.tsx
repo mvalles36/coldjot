@@ -3,7 +3,7 @@
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import AddContactModal from "./AddContactModal";
+import AddContactModal from "./add-contact-drawer";
 import { Contact, Company } from "@prisma/client";
 
 type ContactWithCompany = Contact & {
