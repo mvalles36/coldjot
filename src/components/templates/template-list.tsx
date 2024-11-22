@@ -12,9 +12,9 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Edit2, Trash2, FileText, Plus, Eye } from "lucide-react";
-import PreviewTemplateModal from "./PreviewTemplateModal";
-import EditTemplateModal from "./EditTemplateModal";
-import DeleteTemplateDialog from "./DeleteTemplateDialog";
+import PreviewTemplateModal from "./preview-template-drawer";
+import EditTemplateModal from "./edit-template-drawer";
+import DeleteTemplateDialog from "./delete-template-dialog";
 import { toast } from "react-hot-toast";
 
 interface TemplateListProps {

@@ -28,7 +28,7 @@ type FormData = {
   content: string;
 };
 
-export default function EditTemplateModal({
+export default function EditTemplateDrawer({
   template,
   onClose,
   onSave,

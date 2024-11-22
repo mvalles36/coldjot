@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { RichTextEditor } from "@/components/editor/RichTextEditor";
+import { RichTextEditor } from "@/components/editor/rich-text-editor";
 import { Template } from "@/types";
 
 type FormData = {
@@ -27,7 +27,7 @@ interface Props {
   onSave: (template: Template) => void;
 }
 
-export default function AddTemplateModal({ onClose, onSave }: Props) {
+export default function AddTemplateDrawer({ onClose, onSave }: Props) {
   const [isSaving, setIsSaving] = useState(false);
   const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
   const { register, handleSubmit, setValue, watch } = useForm<FormData>();

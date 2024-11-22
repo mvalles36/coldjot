@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { LocalSearch } from "@/components/ui/local-search";
-import TemplateList from "./TemplateList";
+import TemplateList from "@/components/templates/template-list";
 import { Separator } from "@/components/ui/separator";
 
 export default function TemplatesPage() {
