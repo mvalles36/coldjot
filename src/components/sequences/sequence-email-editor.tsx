@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -19,16 +19,33 @@ interface SequenceEmailEditorProps {
   open: boolean;
   onClose: () => void;
   onSave: (data: any) => void;
+  initialData?: {
+    subject?: string;
+    content?: string;
+    includeSignature?: boolean;
+  };
 }
 
 export function SequenceEmailEditor({
   open,
   onClose,
   onSave,
+  initialData,
 }: SequenceEmailEditorProps) {
-  const [content, setContent] = useState("");
-  const [subject, setSubject] = useState("");
-  const [includeSignature, setIncludeSignature] = useState(true);
+  const [content, setContent] = useState(initialData?.content || "");
+  const [subject, setSubject] = useState(initialData?.subject || "");
+  const [includeSignature, setIncludeSignature] = useState(
+    initialData?.includeSignature ?? true
+  );
+
+  // Update state when initialData changes
+  useEffect(() => {
+    if (initialData) {
+      setContent(initialData.content || "");
+      setSubject(initialData.subject || "");
+      setIncludeSignature(initialData.includeSignature ?? true);
+    }
+  }, [initialData]);
 
   const handleTemplateSelect = (template: {
     subject: string;
@@ -51,7 +68,9 @@ export function SequenceEmailEditor({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="w-11/12 sm:w-[95%] max-w-[1400px] h-[95vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Edit template</DialogTitle>
+          <DialogTitle>
+            {initialData ? "Edit Email" : "Create Email"}
+          </DialogTitle>
         </DialogHeader>
 
         <form

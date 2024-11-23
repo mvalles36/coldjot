@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ContactSearch } from "@/components/search/contact-search-dropdown";
 import {
@@ -14,9 +14,20 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "react-hot-toast";
 import { Loader2, UserPlus, X } from "lucide-react";
-import { Contact } from "@prisma/client";
+import { ListSelector } from "./list-selector";
 
-interface ContactWithCompany extends Contact {
+interface ContactWithCompany {
+  id: string;
+  name: string;
+  title: string | null;
+  firstName: string;
+  lastName: string;
+  email: string;
+  linkedinUrl: string | null;
+  companyId: string | null;
+  userId: string;
+  createdAt: Date;
+  updatedAt: Date;
   company: {
     id: string;
     name: string;
@@ -50,10 +61,6 @@ export function SequenceContacts({
     useState<ContactWithCompany | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    console.log("initialContacts", initialContacts);
-  }, [initialContacts]);
-
   const handleAddContact = async (contact: ContactWithCompany) => {
     try {
       setIsLoading(true);
@@ -76,11 +83,11 @@ export function SequenceContacts({
     }
   };
 
-  const handleRemoveContact = async (sequenceContactId: string) => {
+  const handleRemoveContact = async (contactId: string) => {
     try {
       setIsLoading(true);
       const response = await fetch(
-        `/api/sequences/${sequenceId}/contacts/${sequenceContactId}`,
+        `/api/sequences/${sequenceId}/contacts/${contactId}`,
         {
           method: "DELETE",
         }
@@ -88,12 +95,24 @@ export function SequenceContacts({
 
       if (!response.ok) throw new Error("Failed to remove contact");
 
-      setContacts((prev) => prev.filter((c) => c.id !== sequenceContactId));
+      setContacts((prev) => prev.filter((c) => c.contactId !== contactId));
       toast.success("Contact removed from sequence");
     } catch (error) {
       toast.error("Failed to remove contact");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const refreshContacts = async () => {
+    try {
+      const response = await fetch(`/api/sequences/${sequenceId}/contacts`);
+      if (response.ok) {
+        const data = await response.json();
+        setContacts(data);
+      }
+    } catch (error) {
+      console.error("Failed to refresh contacts:", error);
     }
   };
 
@@ -117,6 +136,10 @@ export function SequenceContacts({
           )}
           Add Contact
         </Button>
+        <ListSelector
+          sequenceId={sequenceId}
+          onListSelected={refreshContacts}
+        />
       </div>
 
       <div className="border rounded-lg">
@@ -131,7 +154,6 @@ export function SequenceContacts({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {/* {JSON.stringify(contacts)} */}
             {contacts.map((sequenceContact) => (
               <TableRow key={sequenceContact.id}>
                 <TableCell>{sequenceContact.contact.name}</TableCell>
@@ -146,13 +168,29 @@ export function SequenceContacts({
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => handleRemoveContact(sequenceContact.id)}
+                    onClick={() =>
+                      handleRemoveContact(sequenceContact.contactId)
+                    }
+                    disabled={isLoading}
                   >
-                    <X className="h-4 w-4" />
+                    {isLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <X className="h-4 w-4" />
+                    )}
                   </Button>
                 </TableCell>
               </TableRow>
             ))}
+            {contacts.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-8">
+                  <div className="text-muted-foreground">
+                    No contacts added to this sequence yet
+                  </div>
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </div>

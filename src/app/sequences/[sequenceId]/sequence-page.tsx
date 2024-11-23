@@ -19,6 +19,8 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import { SequenceEmailEditor } from "@/components/sequences/sequence-email-editor";
+import { toast } from "react-hot-toast";
 
 interface SequencePageProps {
   sequence: {
@@ -47,6 +49,8 @@ export default function SequencePage({ sequence }: SequencePageProps) {
     deleteStep,
     fetchSteps,
   } = useSequenceSteps(sequence.id);
+  const [editingStep, setEditingStep] = useState<any>(null);
+  const [showEmailEditor, setShowEmailEditor] = useState(false);
 
   // Initial setup of steps
   useEffect(() => {
@@ -61,11 +65,42 @@ export default function SequencePage({ sequence }: SequencePageProps) {
   }, [activeTab, fetchSteps]);
 
   const handleStepEdit = (step: any) => {
-    // Handle step edit - will implement later
+    const emailData = {
+      subject: step.subject,
+      content: step.content,
+      includeSignature: step.includeSignature,
+    };
+    setEditingStep({ ...step, ...emailData });
+    setShowEmailEditor(true);
   };
 
   const handleStepAdded = async () => {
     await fetchSteps();
+  };
+
+  const handleEmailSave = async (emailData: any) => {
+    try {
+      const response = await fetch(
+        `/api/sequences/${sequence.id}/steps/${editingStep.id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...editingStep,
+            ...emailData,
+          }),
+        }
+      );
+
+      if (!response.ok) throw new Error("Failed to update step");
+
+      await fetchSteps();
+      setShowEmailEditor(false);
+      setEditingStep(null);
+      toast.success("Step updated successfully");
+    } catch (error) {
+      toast.error("Failed to update step");
+    }
   };
 
   return (
@@ -277,6 +312,16 @@ export default function SequencePage({ sequence }: SequencePageProps) {
           </div>
         </TabsContent>
       </Tabs>
+
+      <SequenceEmailEditor
+        open={showEmailEditor}
+        onClose={() => {
+          setShowEmailEditor(false);
+          setEditingStep(null);
+        }}
+        onSave={handleEmailSave}
+        initialData={editingStep}
+      />
     </div>
   );
 }
