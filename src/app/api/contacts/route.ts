@@ -39,6 +39,7 @@ export async function POST(request: Request) {
 
   try {
     const json = await request.json();
+    console.log("[CONTACT_POST]", json);
     const { firstName, lastName, email, linkedinUrl, companyId } = json;
 
     // Basic validation

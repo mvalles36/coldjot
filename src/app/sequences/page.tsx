@@ -8,7 +8,6 @@ export default async function SequencesPage() {
   const session = await auth();
   if (!session?.user?.id) return null;
 
-  // Fetch sequences server-side for initial load
   const sequences = await prisma.sequence.findMany({
     where: {
       userId: session.user.id,
@@ -19,6 +18,15 @@ export default async function SequencesPage() {
           order: "asc",
         },
       },
+      contacts: {
+        include: {
+          contact: {
+            include: {
+              company: true,
+            },
+          },
+        },
+      },
       _count: {
         select: {
           contacts: true,
@@ -26,6 +34,16 @@ export default async function SequencesPage() {
       },
     },
   });
+
+  // Transform the data to match the expected interface
+  const transformedSequences = sequences.map((sequence) => ({
+    ...sequence,
+    contacts: sequence.contacts.map((sc) => sc.contact),
+    _count: {
+      ...sequence._count,
+      contacts: sequence._count.contacts,
+    },
+  }));
 
   return (
     <div className="max-w-7xl mx-auto py-8 space-y-6">
@@ -36,7 +54,7 @@ export default async function SequencesPage() {
         />
         <Separator />
       </div>
-      <SequenceList initialSequences={sequences} />
+      <SequenceList initialSequences={transformedSequences} />
     </div>
   );
 }

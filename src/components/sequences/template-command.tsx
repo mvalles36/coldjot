@@ -53,17 +53,23 @@ export function TemplateCommand({ onSelect }: TemplateCommandProps) {
   }, []);
 
   return (
-    <Popover open={open} onOpenChange={setOpen} modal={true}>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="outline" className="gap-2">
           <FileText className="h-4 w-4" />
           Templates
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[400px] p-0" align="start">
+
+      <PopoverContent
+        className="w-[400px] p-0"
+        align="start"
+        sideOffset={5}
+        side="top"
+      >
         <Command shouldFilter={true}>
           <CommandInput placeholder="Search templates..." />
-          <CommandList>
+          <CommandList className="max-h-[300px] overflow-auto">
             <CommandEmpty>
               {isLoading ? "Loading templates..." : "No templates found"}
             </CommandEmpty>

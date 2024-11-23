@@ -10,11 +10,15 @@ import { useRouter } from "next/navigation";
 
 interface AddSequenceStepProps {
   sequenceId: string;
+  onStepAdded?: () => void;
 }
 
 type ActiveDrawer = "none" | "step" | "email";
 
-export function AddSequenceStep({ sequenceId }: AddSequenceStepProps) {
+export function AddSequenceStep({
+  sequenceId,
+  onStepAdded,
+}: AddSequenceStepProps) {
   const [activeDrawer, setActiveDrawer] = useState<ActiveDrawer>("none");
   const [stepData, setStepData] = useState<any>(null);
   const router = useRouter();
@@ -41,7 +45,7 @@ export function AddSequenceStep({ sequenceId }: AddSequenceStepProps) {
 
       toast.success("Step added successfully");
       setActiveDrawer("none");
-      router.refresh();
+      onStepAdded?.();
     } catch (error) {
       toast.error("Failed to add step");
     }

@@ -51,24 +51,24 @@ model User {
 }
 
 model Contact {
-    id          String   @id @default(cuid())
+    id          String            @id @default(cuid())
     firstName   String
     lastName    String
     name        String
-    email       String
+    email       String            @unique
     linkedinUrl String?
     title       String?
     companyId   String?
     userId      String
-    createdAt   DateTime @default(now())
-    updatedAt   DateTime @updatedAt
+    createdAt   DateTime          @default(now())
+    updatedAt   DateTime          @updatedAt
+    contacts    SequenceContact[] @relation("ContactToSequence")
+    stats       SequenceStats[]
 
     user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
     drafts     Draft[]
     company    Company?    @relation(fields: [companyId], references: [id])
     emailLists EmailList[] @relation("EmailListContacts")
-    Sequence   Sequence?   @relation(fields: [sequenceId], references: [id])
-    sequenceId String?
 
     @@index([userId])
     @@index([companyId])
@@ -146,21 +146,37 @@ model EmailList {
 }
 
 model Sequence {
-    id           String         @id @default(cuid())
+    id           String            @id @default(cuid())
     name         String
-    accessLevel  String         @default("team")
-    scheduleType String         @default("business")
-    status       String         @default("draft")
+    accessLevel  String            @default("team")
+    scheduleType String            @default("business")
+    status       String            @default("draft")
     userId       String
-    createdAt    DateTime       @default(now())
-    updatedAt    DateTime       @updatedAt
+    createdAt    DateTime          @default(now())
+    updatedAt    DateTime          @updatedAt
     steps        SequenceStep[]
-    contacts     Contact[] // Many-to-many relation with contacts
-    user         User           @relation(fields: [userId], references: [id])
-    EmailList    EmailList?     @relation(fields: [emailListId], references: [id])
+    user         User              @relation(fields: [userId], references: [id])
+    EmailList    EmailList?        @relation(fields: [emailListId], references: [id])
     emailListId  String?
+    stats        SequenceStats[]
+    contacts     SequenceContact[] @relation("SequenceToContact")
 
     @@index([userId])
+}
+
+model SequenceStats {
+    id          String   @id @default(cuid())
+    sequenceId  String
+    sequence    Sequence @relation(fields: [sequenceId], references: [id])
+    contactId   String
+    contact     Contact  @relation(fields: [contactId], references: [id])
+    status      String   @default("not_sent")
+    currentStep Int      @default(0)
+    startedAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    @@index([sequenceId])
+    @@index([contactId])
 }
 
 model SequenceStep {
@@ -184,4 +200,20 @@ model SequenceStep {
     templateId       String?
 
     @@index([sequenceId])
+}
+
+model SequenceContact {
+    id          String   @id @default(cuid())
+    sequenceId  String
+    sequence    Sequence @relation("SequenceToContact", fields: [sequenceId], references: [id])
+    contactId   String
+    contact     Contact  @relation("ContactToSequence", fields: [contactId], references: [id])
+    status      String   @default("not_sent")
+    currentStep Int      @default(0)
+    startedAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    @@unique([sequenceId, contactId])
+    @@index([sequenceId])
+    @@index([contactId])
 }

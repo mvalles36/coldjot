@@ -78,7 +78,7 @@ export function SequenceStepEditor({
   };
 
   return (
-    <Sheet open={open} onOpenChange={onClose} modal={false}>
+    <Sheet open={open} onOpenChange={onClose}>
       <SheetContent className="w-[600px] sm:max-w-[600px]">
         <SheetHeader>
           <SheetTitle>Add Sequence Step</SheetTitle>
