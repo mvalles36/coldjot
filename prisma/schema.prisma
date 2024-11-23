@@ -35,9 +35,9 @@ model Session {
 }
 
 model User {
-    id            String          @id @default(cuid())
+    id            String      @id @default(cuid())
     name          String?
-    email         String?         @unique
+    email         String?     @unique
     emailVerified DateTime?
     image         String?
     accounts      Account[]
@@ -47,7 +47,7 @@ model User {
     drafts        Draft[]
     TestData      TestData[]
     EmailList     EmailList[]
-    EmailSequence EmailSequence[]
+    Sequence      Sequence[]
 }
 
 model Contact {
@@ -67,6 +67,8 @@ model Contact {
     drafts     Draft[]
     company    Company?    @relation(fields: [companyId], references: [id])
     emailLists EmailList[] @relation("EmailListContacts")
+    Sequence   Sequence?   @relation(fields: [sequenceId], references: [id])
+    sequenceId String?
 
     @@index([userId])
     @@index([companyId])
@@ -90,11 +92,11 @@ model Template {
     subject String @default("")
     content String
 
-    createdAt         DateTime            @default(now())
-    updatedAt         DateTime            @updatedAt
-    user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-    drafts            Draft[]
-    EmailSequenceStep EmailSequenceStep[]
+    createdAt    DateTime       @default(now())
+    updatedAt    DateTime       @updatedAt
+    user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+    drafts       Draft[]
+    SequenceStep SequenceStep[]
 }
 
 model Draft {
@@ -129,48 +131,57 @@ model TestData {
 }
 
 model EmailList {
-    id          String          @id @default(cuid())
+    id          String     @id @default(cuid())
     name        String
     description String?
     tags        String[]
     userId      String
-    user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-    contacts    Contact[]       @relation("EmailListContacts")
-    sequences   EmailSequence[]
-    createdAt   DateTime        @default(now())
-    updatedAt   DateTime        @updatedAt
+    user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+    contacts    Contact[]  @relation("EmailListContacts")
+    sequences   Sequence[]
+    createdAt   DateTime   @default(now())
+    updatedAt   DateTime   @updatedAt
 
     @@index([userId])
 }
 
-model EmailSequence {
-    id          String              @id @default(cuid())
-    name        String
-    description String?
-    status      String              @default("draft") // draft, active, paused, completed
-    userId      String
-    user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-    emailListId String?
-    emailList   EmailList?          @relation(fields: [emailListId], references: [id])
-    steps       EmailSequenceStep[]
-    createdAt   DateTime            @default(now())
-    updatedAt   DateTime            @updatedAt
+model Sequence {
+    id           String         @id @default(cuid())
+    name         String
+    accessLevel  String         @default("team")
+    scheduleType String         @default("business")
+    status       String         @default("draft")
+    userId       String
+    createdAt    DateTime       @default(now())
+    updatedAt    DateTime       @updatedAt
+    steps        SequenceStep[]
+    contacts     Contact[] // Many-to-many relation with contacts
+    user         User           @relation(fields: [userId], references: [id])
+    EmailList    EmailList?     @relation(fields: [emailListId], references: [id])
+    emailListId  String?
 
     @@index([userId])
-    @@index([emailListId])
 }
 
-model EmailSequenceStep {
-    id         String        @id @default(cuid())
-    sequenceId String
-    sequence   EmailSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
-    templateId String
-    template   Template      @relation(fields: [templateId], references: [id])
-    order      Int
-    delay      Int // Delay in days from previous step
-    createdAt  DateTime      @default(now())
-    updatedAt  DateTime      @updatedAt
+model SequenceStep {
+    id               String    @id @default(cuid())
+    sequenceId       String
+    stepType         String    @default("manual_email")
+    status           String    @default("not_sent")
+    priority         String    @default("medium")
+    timing           String    @default("immediate")
+    delayAmount      Int?
+    delayUnit        String?
+    subject          String?
+    content          String?   @db.Text
+    includeSignature Boolean   @default(true)
+    note             String?   @db.Text
+    order            Int
+    createdAt        DateTime  @default(now())
+    updatedAt        DateTime  @updatedAt
+    sequence         Sequence  @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+    Template         Template? @relation(fields: [templateId], references: [id])
+    templateId       String?
 
     @@index([sequenceId])
-    @@index([templateId])
 }

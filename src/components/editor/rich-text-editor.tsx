@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { PlaceholderButton } from "@/components/email/placeholder-button";
 import { LinkDialog } from "./link-dialog";
+import { cn } from "@/lib/utils";
 
 interface RichTextEditorProps {
   initialContent: string;
@@ -26,6 +27,8 @@ interface RichTextEditorProps {
   placeholder?: string;
   readOnly?: boolean;
   onLinkDialogChange?: (isOpen: boolean) => void;
+  className?: string;
+  editorClassName?: string;
 }
 
 export function RichTextEditor({
@@ -34,6 +37,8 @@ export function RichTextEditor({
   placeholder = "Write something...",
   readOnly = false,
   onLinkDialogChange,
+  className,
+  editorClassName,
 }: RichTextEditorProps) {
   const [showLinkDialog, setShowLinkDialog] = useState(false);
 
@@ -57,8 +62,10 @@ export function RichTextEditor({
     content: initialContent,
     editorProps: {
       attributes: {
-        class:
+        class: cn(
           "prose prose-sm max-w-none focus:outline-none min-h-[200px] px-3 py-2",
+          editorClassName
+        ),
       },
     },
     onUpdate: ({ editor }) => {
@@ -89,7 +96,7 @@ export function RichTextEditor({
   }
 
   return (
-    <div className="border rounded-md">
+    <div className={cn("border rounded-md", className)}>
       {!readOnly && (
         <div className="border-b p-2 flex gap-1 flex-wrap items-center">
           <Button
