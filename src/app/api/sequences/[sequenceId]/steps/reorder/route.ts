@@ -15,9 +15,10 @@ export async function PUT(
     const { steps } = await req.json();
 
     // Verify sequence ownership
+    const { sequenceId } = await params;
     const sequence = await prisma.sequence.findUnique({
       where: {
-        id: params.sequenceId,
+        id: sequenceId,
         userId: session.user.id,
       },
     });

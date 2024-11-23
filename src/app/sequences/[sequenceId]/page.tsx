@@ -46,7 +46,7 @@ export default async function Page({
 
   const transformedSequence = {
     ...sequence,
-    contacts: sequence.contacts.map((sc) => sc.contact),
+    contacts: sequence.contacts,
     _count: {
       ...sequence._count,
       contacts: sequence._count.contacts,

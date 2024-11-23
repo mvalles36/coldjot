@@ -92,7 +92,19 @@ export async function PATCH(
   const data = await request.json();
 
   try {
-    // Only update the fields that are provided
+    // First fetch the existing contact to get current values
+    const existingContact = await prisma.contact.findFirst({
+      where: {
+        id: contactId,
+        userId: session.user.id,
+      },
+    });
+
+    if (!existingContact) {
+      return NextResponse.json({ error: "Contact not found" }, { status: 404 });
+    }
+
+    // Then update with new values
     const updatedContact = await prisma.contact.update({
       where: {
         id: contactId,
@@ -101,6 +113,11 @@ export async function PATCH(
       data: {
         ...(data.firstName !== undefined && { firstName: data.firstName }),
         ...(data.lastName !== undefined && { lastName: data.lastName }),
+        ...((data.firstName !== undefined || data.lastName !== undefined) && {
+          name: `${data.firstName ?? existingContact.firstName} ${
+            data.lastName ?? existingContact.lastName
+          }`,
+        }),
         ...(data.email !== undefined && { email: data.email }),
         ...(data.linkedinUrl !== undefined && {
           linkedinUrl: data.linkedinUrl,

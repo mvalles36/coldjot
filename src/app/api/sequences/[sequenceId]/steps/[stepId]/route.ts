@@ -12,9 +12,10 @@ export async function PUT(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
+    const { sequenceId } = await params;
     const sequence = await prisma.sequence.findUnique({
       where: {
-        id: params.sequenceId,
+        id: sequenceId,
         userId: session.user.id,
       },
     });
@@ -46,9 +47,10 @@ export async function DELETE(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
+    const { sequenceId } = await params;
     const sequence = await prisma.sequence.findUnique({
       where: {
-        id: params.sequenceId,
+        id: sequenceId,
         userId: session.user.id,
       },
     });

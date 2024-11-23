@@ -12,7 +12,7 @@ export async function GET(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { sequenceId } = params;
+    const { sequenceId } = await params;
     const sequenceContacts = await prisma.sequenceContact.findMany({
       where: {
         sequenceId,
@@ -47,7 +47,7 @@ export async function POST(
     }
 
     const { contactId } = await req.json();
-    const { sequenceId } = params;
+    const { sequenceId } = await params;
 
     const sequence = await prisma.sequence.findUnique({
       where: {

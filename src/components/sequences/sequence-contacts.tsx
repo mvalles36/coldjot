@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ContactSearch } from "@/components/search/contact-search-dropdown";
 import {
@@ -50,6 +50,10 @@ export function SequenceContacts({
     useState<ContactWithCompany | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  useEffect(() => {
+    console.log("initialContacts", initialContacts);
+  }, [initialContacts]);
+
   const handleAddContact = async (contact: ContactWithCompany) => {
     try {
       setIsLoading(true);
@@ -72,11 +76,11 @@ export function SequenceContacts({
     }
   };
 
-  const handleRemoveContact = async (contactId: string) => {
+  const handleRemoveContact = async (sequenceContactId: string) => {
     try {
       setIsLoading(true);
       const response = await fetch(
-        `/api/sequences/${sequenceId}/contacts/${contactId}`,
+        `/api/sequences/${sequenceId}/contacts/${sequenceContactId}`,
         {
           method: "DELETE",
         }
@@ -84,7 +88,7 @@ export function SequenceContacts({
 
       if (!response.ok) throw new Error("Failed to remove contact");
 
-      setContacts((prev) => prev.filter((c) => c.id !== contactId));
+      setContacts((prev) => prev.filter((c) => c.id !== sequenceContactId));
       toast.success("Contact removed from sequence");
     } catch (error) {
       toast.error("Failed to remove contact");
@@ -127,6 +131,7 @@ export function SequenceContacts({
             </TableRow>
           </TableHeader>
           <TableBody>
+            {/* {JSON.stringify(contacts)} */}
             {contacts.map((sequenceContact) => (
               <TableRow key={sequenceContact.id}>
                 <TableCell>{sequenceContact.contact.name}</TableCell>

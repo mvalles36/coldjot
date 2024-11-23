@@ -73,10 +73,10 @@ export async function GET(
     if (!session?.user?.id) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
-
+    const { sequenceId } = await params;
     const steps = await prisma.sequenceStep.findMany({
       where: {
-        sequenceId: params.sequenceId,
+        sequenceId: sequenceId,
         sequence: {
           userId: session.user.id,
         },

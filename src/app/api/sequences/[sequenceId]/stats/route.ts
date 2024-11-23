@@ -17,9 +17,10 @@ export async function GET(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
+    const { sequenceId } = await params;
     const sequence = await prisma.sequence.findUnique({
       where: {
-        id: params.sequenceId,
+        id: sequenceId,
         userId: session.user.id,
       },
       include: {

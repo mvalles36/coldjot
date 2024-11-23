@@ -2,17 +2,29 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
-export async function GET(request: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export async function GET(req: Request) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const search = searchParams.get("search");
+
+    const where = {
+      userId: session.user.id,
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search, mode: "insensitive" } },
+              { email: { contains: search, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+    };
     const contacts = await prisma.contact.findMany({
-      where: {
-        userId: session.user.id,
-      },
+      where: where as any, // Type assertion to bypass TypeScript error
       include: {
         company: true,
       },
@@ -23,7 +35,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(contacts);
   } catch (error) {
-    console.error("Error fetching contacts:", error);
+    console.error("[CONTACTS_GET]", error);
     return NextResponse.json(
       { error: "Failed to fetch contacts" },
       { status: 500 }
@@ -31,66 +43,47 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export async function POST(req: Request) {
   try {
-    const json = await request.json();
+    const session = await auth();
+    if (!session?.user?.id) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    const json = await req.json();
+    const { firstName, lastName, name, email, title, linkedinUrl, companyId } =
+      json;
+
     console.log("[CONTACT_POST]", json);
-    const { firstName, lastName, email, linkedinUrl, companyId } = json;
 
-    // Basic validation
-    if (!firstName || !lastName || !email) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
+    // Before creating, check if the contact already exists
+    const existingContact = await prisma.contact.findUnique({
+      where: { email },
+    });
+
+    if (existingContact) {
+      return NextResponse.json(existingContact);
     }
 
-    // Create contact data object
-    const contactData = {
-      firstName,
-      lastName,
-      name: `${firstName} ${lastName}`,
-      email,
-      linkedinUrl,
-      userId: session.user.id,
-    };
-
-    // Only add companyId if it exists and is not null/undefined
-    if (companyId) {
-      // Verify the company exists and belongs to the user
-      const company = await prisma.company.findFirst({
-        where: {
-          id: companyId,
-          userId: session.user.id,
-        },
-      });
-
-      if (!company) {
-        return NextResponse.json(
-          { error: "Invalid company selected" },
-          { status: 400 }
-        );
-      }
-
-      Object.assign(contactData, { companyId });
-    }
-
-    // Create the contact
     const contact = await prisma.contact.create({
-      data: contactData,
+      data: {
+        firstName,
+        lastName,
+        name,
+        email,
+        title,
+        linkedinUrl,
+        companyId,
+        userId: session.user.id,
+      },
       include: {
-        company: true, // Always include company data in response, even if null
+        company: true,
       },
     });
 
     return NextResponse.json(contact);
   } catch (error) {
-    console.error("Error creating contact:", error);
+    console.error("[CONTACT_POST]", error);
     return NextResponse.json(
       { error: "Failed to create contact" },
       { status: 500 }

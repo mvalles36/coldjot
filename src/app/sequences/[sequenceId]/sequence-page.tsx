@@ -98,8 +98,6 @@ export default function SequencePage({ sequence }: SequencePageProps) {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="contacts">Contacts</TabsTrigger>
           <TabsTrigger value="emails">Emails</TabsTrigger>
-          <TabsTrigger value="tasks">Tasks</TabsTrigger>
-          <TabsTrigger value="activity">Activity</TabsTrigger>
           <TabsTrigger value="report">Report</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
@@ -203,18 +201,6 @@ export default function SequencePage({ sequence }: SequencePageProps) {
         <TabsContent value="emails" className="mt-6">
           <div className="text-center text-muted-foreground py-8">
             Email tracking stats will appear here once sequence is launched
-          </div>
-        </TabsContent>
-
-        <TabsContent value="tasks" className="mt-6">
-          <div className="text-center text-muted-foreground py-8">
-            Tasks will appear here once sequence is launched
-          </div>
-        </TabsContent>
-
-        <TabsContent value="activity" className="mt-6">
-          <div className="text-center text-muted-foreground py-8">
-            Activity log will appear here once sequence is launched
           </div>
         </TabsContent>
 
