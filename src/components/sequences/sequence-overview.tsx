@@ -11,8 +11,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { SequenceStepEditor } from "./sequence-step-editor";
-import { SequenceEmailEditor } from "./sequence-email-editor";
+import { SequenceStepEditor } from "./steps/sequence-step-editor";
+import { SequenceEmailEditor } from "./editor/sequence-email-editor";
 
 interface Sequence {
   id: string;

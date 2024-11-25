@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { SequenceStepEditor } from "./sequence-step-editor";
-import { SequenceEmailEditor } from "./sequence-email-editor";
+import { SequenceEmailEditor } from "../editor/sequence-email-editor";
 import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import {

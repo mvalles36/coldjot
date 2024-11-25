@@ -35,9 +35,9 @@ model Session {
 }
 
 model User {
-    id            String      @id @default(cuid())
+    id            String       @id @default(cuid())
     name          String?
-    email         String?     @unique
+    email         String?      @unique
     emailVerified DateTime?
     image         String?
     accounts      Account[]
@@ -48,6 +48,7 @@ model User {
     TestData      TestData[]
     EmailList     EmailList[]
     Sequence      Sequence[]
+    devSettings   DevSettings?
 }
 
 model Contact {
@@ -151,7 +152,7 @@ model Sequence {
     accessLevel  String            @default("team")
     scheduleType String            @default("business")
     status       String            @default("draft")
-    demoMode     Boolean           @default(false)
+    testMode     Boolean           @default(false)
     userId       String
     createdAt    DateTime          @default(now())
     updatedAt    DateTime          @updatedAt
@@ -220,4 +221,16 @@ model SequenceContact {
     @@unique([sequenceId, contactId])
     @@index([sequenceId])
     @@index([contactId])
+}
+
+model DevSettings {
+    id             String   @id @default(cuid())
+    userId         String   @unique
+    user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    disableSending Boolean  @default(false)
+    testEmails     String[] // Store emails as an array
+    updatedAt      DateTime @updatedAt
+    createdAt      DateTime @default(now())
+
+    @@index([userId])
 }

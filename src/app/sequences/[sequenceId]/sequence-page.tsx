@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Mail, Plus, Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AddSequenceStep } from "@/components/sequences/add-sequence-step";
-import { SequenceStepList } from "@/components/sequences/sequence-step-list";
+import { AddSequenceStep } from "@/components/sequences/steps/add-sequence-step";
+import { SequenceStepList } from "@/components/sequences/steps/sequence-step-list";
 import { useSequenceSteps } from "@/hooks/use-sequence-steps";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -19,28 +19,18 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { SequenceEmailEditor } from "@/components/sequences/sequence-email-editor";
+import { SequenceEmailEditor } from "@/components/sequences/editor/sequence-email-editor";
 import { toast } from "react-hot-toast";
 import { SequenceEmailStats } from "@/components/sequences/sequence-email-stats";
 import { LaunchSequenceModal } from "@/components/sequences/launch-sequence-modal";
 
 import { SequenceStatusBadge } from "@/components/sequences/sequence-status-badge";
 import { SequenceControls } from "@/components/sequences/sequence-controls";
+import { SequenceDevSettings } from "@/components/sequences/sequence-dev-settings";
+import { Sequence, DevSettings } from "@/types/sequence";
 
 interface SequencePageProps {
-  sequence: {
-    id: string;
-    name: string;
-    status: string;
-    steps: any[];
-    contacts: any[];
-    accessLevel: string;
-    scheduleType: string;
-    _count: {
-      contacts: number;
-    };
-    demoMode: boolean;
-  };
+  sequence: Sequence;
 }
 
 export default function SequencePage({ sequence }: SequencePageProps) {
@@ -331,6 +321,19 @@ export default function SequencePage({ sequence }: SequencePageProps) {
                 <Button>Save Changes</Button>
               </div>
             </div>
+
+            {process.env.NODE_ENV === "development" && (
+              <div className="pt-6">
+                <SequenceDevSettings
+                  sequenceId={sequence.id}
+                  testMode={sequence.testMode}
+                  onTestModeChange={(checked) => {
+                    // Optionally update local state if needed
+                    router.refresh();
+                  }}
+                />
+              </div>
+            )}
           </div>
         </TabsContent>
       </Tabs>
@@ -350,6 +353,7 @@ export default function SequencePage({ sequence }: SequencePageProps) {
         onClose={() => setShowLaunchModal(false)}
         sequenceId={sequence.id}
         contactCount={sequence._count.contacts}
+        testMode={sequence.testMode}
       />
     </div>
   );

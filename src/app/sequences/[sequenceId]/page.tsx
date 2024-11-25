@@ -33,7 +33,7 @@ async function getSequence(sequenceId: string) {
 
   return {
     ...sequence,
-    demoMode: sequence.demoMode || false,
+    testMode: sequence.testMode || false,
   };
 }
 

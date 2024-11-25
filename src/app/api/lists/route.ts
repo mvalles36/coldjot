@@ -21,8 +21,6 @@ export async function GET() {
       },
     });
 
-    console.log("lists", lists);
-
     return NextResponse.json(lists);
   } catch (error) {
     console.error("Failed to fetch lists:", error);

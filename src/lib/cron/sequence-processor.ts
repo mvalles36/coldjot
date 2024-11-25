@@ -1,12 +1,101 @@
 import { prisma } from "@/lib/prisma";
-import { sendEmail } from "@/lib/email";
+import { sendEmail, refreshAccessToken } from "@/lib/email";
 import type { SendEmailOptions } from "@/lib/email";
-import { DEMO_CONTACTS, getRandomDemoRecipient } from "@/config/demo";
+import { TEST_CONTACTS, getRandomTestRecipient } from "@/config/test";
+
+interface GoogleAccount {
+  access_token: string;
+  refresh_token: string;
+  providerAccountId: string;
+}
+
+async function getGoogleAccount(userId: string): Promise<GoogleAccount | null> {
+  const account = await prisma.account.findFirst({
+    where: {
+      userId: userId,
+      provider: "google",
+    },
+    select: {
+      access_token: true,
+      refresh_token: true,
+      providerAccountId: true,
+    },
+  });
+
+  if (
+    !account?.access_token ||
+    !account?.refresh_token ||
+    !account?.providerAccountId
+  ) {
+    return null;
+  }
+
+  return {
+    access_token: account.access_token,
+    refresh_token: account.refresh_token,
+    providerAccountId: account.providerAccountId,
+  };
+}
+
+async function handleEmailSend(
+  emailOptions: SendEmailOptions,
+  account: GoogleAccount
+) {
+  try {
+    await sendEmail({
+      ...emailOptions,
+      accessToken: account.access_token,
+    });
+  } catch (error: any) {
+    if (error.message === "TOKEN_EXPIRED") {
+      console.log(`🔄 Refreshing access token...`);
+      const newAccessToken = await refreshAccessToken(account.refresh_token);
+
+      if (!newAccessToken) {
+        throw new Error("Failed to refresh token");
+      }
+
+      // Update the token in database
+      await prisma.account.update({
+        where: {
+          provider_providerAccountId: {
+            provider: "google",
+            providerAccountId: account.providerAccountId,
+          },
+        },
+        data: {
+          access_token: newAccessToken,
+        },
+      });
+
+      // Update the account object with new token
+      account.access_token = newAccessToken;
+
+      // Retry with new token
+      console.log(`🔄 Retrying with new token...`);
+      await sendEmail({
+        ...emailOptions,
+        accessToken: newAccessToken,
+      });
+    } else {
+      throw error;
+    }
+  }
+}
+
+async function getDevSettings(userId: string) {
+  return await prisma.devSettings.findUnique({
+    where: { userId },
+    select: {
+      disableSending: true,
+      testEmails: true,
+    },
+  });
+}
 
 export async function processSequences() {
   console.log("🔄 Starting sequence processing...");
 
-  // Get all active sequences with contacts
   const sequences = await prisma.sequence.findMany({
     where: {
       status: "active",
@@ -27,6 +116,7 @@ export async function processSequences() {
           order: "asc",
         },
       },
+      user: true,
     },
   });
 
@@ -36,7 +126,21 @@ export async function processSequences() {
     console.log(
       `\n🔍 Processing sequence: ${sequence.name} (ID: ${sequence.id})`
     );
-    console.log(`📝 Mode: ${sequence.demoMode ? "Test" : "Live"}`);
+    console.log(`📝 Mode: ${sequence.testMode ? "Test" : "Live"}`);
+
+    // Get user's Google account
+    const googleAccount = await getGoogleAccount(sequence.userId);
+    if (!googleAccount) {
+      console.error(
+        `❌ No valid Google account found for user ${sequence.userId}`
+      );
+      continue;
+    }
+
+    // Only fetch dev settings if sequence is in test mode
+    const devSettings = sequence.testMode
+      ? await getDevSettings(sequence.userId)
+      : null;
 
     for (const sequenceContact of sequence.contacts) {
       const currentStep = sequence.steps[sequenceContact.currentStep];
@@ -70,40 +174,50 @@ export async function processSequences() {
           }`
         );
 
-        // Prepare email content with test mode indicator if needed
-        const emailContent = sequence.demoMode
+        const emailContent = sequence.testMode
           ? `[TEST MODE] Email intended for: ${sequenceContact.contact.email}\n\n${currentStep.content}`
           : currentStep.content;
 
-        // In test mode, replace recipient with demo email
-        const recipientEmail = sequence.demoMode
-          ? getRandomDemoRecipient()
-          : sequenceContact.contact.email;
+        // Use dev settings test emails if in test mode and test emails exist
+        const recipientEmail =
+          sequence.testMode && devSettings?.testEmails?.length
+            ? devSettings.testEmails[
+                Math.floor(Math.random() * devSettings.testEmails.length)
+              ]
+            : sequenceContact.contact.email;
 
-        if (sequence.demoMode) {
+        if (sequence.testMode) {
           console.log(`🎯 Test mode: Redirecting email to ${recipientEmail}`);
         }
 
         const emailOptions: SendEmailOptions = {
           to: recipientEmail,
-          subject: sequence.demoMode
+          subject: sequence.testMode
             ? `[TEST] ${currentStep.subject}`
             : currentStep.subject || "",
           content: emailContent || "",
           threadId: previousStep?.id,
         };
 
-        // Only send if not in test mode or if contact is a demo contact
         const shouldSend =
-          !sequence.demoMode ||
-          DEMO_CONTACTS.some(
-            (dc) => dc.email === sequenceContact.contact.email
-          );
+          !sequence.testMode || devSettings?.testEmails?.length;
 
         if (shouldSend) {
-          console.log(`📤 Sending email...`);
-          await sendEmail(emailOptions);
-          console.log(`✅ Email sent successfully`);
+          console.log(`📤 Preparing to send email...`);
+
+          // Check if sending is disabled in global dev settings
+          const sendingDisabled = devSettings?.disableSending;
+
+          if (sendingDisabled) {
+            console.log(`⚠️ Email sending is disabled in development settings`);
+            console.log(`Would have sent email to: ${recipientEmail}`);
+            console.log(`Subject: ${emailOptions.subject}`);
+            console.log(`Content: ${emailOptions.content}`);
+          } else {
+            console.log(`📤 Sending email...`);
+            await handleEmailSend(emailOptions, googleAccount);
+            console.log(`✅ Email sent successfully`);
+          }
         } else {
           console.log(`⏭️ Skipping email send (test mode)`);
         }

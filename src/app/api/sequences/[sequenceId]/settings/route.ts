@@ -12,17 +12,19 @@ export async function PATCH(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { demoMode } = await req.json();
+    const { testMode } = await req.json();
     const { sequenceId } = await params;
 
     // Update sequence settings
+
+    console.log("testMode", testMode);
     const sequence = await prisma.sequence.update({
       where: {
         id: sequenceId,
         userId: session.user.id,
       },
       data: {
-        demoMode: demoMode,
+        testMode: testMode,
       },
     });
 

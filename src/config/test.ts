@@ -1,6 +1,6 @@
-export const DEMO_MODE = process.env.DEMO_MODE === "true";
+export const TEST_MODE = process.env.TEST_MODE === "true";
 
-export const DEMO_CONTACTS = [
+export const TEST_CONTACTS = [
   {
     email: "zee.khan34@gmail.com",
     firstName: "Zee",
@@ -21,8 +21,8 @@ export const DEMO_CONTACTS = [
   },
 ];
 
-// Multiple demo recipient emails
-export const DEMO_RECIPIENT_EMAILS = [
+// Multiple test recipient emails
+export const TEST_RECIPIENT_EMAILS = [
   "zee.khan34@gmail.com",
   "mr.xee.khan@gmail.com",
   "blackapple34@gmail.com",
@@ -30,7 +30,7 @@ export const DEMO_RECIPIENT_EMAILS = [
 ];
 
 // Function to get a random demo recipient
-export const getRandomDemoRecipient = () => {
-  const index = Math.floor(Math.random() * DEMO_RECIPIENT_EMAILS.length);
-  return DEMO_RECIPIENT_EMAILS[index];
+export const getRandomTestRecipient = () => {
+  const index = Math.floor(Math.random() * TEST_RECIPIENT_EMAILS.length);
+  return TEST_RECIPIENT_EMAILS[index];
 };

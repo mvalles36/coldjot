@@ -13,9 +13,10 @@ export async function POST(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
+    const { testMode } = await req.json();
     const { sequenceId } = await params;
 
-    // Update sequence status
+    // Update sequence status and test mode
     await prisma.sequence.update({
       where: {
         id: sequenceId,
@@ -23,6 +24,7 @@ export async function POST(
       },
       data: {
         status: "active",
+        testMode: testMode,
       },
     });
 
