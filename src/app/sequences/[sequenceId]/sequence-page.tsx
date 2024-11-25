@@ -21,6 +21,11 @@ import {
 } from "@/components/ui/select";
 import { SequenceEmailEditor } from "@/components/sequences/sequence-email-editor";
 import { toast } from "react-hot-toast";
+import { SequenceEmailStats } from "@/components/sequences/sequence-email-stats";
+import { LaunchSequenceModal } from "@/components/sequences/launch-sequence-modal";
+
+import { SequenceStatusBadge } from "@/components/sequences/sequence-status-badge";
+import { SequenceControls } from "@/components/sequences/sequence-controls";
 
 interface SequencePageProps {
   sequence: {
@@ -34,6 +39,7 @@ interface SequencePageProps {
     _count: {
       contacts: number;
     };
+    demoMode: boolean;
   };
 }
 
@@ -51,6 +57,7 @@ export default function SequencePage({ sequence }: SequencePageProps) {
   } = useSequenceSteps(sequence.id);
   const [editingStep, setEditingStep] = useState<any>(null);
   const [showEmailEditor, setShowEmailEditor] = useState(false);
+  const [showLaunchModal, setShowLaunchModal] = useState(false);
 
   // Initial setup of steps
   useEffect(() => {
@@ -109,7 +116,13 @@ export default function SequencePage({ sequence }: SequencePageProps) {
         <div className="space-y-1">
           <h2 className="text-2xl font-semibold">{sequence.name}</h2>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Badge variant="outline">{sequence.status}</Badge>
+            <div className="flex items-center space-x-4">
+              <SequenceStatusBadge status={sequence.status} />
+              <SequenceControls
+                sequenceId={sequence.id}
+                initialStatus={sequence.status}
+              />
+            </div>
             <span>•</span>
             <span>{sequence._count.contacts} contacts</span>
           </div>
@@ -119,7 +132,15 @@ export default function SequencePage({ sequence }: SequencePageProps) {
             sequenceId={sequence.id}
             onStepAdded={handleStepAdded}
           />
-          <Button variant="outline">Launch</Button>
+          <Button
+            variant="default"
+            onClick={() => setShowLaunchModal(true)}
+            disabled={
+              sequence.status === "active" || sequence._count.contacts === 0
+            }
+          >
+            Launch
+          </Button>
         </div>
       </div>
 
@@ -234,9 +255,10 @@ export default function SequencePage({ sequence }: SequencePageProps) {
         </TabsContent>
 
         <TabsContent value="emails" className="mt-6">
-          <div className="text-center text-muted-foreground py-8">
-            Email tracking stats will appear here once sequence is launched
-          </div>
+          <SequenceEmailStats
+            sequenceId={sequence.id}
+            isActive={sequence.status === "active"}
+          />
         </TabsContent>
 
         <TabsContent value="report" className="mt-6">
@@ -321,6 +343,13 @@ export default function SequencePage({ sequence }: SequencePageProps) {
         }}
         onSave={handleEmailSave}
         initialData={editingStep}
+      />
+
+      <LaunchSequenceModal
+        open={showLaunchModal}
+        onClose={() => setShowLaunchModal(false)}
+        sequenceId={sequence.id}
+        contactCount={sequence._count.contacts}
       />
     </div>
   );

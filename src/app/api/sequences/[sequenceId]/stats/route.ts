@@ -13,78 +13,88 @@ export async function GET(
 ) {
   try {
     const session = await auth();
-    if (!session?.user?.id) {
+    if (!session?.user) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
     const { sequenceId } = await params;
-    const sequence = await prisma.sequence.findUnique({
+    const { searchParams } = new URL(req.url);
+    const timeframe = searchParams.get("timeframe") || "7d";
+
+    // Calculate the date range based on timeframe
+    const startDate = new Date();
+    switch (timeframe) {
+      case "24h":
+        startDate.setHours(startDate.getHours() - 24);
+        break;
+      case "7d":
+        startDate.setDate(startDate.getDate() - 7);
+        break;
+      case "30d":
+        startDate.setDate(startDate.getDate() - 30);
+        break;
+      case "all":
+        startDate.setFullYear(2000); // Effectively get all data
+        break;
+    }
+
+    // Get sequence contacts with their status
+    const sequenceContacts = await prisma.sequenceContact.findMany({
       where: {
-        id: sequenceId,
-        userId: session.user.id,
+        sequenceId,
+        updatedAt: {
+          gte: startDate,
+        },
       },
       include: {
-        steps: true,
-        stats: {
-          select: {
-            status: true,
-          },
-        },
+        contact: true,
       },
     });
 
-    if (!sequence) {
-      return new NextResponse("Not found", { status: 404 });
-    }
+    // Get sequence steps with their status
+    const steps = await prisma.sequenceStep.findMany({
+      where: {
+        sequenceId,
+        updatedAt: {
+          gte: startDate,
+        },
+      },
+      orderBy: {
+        order: "asc",
+      },
+    });
 
     // Calculate stats
-    const stats = sequence.stats.reduce(
-      (acc, stat) => {
-        switch (stat.status) {
-          case "not_sent":
-            acc.active++;
-            acc.notSent++;
-            break;
-          case "scheduled":
-            acc.paused++;
-            acc.scheduled++;
-            break;
-          case "sent":
-            acc.finished++;
-            acc.delivered++;
-            break;
-          case "bounced":
-            acc.bounced++;
-            break;
-          case "replied":
-            acc.replied++;
-            break;
-          case "interested":
-            acc.interested++;
-            break;
-          case "opted_out":
-            acc.optedOut++;
-            break;
-        }
-        return acc;
-      },
-      {
-        active: 0,
-        paused: 0,
-        finished: 0,
-        bounced: 0,
-        notSent: 0,
-        scheduled: 0,
-        delivered: 0,
-        replied: 0,
-        interested: 0,
-        optedOut: 0,
-      }
-    );
+    const stats = {
+      sent: steps.filter((step) => step.status === "sent").length,
+      delivered: steps.filter((step) => step.status === "delivered").length,
+      opened: steps.filter((step) => step.status === "opened").length,
+      clicked: steps.filter((step) => step.status === "clicked").length,
+      replied: steps.filter((step) => step.status === "replied").length,
+      bounced: steps.filter((step) => step.status === "bounced").length,
+    };
 
-    return NextResponse.json(stats);
+    // Format activities
+    const activities = steps.map((step) => ({
+      id: step.id,
+      contactName:
+        sequenceContacts.find((sc) => sc.currentStep === step.order)?.contact
+          .name || "Unknown",
+      contactEmail:
+        sequenceContacts.find((sc) => sc.currentStep === step.order)?.contact
+          .email || "",
+      subject: step.subject || "(No subject)",
+      status: step.status,
+      timestamp: step.updatedAt,
+      stepNumber: step.order,
+    }));
+
+    return NextResponse.json({
+      stats,
+      activities,
+    });
   } catch (error) {
-    console.error("[SEQUENCE_STATS_GET]", error);
-    return new NextResponse("Internal Error", { status: 500 });
+    console.error("Error fetching sequence stats:", error);
+    return new NextResponse("Internal error", { status: 500 });
   }
 }

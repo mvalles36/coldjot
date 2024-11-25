@@ -1,28 +1,14 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
-import SequencePage from "./sequence-page";
+import SequencePageComp from "./sequence-page";
 
-export default async function Page({
-  params,
-}: {
-  params: { sequenceId: string };
-}) {
-  const session = await auth();
-  if (!session?.user?.id) return null;
-
-  const { sequenceId } = params;
+async function getSequence(sequenceId: string) {
   const sequence = await prisma.sequence.findUnique({
     where: {
       id: sequenceId,
-      userId: session.user.id,
     },
     include: {
-      steps: {
-        orderBy: {
-          order: "asc",
-        },
-      },
       contacts: {
         include: {
           contact: {
@@ -32,6 +18,7 @@ export default async function Page({
           },
         },
       },
+      steps: true,
       _count: {
         select: {
           contacts: true,
@@ -41,17 +28,21 @@ export default async function Page({
   });
 
   if (!sequence) {
-    return notFound();
+    throw new Error("Sequence not found");
   }
 
-  const transformedSequence = {
+  return {
     ...sequence,
-    contacts: sequence.contacts,
-    _count: {
-      ...sequence._count,
-      contacts: sequence._count.contacts,
-    },
+    demoMode: sequence.demoMode || false,
   };
+}
 
-  return <SequencePage sequence={transformedSequence} />;
+export default async function SequencePage({
+  params,
+}: {
+  params: { sequenceId: string };
+}) {
+  const { sequenceId } = await params;
+  const sequence = await getSequence(sequenceId);
+  return <SequencePageComp sequence={sequence} />;
 }

@@ -151,6 +151,7 @@ model Sequence {
     accessLevel  String            @default("team")
     scheduleType String            @default("business")
     status       String            @default("draft")
+    demoMode     Boolean           @default(false)
     userId       String
     createdAt    DateTime          @default(now())
     updatedAt    DateTime          @updatedAt
@@ -193,6 +194,7 @@ model SequenceStep {
     includeSignature Boolean   @default(true)
     note             String?   @db.Text
     order            Int
+    previousStepId   String?
     createdAt        DateTime  @default(now())
     updatedAt        DateTime  @updatedAt
     sequence         Sequence  @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
@@ -203,15 +205,17 @@ model SequenceStep {
 }
 
 model SequenceContact {
-    id          String   @id @default(cuid())
-    sequenceId  String
-    sequence    Sequence @relation("SequenceToContact", fields: [sequenceId], references: [id])
-    contactId   String
-    contact     Contact  @relation("ContactToSequence", fields: [contactId], references: [id])
-    status      String   @default("not_sent")
-    currentStep Int      @default(0)
-    startedAt   DateTime @default(now())
-    updatedAt   DateTime @updatedAt
+    id              String    @id @default(cuid())
+    sequenceId      String
+    sequence        Sequence  @relation("SequenceToContact", fields: [sequenceId], references: [id])
+    contactId       String
+    contact         Contact   @relation("ContactToSequence", fields: [contactId], references: [id])
+    status          String    @default("not_sent")
+    currentStep     Int       @default(0)
+    startedAt       DateTime  @default(now())
+    updatedAt       DateTime  @updatedAt
+    lastProcessedAt DateTime?
+    completedAt     DateTime?
 
     @@unique([sequenceId, contactId])
     @@index([sequenceId])

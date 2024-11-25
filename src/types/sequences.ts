@@ -2,11 +2,14 @@ export type SequenceStatus = "draft" | "active" | "paused" | "completed";
 export type StepStatus =
   | "not_sent"
   | "scheduled"
+  | "in_progress"
   | "sent"
+  | "failed"
   | "bounced"
   | "replied"
   | "interested"
-  | "opted_out";
+  | "opted_out"
+  | "completed";
 export type StepPriority = "high" | "medium" | "low";
 export type StepTiming = "immediate" | "delay";
 export type StepType = "manual_email";
@@ -75,4 +78,13 @@ export interface SequenceStats {
   replied: number;
   interested: number;
   optedOut: number;
+}
+
+export interface StepData {
+  stepType: "manual_email";
+  timing: "immediate" | "delay";
+  priority: "low" | "medium" | "high";
+  delayAmount?: number;
+  delayUnit?: "minutes" | "hours" | "days";
+  note?: string;
 }

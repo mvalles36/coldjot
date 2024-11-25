@@ -13,7 +13,7 @@ export async function POST(
     }
 
     const { listId } = await req.json();
-    const sequenceId = params.sequenceId;
+    const { sequenceId } = await params;
 
     // Verify sequence ownership
     const sequence = await prisma.sequence.findUnique({

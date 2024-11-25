@@ -151,9 +151,6 @@ export function GlobalSearch({ isCollapsed }: { isCollapsed?: boolean }) {
     url: `/search?q=${encodeURIComponent(query)}`,
   };
 
-  console.log("Results:", results);
-  console.log("ViewAllItem:", viewAllItem);
-
   const displayedResults =
     results.length > 0 ? [...results.slice(0, 2), viewAllItem] : [];
 

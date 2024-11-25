@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "ZKMail",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

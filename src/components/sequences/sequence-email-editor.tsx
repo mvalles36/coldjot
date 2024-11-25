@@ -11,9 +11,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Wand2 } from "lucide-react";
+import { Wand2, Loader2, Send } from "lucide-react";
 import { RichTextEditor } from "@/components/editor/rich-text-editor";
 import { TemplateCommand } from "./template-command";
+import { toast } from "react-hot-toast";
+import { Switch } from "@/components/ui/switch";
 
 interface SequenceEmailEditorProps {
   open: boolean;
@@ -24,6 +26,9 @@ interface SequenceEmailEditorProps {
     content?: string;
     includeSignature?: boolean;
   };
+  sequenceId?: string;
+  stepId?: string;
+  previousStepId?: string;
 }
 
 export function SequenceEmailEditor({
@@ -31,12 +36,18 @@ export function SequenceEmailEditor({
   onClose,
   onSave,
   initialData,
+  sequenceId,
+  stepId,
+  previousStepId,
 }: SequenceEmailEditorProps) {
   const [content, setContent] = useState(initialData?.content || "");
   const [subject, setSubject] = useState(initialData?.subject || "");
   const [includeSignature, setIncludeSignature] = useState(
     initialData?.includeSignature ?? true
   );
+  const [isSending, setIsSending] = useState(false);
+  const [isSendingTest, setIsSendingTest] = useState(false);
+  const [replyToThread, setReplyToThread] = useState(false);
 
   // Update state when initialData changes
   useEffect(() => {
@@ -62,6 +73,33 @@ export function SequenceEmailEditor({
       content,
       includeSignature,
     });
+  };
+
+  const handleSendTest = async () => {
+    if (!sequenceId || !stepId) return;
+
+    setIsSendingTest(true);
+    try {
+      const response = await fetch(
+        `/api/sequences/${sequenceId}/steps/${stepId}/test`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            subject,
+            content,
+            includeSignature,
+          }),
+        }
+      );
+
+      if (!response.ok) throw new Error("Failed to send test email");
+      toast.success("Test email sent successfully");
+    } catch (error) {
+      toast.error("Failed to send test email");
+    } finally {
+      setIsSendingTest(false);
+    }
   };
 
   return (
@@ -139,24 +177,56 @@ export function SequenceEmailEditor({
             </div>
           </div>
 
-          <div className="flex justify-between items-center pt-4 border-t">
-            <div className="flex items-center gap-2">
-              <TemplateCommand onSelect={handleTemplateSelect} />
-              <Button
-                type="button"
-                variant="outline"
-                className="gap-2"
-                onClick={() => {}}
-              >
-                <Wand2 className="h-4 w-4" />
-                AI assistant
-              </Button>
-            </div>
-            <div className="flex gap-3">
-              <Button type="button" variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button type="submit">Save</Button>
+          <div className="space-y-4">
+            {previousStepId && (
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Reply to Previous Email</Label>
+                  <div className="text-sm text-muted-foreground">
+                    Send this email as a reply to the previous step
+                  </div>
+                </div>
+                <Switch
+                  checked={replyToThread}
+                  onCheckedChange={setReplyToThread}
+                />
+              </div>
+            )}
+
+            <div className="flex justify-between items-center pt-4 border-t">
+              <div className="flex items-center gap-2">
+                <TemplateCommand onSelect={handleTemplateSelect} />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => {}}
+                >
+                  <Wand2 className="h-4 w-4" />
+                  AI assistant
+                </Button>
+                {sequenceId && stepId && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleSendTest}
+                    disabled={isSendingTest}
+                  >
+                    {isSendingTest ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Send className="h-4 w-4 mr-2" />
+                    )}
+                    Send Test Email
+                  </Button>
+                )}
+              </div>
+              <div className="flex gap-3">
+                <Button type="button" variant="outline" onClick={onClose}>
+                  Cancel
+                </Button>
+                <Button type="submit">Save</Button>
+              </div>
             </div>
           </div>
         </form>

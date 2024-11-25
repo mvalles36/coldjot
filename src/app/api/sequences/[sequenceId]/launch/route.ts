@@ -1,10 +1,11 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { processSequences } from "@/lib/cron/sequence-processor";
 import { NextResponse } from "next/server";
 
-export async function DELETE(
+export async function POST(
   req: Request,
-  { params }: { params: { sequenceId: string; contactId: string } }
+  { params }: { params: { sequenceId: string } }
 ) {
   try {
     const session = await auth();
@@ -12,30 +13,25 @@ export async function DELETE(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { sequenceId, contactId } = await params;
-    const sequence = await prisma.sequence.findUnique({
+    const { sequenceId } = await params;
+
+    // Update sequence status
+    await prisma.sequence.update({
       where: {
         id: sequenceId,
         userId: session.user.id,
       },
-    });
-
-    if (!sequence) {
-      return new NextResponse("Not found", { status: 404 });
-    }
-
-    await prisma.sequenceContact.delete({
-      where: {
-        sequenceId_contactId: {
-          sequenceId,
-          contactId,
-        },
+      data: {
+        status: "active",
       },
     });
 
+    // Trigger initial processing
+    await processSequences();
+
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("[SEQUENCE_CONTACT_DELETE]", error);
+    console.error("[SEQUENCE_LAUNCH]", error);
     return new NextResponse("Internal Error", { status: 500 });
   }
 }

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
-import { Toaster } from "react-hot-toast";
+// import { Toaster } from "react-hot-toast";
+import { Toaster } from "@/components/ui/toaster";
 
 import "./globals.css";
 import { Providers } from "./providers";
@@ -27,7 +28,8 @@ export default function RootLayout({
             </div>
             <main className="flex-1 overflow-y-auto">{children}</main>
           </div>
-          <Toaster position="bottom-right" />
+          {/* <Toaster position="bottom-right" /> */}
+          <Toaster />
         </Providers>
       </body>
     </html>
