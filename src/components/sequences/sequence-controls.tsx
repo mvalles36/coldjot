@@ -55,7 +55,7 @@ export function SequenceControls({
   return (
     <Button
       variant="outline"
-      size="sm"
+      size="default"
       onClick={() => handleControl(status === "active" ? "pause" : "resume")}
       disabled={isLoading}
       className="min-w-[100px]"

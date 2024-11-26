@@ -178,18 +178,17 @@ export default function SequencePage({ sequence }: SequencePageProps) {
         <div className="space-y-1">
           <h2 className="text-2xl font-semibold">{sequence.name}</h2>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <div className="flex items-center space-x-4">
-              <SequenceStatusBadge status={sequence.status} />
-              <SequenceControls
-                sequenceId={sequence.id}
-                initialStatus={sequence.status}
-              />
-            </div>
+            <SequenceStatusBadge status={sequence.status} />
             <span>•</span>
             <span>{sequence._count.contacts} contacts</span>
           </div>
         </div>
         <div className="flex gap-3">
+          <SequenceControls
+            sequenceId={sequence.id}
+            initialStatus={sequence.status}
+          />
+
           <AddSequenceStep
             sequenceId={sequence.id}
             onStepAdded={handleStepAdded}
