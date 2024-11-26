@@ -35,25 +35,101 @@ const oauth2Client = new google.auth.OAuth2(
   `${process.env.AUTH_URL}/api/auth/callback/google`
 );
 
-export async function refreshAccessToken(refreshToken: string) {
-  //   const oauth2Client = new google.auth.OAuth2(
-  //     process.env.GOOGLE_CLIENT_ID,
-  //     process.env.GOOGLE_CLIENT_SECRET,
-  //     `${process.env.AUTH_URL}/api/auth/callback/google`
-  //   );
-
-  oauth2Client.setCredentials({
-    refresh_token: refreshToken,
-  });
-
-  try {
-    const { credentials } = await oauth2Client.refreshAccessToken();
-    return credentials.access_token;
-  } catch (error) {
-    console.error("Error refreshing access token:", error);
-    throw error;
-  }
+interface TokenRefreshError extends Error {
+  code?: string;
+  status?: number;
 }
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+export async function refreshAccessToken(
+  refreshToken: string,
+  maxRetries = 3
+): Promise<string | null> {
+  let attempt = 0;
+
+  while (attempt < maxRetries) {
+    try {
+      oauth2Client.setCredentials({
+        refresh_token: refreshToken,
+      });
+
+      const { credentials } = await oauth2Client.refreshAccessToken();
+
+      if (!credentials.access_token) {
+        throw new Error("No access token returned");
+      }
+
+      console.log(`🔄 Token refreshed successfully on attempt ${attempt + 1}`);
+      return credentials.access_token;
+    } catch (error) {
+      attempt++;
+      const err = error as TokenRefreshError;
+
+      // Log the error details
+      console.error(`❌ Token refresh attempt ${attempt} failed:`, {
+        error: err.message,
+        code: err.code,
+        status: err.status,
+      });
+
+      // If we've exhausted all retries, throw the error
+      if (attempt === maxRetries) {
+        console.error(`❌ Token refresh failed after ${maxRetries} attempts`);
+        throw new Error(`Failed to refresh token: ${err.message}`);
+      }
+
+      // Calculate delay with exponential backoff (1s, 2s, 4s, etc.)
+      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
+      console.log(`⏳ Retrying in ${delay}ms...`);
+      await sleep(delay);
+    }
+  }
+
+  return null;
+}
+
+// Add new types and utilities for email threading
+interface ThreadHeaders {
+  messageId: string;
+  inReplyTo?: string;
+  references?: string[];
+}
+
+const generateMessageId = () => {
+  const domain = process.env.EMAIL_DOMAIN || "gmail.com";
+  return `<${Date.now()}.${Math.random().toString(36).substring(2)}@${domain}>`;
+};
+
+const normalizeMessageId = (messageId: string): string => {
+  if (!messageId) return "";
+  return messageId.includes("@") ? messageId : `<${messageId}@gmail.com>`;
+};
+
+// Add MIME word encoding for subjects with special characters or emojis
+const encodeMIMEWords = (text: string): string => {
+  // Check if the text needs encoding (contains non-ASCII characters)
+  if (!/^[\x00-\x7F]*$/.test(text)) {
+    // UTF-8 encode the text and convert to base64
+    const encoded = Buffer.from(text, "utf-8").toString("base64");
+    return `=?UTF-8?B?${encoded}?=`;
+  }
+  return text;
+};
+
+const normalizeSubject = (
+  subject: string,
+  isReply: boolean,
+  originalSubject?: string
+): string => {
+  // If we have an original subject from the thread and this is a reply, use that
+  const baseSubject = isReply && originalSubject ? originalSubject : subject;
+  // Remove any existing "Re:" prefixes and trim
+  const cleanSubject = baseSubject.replace(/^(Re:\s*)+/i, "").trim();
+  // Add "Re:" prefix if it's a reply and encode the final subject
+  const finalSubject = isReply ? `Re: ${cleanSubject}` : cleanSubject;
+  return encodeMIMEWords(finalSubject);
+};
 
 export async function sendEmail({
   to,
@@ -72,57 +148,72 @@ export async function sendEmail({
 
       const gmail = google.gmail({ version: "v1", auth });
 
-      // Add "Re:" to subject if it's a reply and doesn't already start with "Re:"
-      // const emailSubject =
-      //   threadId && !subject.toLowerCase().startsWith("re:")
-      //     ? `Re: ${subject}`
-      //     : subject;
+      // Get thread information and build headers
+      let threadHeaders: ThreadHeaders = {
+        messageId: generateMessageId(),
+      };
 
-      // For testing - keep this for now
-      const emailSubject =
-        threadId && !subject.toLowerCase().startsWith("re:")
-          ? `Re: Demo Email`
-          : "Demo Email";
-
-      // Get the message ID from threadId if it exists
-      let messageId = threadId;
-      let references: string[] = [];
+      let originalSubject: string | undefined;
 
       if (threadId) {
         try {
-          // Get all messages in the thread
           const thread = await gmail.users.threads.get({
             userId: "me",
             id: threadId,
             format: "metadata",
-            metadataHeaders: ["Message-ID", "References", "In-Reply-To"],
+            metadataHeaders: [
+              "Message-ID",
+              "References",
+              "In-Reply-To",
+              "Subject",
+            ],
           });
 
           if (thread.data.messages && thread.data.messages.length > 0) {
-            // Get all message IDs in the thread for references
-            references = thread.data.messages
+            const messages = thread.data.messages;
+            // Get subject from the first message in the thread
+            const firstMessage = messages[0];
+            const firstMessageHeaders = firstMessage.payload?.headers || [];
+            const rawOriginalSubject = firstMessageHeaders.find(
+              (h) => h.name?.toLowerCase() === "subject"
+            )?.value;
+
+            // Decode MIME encoded subject if necessary
+            if (rawOriginalSubject) {
+              originalSubject = rawOriginalSubject.replace(
+                /=\?UTF-8\?B\?(.*?)\?=/g,
+                (match, p1) => Buffer.from(p1, "base64").toString("utf8")
+              );
+            }
+
+            const lastMessage = messages[messages.length - 1];
+            const headers = lastMessage.payload?.headers || [];
+
+            // Get the last message ID for In-Reply-To
+            const lastMessageId = headers.find(
+              (h) => h.name?.toLowerCase() === "message-id"
+            )?.value;
+
+            // Build references chain
+            const references = messages
               .map((msg) => {
-                const headers = msg.payload?.headers || [];
-                const msgIdHeader = headers.find(
+                const msgIdHeader = msg.payload?.headers?.find(
                   (h) => h.name?.toLowerCase() === "message-id"
                 );
                 return msgIdHeader?.value || "";
               })
               .filter(Boolean);
 
-            // Get the last message's ID for In-Reply-To
-            const lastMsg =
-              thread.data.messages[thread.data.messages.length - 1];
-            const lastMsgHeaders = lastMsg.payload?.headers || [];
-            const msgIdHeader = lastMsgHeaders.find(
-              (h) => h.name?.toLowerCase() === "message-id"
-            );
-            if (msgIdHeader?.value) {
-              messageId = msgIdHeader.value.replace(/[<>]/g, "");
-            }
+            threadHeaders = {
+              messageId: generateMessageId(),
+              inReplyTo: lastMessageId || undefined,
+              references: references,
+            };
 
-            console.log(`💾 Found message IDs in thread:`, references);
-            console.log(`💾 Last message ID:`, messageId);
+            console.log("📧 Thread headers prepared:", threadHeaders);
+            if (originalSubject) {
+              console.log("📧 Using original thread subject:", originalSubject);
+            }
           }
         } catch (error) {
           console.error("Error getting thread details:", error);
@@ -134,28 +225,24 @@ export async function sendEmail({
         "Content-Type: text/html; charset=utf-8",
         "MIME-Version: 1.0",
         `To: ${to}`,
-        `Subject: ${emailSubject}`,
-        // Add Message-ID for this email
-        `Message-ID: <${Date.now()}.${Math.random()
-          .toString(36)
-          .substring(2)}@gmail.com>`,
-        // Add threading headers if this is a reply
-        ...(messageId
-          ? [
-              `In-Reply-To: ${
-                messageId.includes("@") ? messageId : `<${messageId}@gmail.com>`
-              }`,
-              `References: ${references.join(" ")}`,
-            ]
+        `Subject: ${normalizeSubject(subject, !!threadId, originalSubject)}`,
+        `Message-ID: ${threadHeaders.messageId}`,
+        ...(threadHeaders.inReplyTo
+          ? [`In-Reply-To: ${threadHeaders.inReplyTo}`]
+          : []),
+        ...(threadHeaders.references?.length
+          ? [`References: ${threadHeaders.references.join(" ")}`]
           : []),
         "",
         content,
       ].join("\n");
 
-      console.log(
-        `💾 Email headers being sent:`,
-        message.split("\n").slice(0, 6)
-      );
+      console.log("📧 Email headers:", {
+        subject: normalizeSubject(subject, !!threadId, originalSubject),
+        messageId: threadHeaders.messageId,
+        inReplyTo: threadHeaders.inReplyTo,
+        referencesCount: threadHeaders.references?.length,
+      });
 
       const encodedMessage = base64Encode(message)
         .replace(/\+/g, "-")
@@ -168,11 +255,6 @@ export async function sendEmail({
           raw: encodedMessage,
           threadId: threadId || undefined,
         },
-      });
-
-      console.log(`💾 Email response:`, {
-        messageId: response.data.id,
-        threadId: response.data.threadId,
       });
 
       return {

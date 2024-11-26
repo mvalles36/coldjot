@@ -42,10 +42,21 @@ async function handleEmailSend(
   account: GoogleAccount
 ): Promise<string | undefined> {
   try {
+    console.log(`📧 Sending email with threading options:`, {
+      hasThreadId: !!emailOptions.threadId,
+      subject: emailOptions.subject,
+    });
+
     const result = await sendEmail({
       ...emailOptions,
       accessToken: account.access_token,
     });
+
+    if (result.threadId) {
+      console.log(`📧 Email sent successfully in thread: ${result.threadId}`);
+    } else {
+      console.log(`📧 New email thread created with ID: ${result.messageId}`);
+    }
 
     return result.threadId;
   } catch (error: any) {
@@ -76,8 +87,20 @@ async function handleEmailSend(
         ...emailOptions,
         accessToken: newAccessToken,
       });
+
+      if (retryResult.threadId) {
+        console.log(
+          `📧 Email sent successfully in thread: ${retryResult.threadId}`
+        );
+      } else {
+        console.log(
+          `📧 New email thread created with ID: ${retryResult.messageId}`
+        );
+      }
+
       return retryResult.threadId;
     } else {
+      console.error(`❌ Error sending email:`, error);
       throw error;
     }
   }
@@ -159,11 +182,6 @@ export async function processSequences() {
         continue;
       }
 
-      const previousStep =
-        sequenceContact.currentStep > 0
-          ? sequence.steps[sequenceContact.currentStep - 1]
-          : null;
-
       try {
         console.log(
           `\n📧 Processing email for contact: ${sequenceContact.contact.email}`
@@ -190,10 +208,11 @@ export async function processSequences() {
           console.log(`🎯 Test mode: Redirecting email to ${recipientEmail}`);
         }
 
-        // Get thread ID based on replyToThread setting
-        const threadId = currentStep.replyToThread
-          ? sequenceContact.threadId
-          : undefined;
+        // Get thread ID based on replyToThread setting and existing threadId
+        const threadId =
+          currentStep.replyToThread && sequenceContact.threadId
+            ? sequenceContact.threadId
+            : undefined;
 
         const emailOptions: SendEmailOptions = {
           to: recipientEmail,
@@ -201,62 +220,49 @@ export async function processSequences() {
             ? `[TEST] ${currentStep.subject}`
             : currentStep.subject || "",
           content: emailContent || "",
-          threadId: threadId || undefined,
+          threadId,
         };
-        console.log(
-          `💌 Sending email options: ${JSON.stringify(emailOptions)}`
-        );
 
         const shouldSend =
           !sequence.testMode || devSettings?.testEmails?.length;
 
         if (shouldSend) {
-          console.log(`📤 Sending email...`);
-          const threadId = await handleEmailSend(emailOptions, googleAccount);
+          console.log(`📤 Preparing to send email...`);
+          console.log(
+            `📧 Thread status: ${
+              threadId ? "Continuing thread" : "Starting new thread"
+            }`
+          );
 
-          // Save the thread ID to the sequence contact
-          if (threadId) {
-            await prisma.sequenceContact.update({
-              where: {
-                id: sequenceContact.id,
-              },
-              data: {
-                threadId,
-                currentStep: sequenceContact.currentStep + 1,
-                status:
-                  sequenceContact.currentStep + 1 >= sequence.steps.length
-                    ? "completed"
-                    : "in_progress",
-                lastProcessedAt: new Date(),
-                ...(sequenceContact.currentStep + 1 >= sequence.steps.length
-                  ? { completedAt: new Date() }
-                  : {}),
-              },
-            });
-            console.log(`💾 Saved thread ID to contact: ${threadId}`);
-          } else {
-            // Update other fields without thread ID
-            await prisma.sequenceContact.update({
-              where: {
-                id: sequenceContact.id,
-              },
-              data: {
-                currentStep: sequenceContact.currentStep + 1,
-                status:
-                  sequenceContact.currentStep + 1 >= sequence.steps.length
-                    ? "completed"
-                    : "in_progress",
-                lastProcessedAt: new Date(),
-                ...(sequenceContact.currentStep + 1 >= sequence.steps.length
-                  ? { completedAt: new Date() }
-                  : {}),
-              },
-            });
-          }
+          const newThreadId = await handleEmailSend(
+            emailOptions,
+            googleAccount
+          );
 
-          console.log(`✅ Email sent successfully`);
-        } else {
-          console.log(`⏭️ Skipping email send (test mode)`);
+          // Update sequence contact with thread information
+          await prisma.sequenceContact.update({
+            where: {
+              id: sequenceContact.id,
+            },
+            data: {
+              threadId: newThreadId || sequenceContact.threadId, // Keep existing threadId if no new one
+              currentStep: sequenceContact.currentStep + 1,
+              status:
+                sequenceContact.currentStep + 1 >= sequence.steps.length
+                  ? "completed"
+                  : "in_progress",
+              lastProcessedAt: new Date(),
+              ...(sequenceContact.currentStep + 1 >= sequence.steps.length
+                ? { completedAt: new Date() }
+                : {}),
+            },
+          });
+
+          console.log(
+            `💾 Updated sequence contact with ${
+              newThreadId ? "new" : "existing"
+            } thread ID: ${newThreadId || sequenceContact.threadId}`
+          );
         }
       } catch (error) {
         console.error(
