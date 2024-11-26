@@ -25,6 +25,7 @@ interface SequenceEmailEditorProps {
     subject?: string;
     content?: string;
     includeSignature?: boolean;
+    replyToThread?: boolean;
   };
   sequenceId?: string;
   stepId?: string;
@@ -45,9 +46,11 @@ export function SequenceEmailEditor({
   const [includeSignature, setIncludeSignature] = useState(
     initialData?.includeSignature ?? true
   );
+  const [replyToThread, setReplyToThread] = useState(
+    initialData?.replyToThread ?? false
+  );
   const [isSending, setIsSending] = useState(false);
   const [isSendingTest, setIsSendingTest] = useState(false);
-  const [replyToThread, setReplyToThread] = useState(false);
 
   // Update state when initialData changes
   useEffect(() => {
@@ -55,6 +58,7 @@ export function SequenceEmailEditor({
       setContent(initialData.content || "");
       setSubject(initialData.subject || "");
       setIncludeSignature(initialData.includeSignature ?? true);
+      setReplyToThread(initialData.replyToThread ?? false);
     }
   }, [initialData]);
 
@@ -72,6 +76,7 @@ export function SequenceEmailEditor({
       subject,
       content,
       includeSignature,
+      replyToThread,
     });
   };
 
@@ -118,6 +123,21 @@ export function SequenceEmailEditor({
           <div className="grid grid-cols-2 gap-6 flex-grow">
             {/* Left column */}
             <div className="h-full flex flex-col gap-4">
+              {previousStepId && (
+                <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+                  <div className="space-y-0.5">
+                    <Label>Reply to Previous Email</Label>
+                    <div className="text-sm text-muted-foreground">
+                      Send this email as a reply to the previous step's thread
+                    </div>
+                  </div>
+                  <Switch
+                    checked={replyToThread}
+                    onCheckedChange={setReplyToThread}
+                  />
+                </div>
+              )}
+
               <div className="space-y-4 flex flex-col">
                 <Label htmlFor="subject">Subject</Label>
                 <Input
@@ -177,56 +197,39 @@ export function SequenceEmailEditor({
             </div>
           </div>
 
-          <div className="space-y-4">
-            {previousStepId && (
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Reply to Previous Email</Label>
-                  <div className="text-sm text-muted-foreground">
-                    Send this email as a reply to the previous step
-                  </div>
-                </div>
-                <Switch
-                  checked={replyToThread}
-                  onCheckedChange={setReplyToThread}
-                />
-              </div>
-            )}
-
-            <div className="flex justify-between items-center pt-4 border-t">
-              <div className="flex items-center gap-2">
-                <TemplateCommand onSelect={handleTemplateSelect} />
+          <div className="flex justify-between items-center pt-4 border-t">
+            <div className="flex items-center gap-2">
+              <TemplateCommand onSelect={handleTemplateSelect} />
+              <Button
+                type="button"
+                variant="outline"
+                className="gap-2"
+                onClick={() => {}}
+              >
+                <Wand2 className="h-4 w-4" />
+                AI assistant
+              </Button>
+              {sequenceId && stepId && (
                 <Button
                   type="button"
                   variant="outline"
-                  className="gap-2"
-                  onClick={() => {}}
+                  onClick={handleSendTest}
+                  disabled={isSendingTest}
                 >
-                  <Wand2 className="h-4 w-4" />
-                  AI assistant
+                  {isSendingTest ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Send className="h-4 w-4 mr-2" />
+                  )}
+                  Send Test Email
                 </Button>
-                {sequenceId && stepId && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleSendTest}
-                    disabled={isSendingTest}
-                  >
-                    {isSendingTest ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <Send className="h-4 w-4 mr-2" />
-                    )}
-                    Send Test Email
-                  </Button>
-                )}
-              </div>
-              <div className="flex gap-3">
-                <Button type="button" variant="outline" onClick={onClose}>
-                  Cancel
-                </Button>
-                <Button type="submit">Save</Button>
-              </div>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button type="submit">Save</Button>
             </div>
           </div>
         </form>

@@ -27,7 +27,8 @@ import { LaunchSequenceModal } from "@/components/sequences/launch-sequence-moda
 import { SequenceStatusBadge } from "@/components/sequences/sequence-status-badge";
 import { SequenceControls } from "@/components/sequences/sequence-controls";
 import { SequenceDevSettings } from "@/components/sequences/sequence-dev-settings";
-import { Sequence, DevSettings } from "@/types/sequence";
+import { Sequence } from "@/types/sequence";
+import type { SequenceStep } from "@/types/sequences";
 
 interface SequencePageProps {
   sequence: Sequence;
@@ -51,7 +52,7 @@ export default function SequencePage({ sequence }: SequencePageProps) {
 
   // Initial setup of steps
   useEffect(() => {
-    setSteps(sequence.steps);
+    setSteps(sequence.steps as SequenceStep[]);
   }, [sequence.steps, setSteps]);
 
   // Fetch steps when needed
@@ -61,13 +62,52 @@ export default function SequencePage({ sequence }: SequencePageProps) {
     }
   }, [activeTab, fetchSteps]);
 
-  const handleStepEdit = (step: any) => {
+  const handleStepReorder = async (reorderedSteps: SequenceStep[]) => {
+    try {
+      // Update the order and previousStepId for each step
+      const updatedSteps = reorderedSteps.map((step, index) => ({
+        ...step,
+        order: index,
+        previousStepId: index > 0 ? reorderedSteps[index - 1].id : undefined,
+      }));
+
+      // Update the steps in the database
+      const response = await fetch(
+        `/api/sequences/${sequence.id}/steps/reorder`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            steps: updatedSteps.map((step) => ({
+              ...step,
+              previousStepId: step.previousStepId ?? null,
+            })),
+          }),
+        }
+      );
+
+      if (!response.ok) throw new Error("Failed to reorder steps");
+
+      // Update local state
+      setSteps(updatedSteps as SequenceStep[]);
+      toast.success("Steps reordered successfully");
+    } catch (error) {
+      toast.error("Failed to reorder steps");
+    }
+  };
+
+  const handleStepEdit = (step: SequenceStep) => {
+    const currentStepIndex = steps.findIndex((s) => s.id === step.id);
+    const previousStepId =
+      currentStepIndex > 0 ? steps[currentStepIndex - 1].id : undefined;
+
     const emailData = {
       subject: step.subject,
       content: step.content,
       includeSignature: step.includeSignature,
+      replyToThread: step.replyToThread,
     };
-    setEditingStep({ ...step, ...emailData });
+    setEditingStep({ ...step, ...emailData, previousStepId });
     setShowEmailEditor(true);
   };
 
@@ -121,6 +161,7 @@ export default function SequencePage({ sequence }: SequencePageProps) {
           <AddSequenceStep
             sequenceId={sequence.id}
             onStepAdded={handleStepAdded}
+            steps={steps}
           />
           <Button
             variant="default"
@@ -228,10 +269,16 @@ export default function SequencePage({ sequence }: SequencePageProps) {
             ) : (
               <SequenceStepList
                 steps={steps}
-                onReorder={reorderSteps}
+                onReorder={async (newSteps: SequenceStep[]) => {
+                  await handleStepReorder(newSteps);
+                }}
                 onEdit={handleStepEdit}
-                onDuplicate={duplicateStep}
-                onDelete={deleteStep}
+                onDuplicate={async (step: SequenceStep) => {
+                  await duplicateStep(step);
+                }}
+                onDelete={async (step: SequenceStep) => {
+                  await deleteStep(step);
+                }}
               />
             )}
           </div>
@@ -328,7 +375,6 @@ export default function SequencePage({ sequence }: SequencePageProps) {
                   sequenceId={sequence.id}
                   testMode={sequence.testMode}
                   onTestModeChange={(checked) => {
-                    // Optionally update local state if needed
                     router.refresh();
                   }}
                 />
@@ -346,6 +392,9 @@ export default function SequencePage({ sequence }: SequencePageProps) {
         }}
         onSave={handleEmailSave}
         initialData={editingStep}
+        sequenceId={sequence.id}
+        stepId={editingStep?.id}
+        previousStepId={editingStep?.previousStepId}
       />
 
       <LaunchSequenceModal

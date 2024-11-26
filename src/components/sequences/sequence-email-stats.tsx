@@ -194,13 +194,11 @@ export function SequenceEmailStats({
                   </TableCell>
                   <TableCell>{activity.subject}</TableCell>
                   <TableCell>
-                    <div className="space-y-1">
-                      {getStatusBadge(activity.status)}
-                      <div className="text-xs text-muted-foreground">
-                        Step {activity.stepNumber} of {activity.totalSteps}
-                      </div>
+                    <div className="text-xs text-muted-foreground">
+                      Step {activity.stepNumber} of {activity.totalSteps}
                     </div>
                   </TableCell>
+                  <TableCell>{getStatusBadge(activity.status)}</TableCell>
                   <TableCell>
                     {formatDistanceToNow(new Date(activity.timestamp), {
                       addSuffix: true,

@@ -5,7 +5,15 @@ meta {
 }
 
 post {
-  url: http://localhost:3000/api/cron/proces-sequences
+  url: http://localhost:3000/api/cron/process-sequences
   body: none
-  auth: none
+  auth: bearer
+}
+
+headers {
+  authorization: JTGVPQZylalACydpX1BzFEt1eKRwmaHooNZulMUxD50nNQLZQxad38
+}
+
+auth:bearer {
+  token: JTGVPQZylalACydpX1BzFEt1eKRwmaHooNZulMUxD50nNQLZQxad38
 }

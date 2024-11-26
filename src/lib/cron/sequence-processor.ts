@@ -40,12 +40,14 @@ async function getGoogleAccount(userId: string): Promise<GoogleAccount | null> {
 async function handleEmailSend(
   emailOptions: SendEmailOptions,
   account: GoogleAccount
-) {
+): Promise<string | undefined> {
   try {
-    await sendEmail({
+    const result = await sendEmail({
       ...emailOptions,
       accessToken: account.access_token,
     });
+
+    return result.threadId;
   } catch (error: any) {
     if (error.message === "TOKEN_EXPIRED") {
       console.log(`🔄 Refreshing access token...`);
@@ -68,15 +70,13 @@ async function handleEmailSend(
         },
       });
 
-      // Update the account object with new token
-      account.access_token = newAccessToken;
-
       // Retry with new token
       console.log(`🔄 Retrying with new token...`);
-      await sendEmail({
+      const retryResult = await sendEmail({
         ...emailOptions,
         accessToken: newAccessToken,
       });
+      return retryResult.threadId;
     } else {
       throw error;
     }
@@ -190,57 +190,74 @@ export async function processSequences() {
           console.log(`🎯 Test mode: Redirecting email to ${recipientEmail}`);
         }
 
+        // Get thread ID based on replyToThread setting
+        const threadId = currentStep.replyToThread
+          ? sequenceContact.threadId
+          : undefined;
+
         const emailOptions: SendEmailOptions = {
           to: recipientEmail,
           subject: sequence.testMode
             ? `[TEST] ${currentStep.subject}`
             : currentStep.subject || "",
           content: emailContent || "",
-          threadId: previousStep?.id,
+          threadId: threadId || undefined,
         };
+        console.log(
+          `💌 Sending email options: ${JSON.stringify(emailOptions)}`
+        );
 
         const shouldSend =
           !sequence.testMode || devSettings?.testEmails?.length;
 
         if (shouldSend) {
-          console.log(`📤 Preparing to send email...`);
+          console.log(`📤 Sending email...`);
+          const threadId = await handleEmailSend(emailOptions, googleAccount);
 
-          // Check if sending is disabled in global dev settings
-          const sendingDisabled = devSettings?.disableSending;
-
-          if (sendingDisabled) {
-            console.log(`⚠️ Email sending is disabled in development settings`);
-            console.log(`Would have sent email to: ${recipientEmail}`);
-            console.log(`Subject: ${emailOptions.subject}`);
-            console.log(`Content: ${emailOptions.content}`);
+          // Save the thread ID to the sequence contact
+          if (threadId) {
+            await prisma.sequenceContact.update({
+              where: {
+                id: sequenceContact.id,
+              },
+              data: {
+                threadId,
+                currentStep: sequenceContact.currentStep + 1,
+                status:
+                  sequenceContact.currentStep + 1 >= sequence.steps.length
+                    ? "completed"
+                    : "in_progress",
+                lastProcessedAt: new Date(),
+                ...(sequenceContact.currentStep + 1 >= sequence.steps.length
+                  ? { completedAt: new Date() }
+                  : {}),
+              },
+            });
+            console.log(`💾 Saved thread ID to contact: ${threadId}`);
           } else {
-            console.log(`📤 Sending email...`);
-            await handleEmailSend(emailOptions, googleAccount);
-            console.log(`✅ Email sent successfully`);
+            // Update other fields without thread ID
+            await prisma.sequenceContact.update({
+              where: {
+                id: sequenceContact.id,
+              },
+              data: {
+                currentStep: sequenceContact.currentStep + 1,
+                status:
+                  sequenceContact.currentStep + 1 >= sequence.steps.length
+                    ? "completed"
+                    : "in_progress",
+                lastProcessedAt: new Date(),
+                ...(sequenceContact.currentStep + 1 >= sequence.steps.length
+                  ? { completedAt: new Date() }
+                  : {}),
+              },
+            });
           }
+
+          console.log(`✅ Email sent successfully`);
         } else {
           console.log(`⏭️ Skipping email send (test mode)`);
         }
-
-        // Update sequence contact status
-        await prisma.sequenceContact.update({
-          where: {
-            id: sequenceContact.id,
-          },
-          data: {
-            currentStep: sequenceContact.currentStep + 1,
-            status:
-              sequenceContact.currentStep + 1 >= sequence.steps.length
-                ? "completed"
-                : "in_progress",
-            lastProcessedAt: new Date(),
-            ...(sequenceContact.currentStep + 1 >= sequence.steps.length
-              ? { completedAt: new Date() }
-              : {}),
-          },
-        });
-
-        console.log(`✅ Contact status updated`);
       } catch (error) {
         console.error(
           `❌ Error processing sequence contact ${sequenceContact.id}:`,

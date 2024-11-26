@@ -12,7 +12,7 @@ export type StepStatus =
   | "completed";
 export type StepPriority = "high" | "medium" | "low";
 export type StepTiming = "immediate" | "delay";
-export type StepType = "manual_email";
+export type StepType = "manual_email" | "automated_email";
 
 export interface Sequence {
   id: string;
@@ -34,16 +34,18 @@ export interface SequenceStep {
   id: string;
   sequenceId: string;
   stepType: StepType;
-  status: StepStatus;
+  status: string;
   priority: StepPriority;
   timing: StepTiming;
   delayAmount?: number;
-  delayUnit?: "minutes" | "hours" | "days";
+  delayUnit?: string;
   subject?: string;
   content?: string;
   includeSignature: boolean;
   note?: string;
   order: number;
+  previousStepId?: string;
+  replyToThread?: boolean;
   createdAt: Date;
   updatedAt: Date;
   templateId?: string;
@@ -81,10 +83,19 @@ export interface SequenceStats {
 }
 
 export interface StepData {
-  stepType: "manual_email";
-  timing: "immediate" | "delay";
-  priority: "low" | "medium" | "high";
+  stepType: StepType;
+  timing: StepTiming;
+  priority: StepPriority;
   delayAmount?: number;
   delayUnit?: "minutes" | "hours" | "days";
+  maxEmailsPerDay?: number;
+  skipIfPastDue?: boolean;
   note?: string;
+}
+
+export interface EmailData {
+  subject: string;
+  content: string;
+  includeSignature: boolean;
+  templateId?: string;
 }

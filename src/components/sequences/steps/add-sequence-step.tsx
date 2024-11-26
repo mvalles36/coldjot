@@ -7,41 +7,20 @@ import { SequenceStepEditor } from "./sequence-step-editor";
 import { SequenceEmailEditor } from "../editor/sequence-email-editor";
 import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
-import {
-  SequenceStep,
-  StepType,
-  StepTiming,
-  StepPriority,
-} from "@/types/sequences";
+import type { SequenceStep, StepData, EmailData } from "@/types/sequences";
 
 interface AddSequenceStepProps {
   sequenceId: string;
   onStepAdded?: () => void;
+  steps: SequenceStep[];
 }
 
 type ActiveDrawer = "none" | "step" | "email";
 
-interface StepData {
-  stepType: StepType;
-  timing: StepTiming;
-  priority: StepPriority;
-  delayAmount?: number;
-  delayUnit?: "minutes" | "hours" | "days";
-  maxEmailsPerDay?: number;
-  skipIfPastDue?: boolean;
-  note?: string;
-}
-
-interface EmailData {
-  subject: string;
-  content: string;
-  includeSignature: boolean;
-  templateId?: string;
-}
-
 export function AddSequenceStep({
   sequenceId,
   onStepAdded,
+  steps,
 }: AddSequenceStepProps) {
   const [activeDrawer, setActiveDrawer] = useState<ActiveDrawer>("none");
   const [stepData, setStepData] = useState<StepData | null>(null);
@@ -56,6 +35,9 @@ export function AddSequenceStep({
     if (!stepData) return;
 
     try {
+      const previousStepId =
+        steps.length > 0 ? steps[steps.length - 1].id : undefined;
+
       const response = await fetch(`/api/sequences/${sequenceId}/steps`, {
         method: "POST",
         headers: {
@@ -64,6 +46,8 @@ export function AddSequenceStep({
         body: JSON.stringify({
           ...stepData,
           ...emailData,
+          order: steps.length,
+          previousStepId,
         }),
       });
 
@@ -95,6 +79,10 @@ export function AddSequenceStep({
         open={activeDrawer === "email"}
         onClose={() => setActiveDrawer("none")}
         onSave={handleEmailSave}
+        sequenceId={sequenceId}
+        previousStepId={
+          steps.length > 0 ? steps[steps.length - 1].id : undefined
+        }
       />
     </>
   );

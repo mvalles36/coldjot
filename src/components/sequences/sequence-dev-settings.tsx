@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { DevSettings } from "@/types/sequence";
 import { Separator } from "@/components/ui/separator";
 import { useDevSettings } from "@/hooks/use-dev-settings";
+import { useRouter } from "next/navigation";
 
 interface SequenceDevSettingsProps {
   sequenceId: string;
@@ -27,6 +28,7 @@ export function SequenceDevSettings({
   const { settings, isLoading, updateSettings } = useDevSettings();
   const [newEmail, setNewEmail] = useState("");
   const { toast } = useToast();
+  const router = useRouter();
 
   if (isLoading) {
     return <div>Loading...</div>;
@@ -84,6 +86,32 @@ export function SequenceDevSettings({
       ...prev,
       testEmails: prev.testEmails.filter((e: string) => e !== email),
     }));
+  };
+
+  const handleReset = async () => {
+    try {
+      const response = await fetch(`/api/sequences/${sequenceId}/reset`, {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to reset sequence");
+      }
+
+      toast({
+        title: "Sequence Reset",
+        description: "Sequence has been reset successfully",
+      });
+
+      // Refresh the page to show updated state
+      router.refresh();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to reset sequence",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -191,6 +219,25 @@ export function SequenceDevSettings({
           </div>
 
           <Separator />
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium text-destructive">
+                Danger Zone
+              </h4>
+              <p className="text-sm text-muted-foreground">
+                Reset the sequence to its initial state. This will clear all
+                progress and allow you to launch the sequence again.
+              </p>
+            </div>
+            <Button
+              variant="destructive"
+              onClick={handleReset}
+              className="w-full"
+            >
+              Reset Sequence
+            </Button>
+          </div>
 
           <Button onClick={handleSaveSettings} className="w-full">
             Save Development Settings

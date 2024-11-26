@@ -12,7 +12,6 @@ export async function POST(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { steps } = await req.json();
     const { sequenceId } = params;
 
     // Verify sequence ownership
@@ -27,22 +26,31 @@ export async function POST(
       return new NextResponse("Not found", { status: 404 });
     }
 
-    // Update all steps in a transaction
-    await prisma.$transaction(
-      steps.map((step: any) =>
-        prisma.sequenceStep.update({
-          where: { id: step.id },
-          data: {
-            order: step.order,
-            previousStepId: step.previousStepId,
-          },
-        })
-      )
-    );
+    // Reset sequence and all its contacts
+    await prisma.$transaction([
+      // Reset sequence status
+      prisma.sequence.update({
+        where: { id: sequenceId },
+        data: {
+          status: "draft",
+        },
+      }),
+      // Reset all sequence contacts
+      prisma.sequenceContact.updateMany({
+        where: { sequenceId },
+        data: {
+          status: "not_sent",
+          currentStep: 0,
+          lastProcessedAt: null,
+          completedAt: null,
+          threadId: null,
+        },
+      }),
+    ]);
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("[SEQUENCE_STEPS_REORDER]", error);
+    console.error("[SEQUENCE_RESET]", error);
     return new NextResponse("Internal Error", { status: 500 });
   }
 }

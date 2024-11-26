@@ -9,6 +9,11 @@ async function getSequence(sequenceId: string) {
       id: sequenceId,
     },
     include: {
+      steps: {
+        orderBy: {
+          order: "asc",
+        },
+      },
       contacts: {
         include: {
           contact: {
@@ -18,7 +23,6 @@ async function getSequence(sequenceId: string) {
           },
         },
       },
-      steps: true,
       _count: {
         select: {
           contacts: true,
@@ -31,10 +35,7 @@ async function getSequence(sequenceId: string) {
     throw new Error("Sequence not found");
   }
 
-  return {
-    ...sequence,
-    testMode: sequence.testMode || false,
-  };
+  return sequence;
 }
 
 export default async function SequencePage({

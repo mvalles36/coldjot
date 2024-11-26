@@ -69,7 +69,7 @@ export async function POST(req: Request) {
       data: {
         firstName,
         lastName,
-        name,
+        name: name || `${firstName} ${lastName}`,
         email,
         title,
         linkedinUrl,

@@ -1,14 +1,6 @@
 import { useState, useCallback } from "react";
 import { toast } from "react-hot-toast";
-
-interface SequenceStep {
-  id: string;
-  stepType: string;
-  status: string;
-  priority: string;
-  subject?: string;
-  order: number;
-}
+import type { SequenceStep } from "@/types/sequences";
 
 export function useSequenceSteps(sequenceId: string) {
   const [steps, setSteps] = useState<SequenceStep[]>([]);

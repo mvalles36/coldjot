@@ -8,12 +8,29 @@ export const authConfig: NextAuthConfig = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      // authorization: {
+      //   params: {
+      //     access_type: "offline",
+      //     prompt: "consent",
+      //     scope:
+      //       "openid email profile https://www.googleapis.com/auth/gmail.compose",
+      //   },
+      // },
+
       authorization: {
         params: {
           access_type: "offline",
           prompt: "consent",
-          scope:
-            "openid email profile https://www.googleapis.com/auth/gmail.compose",
+          scope: [
+            // "openid email profile",
+            "https://www.googleapis.com/auth/userinfo.profile",
+            "https://www.googleapis.com/auth/userinfo.email",
+            "https://www.googleapis.com/auth/gmail.send",
+            "https://www.googleapis.com/auth/gmail.modify",
+            "https://www.googleapis.com/auth/gmail.compose",
+            // "https://www.googleapis.com/auth/gmail.metadata",
+            "https://www.googleapis.com/auth/gmail.readonly",
+          ].join(" "),
         },
       },
     }),
@@ -27,6 +44,7 @@ export const authConfig: NextAuthConfig = {
       return session;
     },
     async jwt({ token, account, profile }) {
+      console.log("jwt", token, account, profile);
       if (account) {
         token.accessToken = account.access_token;
         token.refreshToken = account.refresh_token;

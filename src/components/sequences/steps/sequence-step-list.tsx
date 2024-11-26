@@ -19,22 +19,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "react-hot-toast";
 import { cn } from "@/lib/utils";
-
-interface SequenceStep {
-  id: string;
-  stepType: string;
-  status: string;
-  priority: string;
-  subject?: string;
-  order: number;
-}
+import type { SequenceStep } from "@/types/sequences";
 
 interface Props {
   steps: SequenceStep[];
   onReorder: (steps: SequenceStep[]) => Promise<void>;
   onEdit: (step: SequenceStep) => void;
-  onDuplicate: (step: SequenceStep) => void;
-  onDelete: (step: SequenceStep) => void;
+  onDuplicate: (step: SequenceStep) => Promise<void>;
+  onDelete: (step: SequenceStep) => Promise<void>;
 }
 
 export function SequenceStepList({
