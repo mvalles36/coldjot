@@ -7,6 +7,8 @@ import { CreateSequenceModal } from "./create-sequence-modal";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 import Link from "next/link";
+import { SequenceStatusBadge } from "@/components/sequences/sequence-status-badge";
+import { SequenceControls } from "@/components/sequences/sequence-controls";
 
 interface Sequence {
   id: string;
@@ -80,23 +82,7 @@ export function SequenceList({ initialSequences }: SequenceListProps) {
       ) : (
         <div className="space-y-4">
           {sequences.map((sequence) => (
-            <div
-              key={sequence.id}
-              className="border rounded-lg p-4 hover:border-primary/50 transition-colors"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium">{sequence.name}</h3>
-                  <div className="text-sm text-muted-foreground">
-                    {sequence._count.contacts} contacts •{" "}
-                    {sequence.steps.length} steps • {sequence.status}
-                  </div>
-                </div>
-                <Button variant="ghost" asChild>
-                  <Link href={`/sequences/${sequence.id}`}>View Details</Link>
-                </Button>
-              </div>
-            </div>
+            <SequenceListItem key={sequence.id} sequence={sequence} />
           ))}
         </div>
       )}
@@ -106,6 +92,32 @@ export function SequenceList({ initialSequences }: SequenceListProps) {
         onClose={() => setShowCreateModal(false)}
         onSuccess={handleCreateSuccess}
       />
+    </div>
+  );
+}
+
+function SequenceListItem({ sequence }: { sequence: Sequence }) {
+  return (
+    <div className="p-4 border rounded-lg">
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <h3 className="font-medium">{sequence.name}</h3>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <SequenceStatusBadge status={sequence.status} />
+            <span>•</span>
+            <span>{sequence._count.contacts} contacts</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <SequenceControls
+            sequenceId={sequence.id}
+            initialStatus={sequence.status}
+          />
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/sequences/${sequence.id}`}>View</Link>
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

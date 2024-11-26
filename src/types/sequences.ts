@@ -97,5 +97,6 @@ export interface EmailData {
   subject: string;
   content: string;
   includeSignature: boolean;
+  replyToThread?: boolean;
   templateId?: string;
 }

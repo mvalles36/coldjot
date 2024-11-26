@@ -38,6 +38,7 @@ export async function POST(
       content,
       includeSignature,
       note,
+      replyToThread,
     } = json;
 
     const step = await prisma.sequenceStep.create({
@@ -54,6 +55,7 @@ export async function POST(
         includeSignature,
         note,
         order: sequence.steps.length,
+        replyToThread,
       },
     });
 

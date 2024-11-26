@@ -47,12 +47,13 @@ export default async function SequencesPage() {
 
   return (
     <div className="max-w-7xl mx-auto py-8 space-y-6">
-      <div className="flex flex-col gap-6">
-        <PageHeader
-          title="Sequences"
-          description="Create and manage automated email sequences."
-        />
-        <Separator />
+      <div className="flex items-center justify-between pb-6 border-b">
+        <div>
+          <PageHeader
+            title="Sequences"
+            description="Create and manage automated email sequences."
+          />
+        </div>
       </div>
       <SequenceList initialSequences={transformedSequences} />
     </div>

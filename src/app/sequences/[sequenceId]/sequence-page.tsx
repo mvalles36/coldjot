@@ -29,6 +29,7 @@ import { SequenceControls } from "@/components/sequences/sequence-controls";
 import { SequenceDevSettings } from "@/components/sequences/sequence-dev-settings";
 import { Sequence } from "@/types/sequence";
 import type { SequenceStep } from "@/types/sequences";
+import { SequenceStepEditor } from "@/components/sequences/steps/sequence-step-editor";
 
 interface SequencePageProps {
   sequence: Sequence;
@@ -46,8 +47,9 @@ export default function SequencePage({ sequence }: SequencePageProps) {
     deleteStep,
     fetchSteps,
   } = useSequenceSteps(sequence.id);
-  const [editingStep, setEditingStep] = useState<any>(null);
+  const [showStepEditor, setShowStepEditor] = useState(false);
   const [showEmailEditor, setShowEmailEditor] = useState(false);
+  const [editingStep, setEditingStep] = useState<any>(null);
   const [showLaunchModal, setShowLaunchModal] = useState(false);
 
   // Initial setup of steps
@@ -96,7 +98,12 @@ export default function SequencePage({ sequence }: SequencePageProps) {
     }
   };
 
-  const handleStepEdit = (step: SequenceStep) => {
+  const handleStepEdit = (step: any) => {
+    setEditingStep(step);
+    setShowStepEditor(true);
+  };
+
+  const handleTemplateEdit = (step: any) => {
     const currentStepIndex = steps.findIndex((s) => s.id === step.id);
     const previousStepId =
       currentStepIndex > 0 ? steps[currentStepIndex - 1].id : undefined;
@@ -137,6 +144,31 @@ export default function SequencePage({ sequence }: SequencePageProps) {
       toast.success("Step updated successfully");
     } catch (error) {
       toast.error("Failed to update step");
+    }
+  };
+
+  const handleStepSave = async (stepData: any) => {
+    try {
+      const response = await fetch(
+        `/api/sequences/${sequence.id}/steps/${editingStep.id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...editingStep,
+            ...stepData,
+          }),
+        }
+      );
+
+      if (!response.ok) throw new Error("Failed to update step");
+
+      await fetchSteps();
+      setShowStepEditor(false);
+      setEditingStep(null);
+      toast.success("Step settings updated successfully");
+    } catch (error) {
+      toast.error("Failed to update step settings");
     }
   };
 
@@ -269,16 +301,11 @@ export default function SequencePage({ sequence }: SequencePageProps) {
             ) : (
               <SequenceStepList
                 steps={steps}
-                onReorder={async (newSteps: SequenceStep[]) => {
-                  await handleStepReorder(newSteps);
-                }}
+                onReorder={handleStepReorder}
                 onEdit={handleStepEdit}
-                onDuplicate={async (step: SequenceStep) => {
-                  await duplicateStep(step);
-                }}
-                onDelete={async (step: SequenceStep) => {
-                  await deleteStep(step);
-                }}
+                onEditTemplate={handleTemplateEdit}
+                onDuplicate={duplicateStep}
+                onDelete={deleteStep}
               />
             )}
           </div>
@@ -383,6 +410,16 @@ export default function SequencePage({ sequence }: SequencePageProps) {
           </div>
         </TabsContent>
       </Tabs>
+
+      <SequenceStepEditor
+        open={showStepEditor}
+        onClose={() => {
+          setShowStepEditor(false);
+          setEditingStep(null);
+        }}
+        onSave={handleStepSave}
+        initialData={editingStep}
+      />
 
       <SequenceEmailEditor
         open={showEmailEditor}

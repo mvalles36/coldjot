@@ -25,8 +25,9 @@ export async function PUT(
     }
 
     const json = await req.json();
+    const { stepId } = await params;
     const step = await prisma.sequenceStep.update({
-      where: { id: params.stepId },
+      where: { id: stepId },
       data: json,
     });
 
@@ -58,9 +59,9 @@ export async function DELETE(
     if (!sequence) {
       return new NextResponse("Not found", { status: 404 });
     }
-
+    const { stepId } = await params;
     await prisma.sequenceStep.delete({
-      where: { id: params.stepId },
+      where: { id: stepId },
     });
 
     return NextResponse.json({ success: true });

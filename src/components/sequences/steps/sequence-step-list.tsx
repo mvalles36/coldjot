@@ -25,6 +25,15 @@ interface Props {
   steps: SequenceStep[];
   onReorder: (steps: SequenceStep[]) => Promise<void>;
   onEdit: (step: SequenceStep) => void;
+  onEditTemplate: (step: SequenceStep) => void;
+  onDuplicate: (step: SequenceStep) => Promise<void>;
+  onDelete: (step: SequenceStep) => Promise<void>;
+}
+
+interface StepActionsProps {
+  step: SequenceStep;
+  onEdit: (step: SequenceStep) => void;
+  onEditTemplate: (step: SequenceStep) => void;
   onDuplicate: (step: SequenceStep) => Promise<void>;
   onDelete: (step: SequenceStep) => Promise<void>;
 }
@@ -33,6 +42,7 @@ export function SequenceStepList({
   steps,
   onReorder,
   onEdit,
+  onEditTemplate,
   onDuplicate,
   onDelete,
 }: Props) {
@@ -113,27 +123,13 @@ export function SequenceStepList({
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant="secondary">{step.priority}</Badge>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => onEdit(step)}>
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => onDuplicate(step)}>
-                            Duplicate
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => onDelete(step)}
-                            className="text-destructive"
-                          >
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <StepActions
+                        step={step}
+                        onEdit={onEdit}
+                        onEditTemplate={onEditTemplate}
+                        onDuplicate={onDuplicate}
+                        onDelete={onDelete}
+                      />
                     </div>
                   </div>
                 )}
@@ -144,5 +140,40 @@ export function SequenceStepList({
         )}
       </Droppable>
     </DragDropContext>
+  );
+}
+
+function StepActions({
+  step,
+  onEdit,
+  onEditTemplate,
+  onDuplicate,
+  onDelete,
+}: StepActionsProps) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon">
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => onEdit(step)}>
+          Edit Settings
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onEditTemplate(step)}>
+          Edit Template
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onDuplicate(step)}>
+          Duplicate
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => onDelete(step)}
+          className="text-destructive"
+        >
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

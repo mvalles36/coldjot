@@ -24,6 +24,7 @@ export function AddSequenceStep({
 }: AddSequenceStepProps) {
   const [activeDrawer, setActiveDrawer] = useState<ActiveDrawer>("none");
   const [stepData, setStepData] = useState<StepData | null>(null);
+  const [emailData, setEmailData] = useState<EmailData | null>(null);
   const router = useRouter();
 
   const handleStepSave = async (data: StepData) => {
@@ -31,7 +32,7 @@ export function AddSequenceStep({
     setActiveDrawer("email");
   };
 
-  const handleEmailSave = async (emailData: EmailData) => {
+  const handleEmailSave = async (data: EmailData) => {
     if (!stepData) return;
 
     try {
@@ -45,9 +46,10 @@ export function AddSequenceStep({
         },
         body: JSON.stringify({
           ...stepData,
-          ...emailData,
+          ...data,
           order: steps.length,
           previousStepId,
+          replyToThread: data.replyToThread,
         }),
       });
 
@@ -56,6 +58,7 @@ export function AddSequenceStep({
       toast.success("Step added successfully");
       setActiveDrawer("none");
       setStepData(null);
+      setEmailData(null);
       onStepAdded?.();
     } catch (error) {
       toast.error("Failed to add step");

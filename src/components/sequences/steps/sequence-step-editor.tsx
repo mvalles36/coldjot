@@ -35,12 +35,14 @@ interface SequenceStepEditorProps {
   open: boolean;
   onClose: () => void;
   onSave: (data: any) => void;
+  initialData?: any;
 }
 
 export function SequenceStepEditor({
   open,
   onClose,
   onSave,
+  initialData,
 }: SequenceStepEditorProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { register, handleSubmit, watch, control } = useForm<StepFormData>({
