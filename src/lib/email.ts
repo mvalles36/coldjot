@@ -2,6 +2,13 @@ import { google } from "googleapis";
 import { createTransport } from "nodemailer";
 import { encode as base64Encode } from "js-base64";
 import type { TransportOptions } from "nodemailer";
+import {
+  sleep,
+  generateMessageId,
+  normalizeSubject,
+  generateTrackingPixel,
+  wrapLinksWithTracking,
+} from "@/utils/email-utils";
 
 export interface SendEmailOptions {
   to: string;
@@ -9,6 +16,7 @@ export interface SendEmailOptions {
   content: string;
   threadId?: string;
   accessToken?: string;
+  tracking?: TrackingOptions;
 }
 
 export interface CreateDraftOptions {
@@ -28,6 +36,12 @@ export interface EmailResponse {
   threadId?: string;
 }
 
+export interface TrackingOptions {
+  emailId: string;
+  userId: string;
+  sequenceId?: string;
+}
+
 // Configure Gmail OAuth2 client
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
@@ -39,8 +53,6 @@ interface TokenRefreshError extends Error {
   code?: string;
   status?: number;
 }
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export async function refreshAccessToken(
   refreshToken: string,
@@ -96,16 +108,6 @@ interface ThreadHeaders {
   references?: string[];
 }
 
-const generateMessageId = () => {
-  const domain = process.env.EMAIL_DOMAIN || "gmail.com";
-  return `<${Date.now()}.${Math.random().toString(36).substring(2)}@${domain}>`;
-};
-
-const normalizeMessageId = (messageId: string): string => {
-  if (!messageId) return "";
-  return messageId.includes("@") ? messageId : `<${messageId}@gmail.com>`;
-};
-
 // Add MIME word encoding for subjects with special characters or emojis
 const encodeMIMEWords = (text: string): string => {
   // Check if the text needs encoding (contains non-ASCII characters)
@@ -117,18 +119,21 @@ const encodeMIMEWords = (text: string): string => {
   return text;
 };
 
-const normalizeSubject = (
-  subject: string,
-  isReply: boolean,
-  originalSubject?: string
-): string => {
-  // If we have an original subject from the thread and this is a reply, use that
-  const baseSubject = isReply && originalSubject ? originalSubject : subject;
-  // Remove any existing "Re:" prefixes and trim
-  const cleanSubject = baseSubject.replace(/^(Re:\s*)+/i, "").trim();
-  // Add "Re:" prefix if it's a reply and encode the final subject
-  const finalSubject = isReply ? `Re: ${cleanSubject}` : cleanSubject;
-  return encodeMIMEWords(finalSubject);
+// Helper function to get base URL with fallback
+const getBaseUrl = () => {
+  const url = process.env.NEXT_PUBLIC_APP_URL;
+  if (url) {
+    console.warn("NEXT_PUBLIC_APP_URL is not set, using fallback URL");
+    // For local testing, use ngrok URL if available
+    if (process.env.NGROK_URL) {
+      return process.env.NGROK_URL;
+    }
+    // In development, default to localhost:3000
+    return process.env.NODE_ENV === "development"
+      ? "http://localhost:3000"
+      : "https://app.zkmail.io";
+  }
+  return url;
 };
 
 export async function sendEmail({
@@ -137,6 +142,7 @@ export async function sendEmail({
   content,
   threadId,
   accessToken,
+  tracking,
 }: SendEmailOptions): Promise<EmailResponse> {
   try {
     if (accessToken) {
@@ -220,6 +226,31 @@ export async function sendEmail({
         }
       }
 
+      // Add tracking to email content if tracking options are provided
+      let finalContent = content;
+      if (tracking) {
+        try {
+          // Add tracking pixel at the end of the email
+          const trackingPixel = generateTrackingPixel(tracking);
+          if (trackingPixel) {
+            finalContent = content + trackingPixel;
+          }
+
+          // Wrap all links with tracking
+          finalContent = wrapLinksWithTracking(finalContent, tracking);
+
+          console.log("📊 Added tracking to email:", {
+            emailId: tracking.emailId,
+            hasPixel: !!trackingPixel,
+            hasLinkTracking: true,
+          });
+        } catch (error) {
+          console.error("Error adding tracking to email:", error);
+          // Use original content if tracking fails
+          finalContent = content;
+        }
+      }
+
       // Create email message with proper threading headers
       const message = [
         "Content-Type: text/html; charset=utf-8",
@@ -234,7 +265,7 @@ export async function sendEmail({
           ? [`References: ${threadHeaders.references.join(" ")}`]
           : []),
         "",
-        content,
+        finalContent,
       ].join("\n");
 
       console.log("📧 Email headers:", {
@@ -242,6 +273,7 @@ export async function sendEmail({
         messageId: threadHeaders.messageId,
         inReplyTo: threadHeaders.inReplyTo,
         referencesCount: threadHeaders.references?.length,
+        hasTracking: !!tracking,
       });
 
       const encodedMessage = base64Encode(message)

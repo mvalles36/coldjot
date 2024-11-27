@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { sendEmail, refreshAccessToken } from "@/lib/email";
-import type { SendEmailOptions } from "@/lib/email";
+import type { SendEmailOptions, TrackingOptions } from "@/lib/email";
 import { TEST_CONTACTS, getRandomTestRecipient } from "@/config/test";
 
 interface GoogleAccount {
@@ -38,11 +38,12 @@ async function getGoogleAccount(userId: string): Promise<GoogleAccount | null> {
 }
 
 async function handleEmailSend(
-  emailOptions: SendEmailOptions,
+  emailOptions: SendEmailOptions & { tracking?: TrackingOptions },
   account: GoogleAccount
 ): Promise<string | undefined> {
   try {
-    console.log(`📧 Sending email with threading options:`, {
+    console.log(`📧 Sending email with tracking options:`, {
+      hasTracking: !!emailOptions.tracking,
       hasThreadId: !!emailOptions.threadId,
       subject: emailOptions.subject,
     });
@@ -214,14 +215,23 @@ export async function processSequences() {
             ? sequenceContact.threadId
             : undefined;
 
-        const emailOptions: SendEmailOptions = {
-          to: recipientEmail,
-          subject: sequence.testMode
-            ? `[TEST] ${currentStep.subject}`
-            : currentStep.subject || "",
-          content: emailContent || "",
-          threadId,
-        };
+        // Generate a unique email ID for tracking
+        const emailId = `${sequence.id}_${sequenceContact.id}_${currentStep.id}`;
+
+        const emailOptions: SendEmailOptions & { tracking?: TrackingOptions } =
+          {
+            to: recipientEmail,
+            subject: sequence.testMode
+              ? `[TEST] ${currentStep.subject}`
+              : currentStep.subject || "",
+            content: emailContent || "",
+            threadId,
+            tracking: {
+              emailId,
+              userId: sequence.userId,
+              sequenceId: sequence.id,
+            },
+          };
 
         const shouldSend =
           !sequence.testMode || devSettings?.testEmails?.length;
@@ -233,6 +243,7 @@ export async function processSequences() {
               threadId ? "Continuing thread" : "Starting new thread"
             }`
           );
+          console.log(`📊 Tracking enabled for email ID: ${emailId}`);
 
           const newThreadId = await handleEmailSend(
             emailOptions,
@@ -263,24 +274,17 @@ export async function processSequences() {
               newThreadId ? "new" : "existing"
             } thread ID: ${newThreadId || sequenceContact.threadId}`
           );
+        } else {
+          console.log(
+            `⏭️ Skipping email send (test mode without test emails configured)`
+          );
         }
       } catch (error) {
         console.error(
           `❌ Error processing sequence contact ${sequenceContact.id}:`,
           error
         );
-
-        await prisma.sequenceContact.update({
-          where: {
-            id: sequenceContact.id,
-          },
-          data: {
-            status: "failed",
-          },
-        });
       }
     }
   }
-
-  console.log("\n✨ Sequence processing completed");
 }
