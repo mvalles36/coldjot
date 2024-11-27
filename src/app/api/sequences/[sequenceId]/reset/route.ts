@@ -12,7 +12,7 @@ export async function POST(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { sequenceId } = params;
+    const { sequenceId } = await params;
 
     // Verify sequence ownership
     const sequence = await prisma.sequence.findUnique({

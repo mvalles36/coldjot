@@ -238,30 +238,36 @@ model DevSettings {
     @@index([userId])
 }
 
-model EmailTracking {
-    id        String   @id @default(cuid())
-    emailId   String
-    userId    String
-    type      String // "open" | "click"
-    metadata  Json
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-
-    @@index([emailId])
-    @@index([userId])
-    @@index([type])
-    @@index([createdAt])
-}
-
 model EmailTrackingEvent {
-    id        String   @id @default(cuid())
-    hash      String
-    userId    String
-    type      String // OPEN, CLICK, etc.
-    userAgent String?
-    ipAddress String?
-    timestamp DateTime @default(now())
+    id         String @id @default(cuid())
+    hash       String @unique
+    email      String
+    userId     String
+    sequenceId String
+    stepId     String
+    contactId  String
 
+    openCount Int      @default(0)
+    timestamp DateTime @default(now())
+    createdAt DateTime @default(now())
+
+    linkClicks LinkClickEvent[]
+
+    @@index([timestamp])
     @@index([hash])
     @@index([userId])
+    @@index([sequenceId])
+    @@index([email])
+}
+
+model LinkClickEvent {
+    id         String   @id @default(cuid())
+    trackingId String
+    url        String
+    timestamp  DateTime @default(now())
+
+    tracking EmailTrackingEvent @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+
+    @@index([trackingId])
+    @@index([timestamp])
 }

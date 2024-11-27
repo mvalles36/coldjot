@@ -1,4 +1,4 @@
-import { TrackingOptions } from "@/lib/email";
+import { EmailTrackingMetadata } from "@/types/sequences";
 import { createHash } from "crypto";
 
 // Sleep utility
@@ -51,60 +51,22 @@ export const getBaseUrl = () => {
   return url;
 };
 
-// Add new interface for tracking metadata
-interface TrackingMetadata {
-  emailId: string;
-  userId: string;
-  timestamp: number;
-}
-
 // Generate a unique tracking hash
-const generateTrackingHash = (metadata: TrackingMetadata): string => {
-  const data = `${metadata.emailId}:${metadata.userId}:${metadata.timestamp}`;
+const generateTrackingHash = (metadata: EmailTrackingMetadata): string => {
+  const data = `${metadata.email}:${metadata.userId}:${metadata.sequenceId}`;
   return createHash("sha256").update(data).digest("hex");
 };
 
-export const generateTrackingPixel = ({
-  emailId,
-  userId,
-}: TrackingOptions): string => {
+export const generateTrackingPixel = (
+  metadata: EmailTrackingMetadata
+): string => {
   try {
     const baseUrl = getBaseUrl();
-    const metadata: TrackingMetadata = {
-      emailId,
-      userId,
-      timestamp: Date.now(),
-    };
-
     const trackingHash = generateTrackingHash(metadata);
-    const trackingUrl = new URL(
-      `${baseUrl}/api/track/mail/${trackingHash}.png`
-    );
+    const trackingUrl = new URL(`${baseUrl}/api/track/${trackingHash}.png`);
 
-    // Add metadata as query params
-    trackingUrl.searchParams.set("u", userId);
-
-    if (process.env.NODE_ENV === "development") {
-      return `
-        <!-- Email Open Tracking -->
-        <div style="color: #666; font-size: 6px; margin-top: 10px; text-align: center;">
-          <img src="${trackingUrl.toString()}" 
-               width="1" 
-               height="1" 
-               alt="" 
-               style="display:inline" />
-          <br/>
-          <a href="${trackingUrl.toString()}" target="_blank">View Tracking Pixel</a>
-        </div>
-      `;
-    }
-
-    // In production, use a more discreet tracking pixel
-    return `<img src="${trackingUrl.toString()}" 
-                  width="0" 
-                  height="0" 
-                  alt="" 
-                  style="display:none;width:0;height:0;opacity:0" />`;
+    // Return a minimal tracking pixel with just the hash
+    return `<img src="${trackingUrl.toString()}" alt="" style="display:none" width="1" height="1" />`;
   } catch (error) {
     console.error("Error generating tracking pixel:", error);
     return "";
@@ -113,22 +75,19 @@ export const generateTrackingPixel = ({
 
 export const wrapLinksWithTracking = (
   content: string,
-  { emailId, userId, sequenceId }: TrackingOptions
+  metadata: EmailTrackingMetadata
 ): string => {
   try {
     const baseUrl = getBaseUrl();
-    const trackingBaseUrl = `${baseUrl}/api/track/click`;
+    const trackingHash = generateTrackingHash(metadata);
+    const trackingBaseUrl = `${baseUrl}/api/track/${trackingHash}/click`;
 
     return content.replace(
       /<a\s+(?:[^>]*?\s+)?href=(["'])(.*?)\1/gi,
       (match, quote, url) => {
         try {
+          // Only add the target URL as a query param
           const trackingUrl = new URL(trackingBaseUrl);
-          trackingUrl.searchParams.set("emailId", emailId);
-          trackingUrl.searchParams.set("userId", userId);
-          if (sequenceId) {
-            trackingUrl.searchParams.set("sequenceId", sequenceId);
-          }
           trackingUrl.searchParams.set("url", url);
 
           return `<a href="${trackingUrl.toString()}"`;

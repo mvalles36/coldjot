@@ -1,7 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { sendEmail, refreshAccessToken } from "@/lib/email";
-import type { SendEmailOptions, TrackingOptions } from "@/lib/email";
+import type { SendEmailOptions } from "@/lib/email";
 import { TEST_CONTACTS, getRandomTestRecipient } from "@/config/test";
+import { EmailTrackingMetadata, EmailTracking } from "@/types/sequences";
+import {
+  createEmailTracking,
+  addTrackingToEmail,
+} from "@/lib/tracking-service";
 
 interface GoogleAccount {
   access_token: string;
@@ -37,27 +42,56 @@ async function getGoogleAccount(userId: string): Promise<GoogleAccount | null> {
   };
 }
 
+function generateTrackingMetadata(
+  email: string,
+  sequenceId: string,
+  contactId: string,
+  stepId: string,
+  userId: string
+): EmailTrackingMetadata {
+  console.log("Generating tracking metadata with:", {
+    email,
+    sequenceId,
+    contactId,
+    stepId,
+    userId,
+  });
+
+  const metadata: EmailTrackingMetadata = {
+    email,
+    userId,
+    sequenceId,
+    stepId,
+    contactId,
+  };
+
+  console.log("Generated metadata:", metadata);
+
+  return metadata;
+}
+
 async function handleEmailSend(
-  emailOptions: SendEmailOptions & { tracking?: TrackingOptions },
+  emailOptions: SendEmailOptions,
+  tracking: EmailTracking,
   account: GoogleAccount
 ): Promise<string | undefined> {
   try {
-    console.log(`📧 Sending email with tracking options:`, {
-      hasTracking: !!emailOptions.tracking,
-      hasThreadId: !!emailOptions.threadId,
-      subject: emailOptions.subject,
-    });
+    // Add tracking to email content
+    const trackedContent = addTrackingToEmail(emailOptions.content, tracking);
 
     const result = await sendEmail({
       ...emailOptions,
+      content: trackedContent,
       accessToken: account.access_token,
     });
 
-    if (result.threadId) {
-      console.log(`📧 Email sent successfully in thread: ${result.threadId}`);
-    } else {
-      console.log(`📧 New email thread created with ID: ${result.messageId}`);
-    }
+    // Log tracking info
+    console.log(`📊 Email sent with tracking:`, {
+      email: emailOptions.to,
+      type: tracking.type,
+      hasPixel: true,
+      hasLinkTracking: tracking.wrappedLinks,
+    });
 
     return result.threadId;
   } catch (error: any) {
@@ -84,8 +118,10 @@ async function handleEmailSend(
 
       // Retry with new token
       console.log(`🔄 Retrying with new token...`);
+      const retryContent = addTrackingToEmail(emailOptions.content, tracking);
       const retryResult = await sendEmail({
         ...emailOptions,
+        content: retryContent,
         accessToken: newAccessToken,
       });
 
@@ -215,23 +251,25 @@ export async function processSequences() {
             ? sequenceContact.threadId
             : undefined;
 
-        // Generate a unique email ID for tracking
-        const emailId = `${sequence.id}_${sequenceContact.id}_${currentStep.id}`;
+        const trackingMetadata = generateTrackingMetadata(
+          recipientEmail,
+          sequence.id,
+          sequenceContact.contactId,
+          currentStep.id,
+          sequence.userId
+        );
+        console.log("Tracking Metadata:", trackingMetadata);
 
-        const emailOptions: SendEmailOptions & { tracking?: TrackingOptions } =
-          {
-            to: recipientEmail,
-            subject: sequence.testMode
-              ? `[TEST] ${currentStep.subject}`
-              : currentStep.subject || "",
-            content: emailContent || "",
-            threadId,
-            tracking: {
-              emailId,
-              userId: sequence.userId,
-              sequenceId: sequence.id,
-            },
-          };
+        const tracking = await createEmailTracking(trackingMetadata);
+
+        const emailOptions: SendEmailOptions = {
+          to: recipientEmail,
+          subject: sequence.testMode
+            ? `[TEST] ${currentStep.subject}`
+            : currentStep.subject || "",
+          content: emailContent || "",
+          threadId,
+        };
 
         const shouldSend =
           !sequence.testMode || devSettings?.testEmails?.length;
@@ -243,10 +281,10 @@ export async function processSequences() {
               threadId ? "Continuing thread" : "Starting new thread"
             }`
           );
-          console.log(`📊 Tracking enabled for email ID: ${emailId}`);
 
           const newThreadId = await handleEmailSend(
             emailOptions,
+            tracking,
             googleAccount
           );
 

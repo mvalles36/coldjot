@@ -100,3 +100,26 @@ export interface EmailData {
   replyToThread?: boolean;
   templateId?: string;
 }
+
+export interface EmailTrackingMetadata {
+  email: string;
+  userId: string;
+  sequenceId: string;
+  stepId: string;
+  contactId: string;
+  hash?: string;
+}
+
+export interface EmailTracking {
+  metadata: EmailTrackingMetadata;
+  type: "sequence" | "manual";
+  pixel: string;
+  wrappedLinks: boolean;
+}
+
+export interface SequenceEmailTracking {
+  emailId: string;
+  userId: string;
+  sequenceId: string;
+  metadata: EmailTrackingMetadata;
+}

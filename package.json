@@ -6,8 +6,7 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "migrate": "ts-node scripts/migrate-components.ts"
+    "lint": "next lint"
   },
   "dependencies": {
     "@auth/core": "^0.37.3",

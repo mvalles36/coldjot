@@ -2,12 +2,11 @@ import { google } from "googleapis";
 import { createTransport } from "nodemailer";
 import { encode as base64Encode } from "js-base64";
 import type { TransportOptions } from "nodemailer";
+import { EmailTrackingMetadata } from "@/types/sequences";
 import {
   sleep,
   generateMessageId,
   normalizeSubject,
-  generateTrackingPixel,
-  wrapLinksWithTracking,
 } from "@/utils/email-utils";
 
 export interface SendEmailOptions {
@@ -16,7 +15,6 @@ export interface SendEmailOptions {
   content: string;
   threadId?: string;
   accessToken?: string;
-  tracking?: TrackingOptions;
 }
 
 export interface CreateDraftOptions {
@@ -34,12 +32,6 @@ export interface SendDraftOptions {
 export interface EmailResponse {
   messageId: string;
   threadId?: string;
-}
-
-export interface TrackingOptions {
-  emailId: string;
-  userId: string;
-  sequenceId?: string;
 }
 
 // Configure Gmail OAuth2 client
@@ -142,7 +134,6 @@ export async function sendEmail({
   content,
   threadId,
   accessToken,
-  tracking,
 }: SendEmailOptions): Promise<EmailResponse> {
   try {
     if (accessToken) {
@@ -226,31 +217,6 @@ export async function sendEmail({
         }
       }
 
-      // Add tracking to email content if tracking options are provided
-      let finalContent = content;
-      if (tracking) {
-        try {
-          // Add tracking pixel at the end of the email
-          const trackingPixel = generateTrackingPixel(tracking);
-          if (trackingPixel) {
-            finalContent = content + trackingPixel;
-          }
-
-          // Wrap all links with tracking
-          finalContent = wrapLinksWithTracking(finalContent, tracking);
-
-          console.log("📊 Added tracking to email:", {
-            emailId: tracking.emailId,
-            hasPixel: !!trackingPixel,
-            hasLinkTracking: true,
-          });
-        } catch (error) {
-          console.error("Error adding tracking to email:", error);
-          // Use original content if tracking fails
-          finalContent = content;
-        }
-      }
-
       // Create email message with proper threading headers
       const message = [
         "Content-Type: text/html; charset=utf-8",
@@ -265,7 +231,7 @@ export async function sendEmail({
           ? [`References: ${threadHeaders.references.join(" ")}`]
           : []),
         "",
-        finalContent,
+        content,
       ].join("\n");
 
       console.log("📧 Email headers:", {
@@ -273,7 +239,6 @@ export async function sendEmail({
         messageId: threadHeaders.messageId,
         inReplyTo: threadHeaders.inReplyTo,
         referencesCount: threadHeaders.references?.length,
-        hasTracking: !!tracking,
       });
 
       const encodedMessage = base64Encode(message)
