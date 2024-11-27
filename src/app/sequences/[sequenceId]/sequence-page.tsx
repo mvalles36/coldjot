@@ -222,7 +222,7 @@ export default function SequencePage({ sequence }: SequencePageProps) {
 
         <TabsContent value="overview" className="mt-6">
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            {/* <div className="grid grid-cols-2 gap-4">
               <div className="space-y-4">
                 <h3 className="font-medium">STATISTICS</h3>
                 <div className="grid grid-cols-5 gap-4 text-center">
@@ -286,7 +286,7 @@ export default function SequencePage({ sequence }: SequencePageProps) {
                   </div>
                 </div>
               </div>
-            </div>
+            </div> */}
 
             {isLoading ? (
               <div className="flex items-center justify-center p-8">

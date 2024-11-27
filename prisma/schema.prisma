@@ -239,20 +239,22 @@ model DevSettings {
 }
 
 model EmailTrackingEvent {
-    id         String @id @default(cuid())
-    hash       String @unique
+    id         String   @id @default(cuid())
+    hash       String   @unique
     email      String
     userId     String
     sequenceId String
     stepId     String
     contactId  String
+    type       String // CREATED, OPENED
+    openCount  Int      @default(0)
+    timestamp  DateTime @default(now())
+    createdAt  DateTime @default(now())
 
-    openCount Int      @default(0)
-    timestamp DateTime @default(now())
-    createdAt DateTime @default(now())
+    // Add relation to track links in the email
+    links TrackedLink[]
 
-    linkClicks LinkClickEvent[]
-
+    @@index([type])
     @@index([timestamp])
     @@index([hash])
     @@index([userId])
@@ -260,14 +262,32 @@ model EmailTrackingEvent {
     @@index([email])
 }
 
-model LinkClickEvent {
-    id         String   @id @default(cuid())
-    trackingId String
-    url        String
-    timestamp  DateTime @default(now())
+// New model to store links that need to be tracked
+model TrackedLink {
+    id              String   @id @default(cuid())
+    emailTrackingId String
+    originalUrl     String
+    clickCount      Int      @default(0)
+    createdAt       DateTime @default(now())
+    updatedAt       DateTime @updatedAt
 
-    tracking EmailTrackingEvent @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+    // Relation to the email tracking event
+    emailTracking EmailTrackingEvent @relation(fields: [emailTrackingId], references: [id], onDelete: Cascade)
+    // Store click history
+    clicks        LinkClick[]
 
-    @@index([trackingId])
+    @@index([emailTrackingId])
+}
+
+// Rename and update LinkClickEvent to LinkClick
+model LinkClick {
+    id            String   @id @default(cuid())
+    trackedLinkId String
+    timestamp     DateTime @default(now())
+
+    // Relation to the tracked link
+    trackedLink TrackedLink @relation(fields: [trackedLinkId], references: [id], onDelete: Cascade)
+
+    @@index([trackedLinkId])
     @@index([timestamp])
 }

@@ -115,6 +115,7 @@ export interface EmailTracking {
   type: "sequence" | "manual";
   pixel: string;
   wrappedLinks: boolean;
+  trackingId: string;
 }
 
 export interface SequenceEmailTracking {

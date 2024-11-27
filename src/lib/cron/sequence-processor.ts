@@ -77,7 +77,10 @@ async function handleEmailSend(
 ): Promise<string | undefined> {
   try {
     // Add tracking to email content
-    const trackedContent = addTrackingToEmail(emailOptions.content, tracking);
+    const trackedContent = await addTrackingToEmail(
+      emailOptions.content,
+      tracking
+    );
 
     const result = await sendEmail({
       ...emailOptions,
@@ -118,7 +121,10 @@ async function handleEmailSend(
 
       // Retry with new token
       console.log(`🔄 Retrying with new token...`);
-      const retryContent = addTrackingToEmail(emailOptions.content, tracking);
+      const retryContent = await addTrackingToEmail(
+        emailOptions.content,
+        tracking
+      );
       const retryResult = await sendEmail({
         ...emailOptions,
         content: retryContent,
