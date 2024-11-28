@@ -41,9 +41,9 @@ async function getSequence(sequenceId: string) {
 export default async function SequencePage({
   params,
 }: {
-  params: { sequenceId: string };
+  params: { id: string };
 }) {
-  const { sequenceId } = await params;
-  const sequence = await getSequence(sequenceId);
+  const { id } = await params;
+  const sequence = await getSequence(id);
   return <SequencePageComp sequence={sequence} />;
 }
