@@ -48,7 +48,17 @@ export async function createEmailTracking(
       data: eventData,
     });
 
+    // id: string;
+    // hash: string;
+    // type: string;
+    // wrappedLinks: boolean;
+    // metadata: EmailTrackingMetadata;
+    // pixel?: string;
+    // trackingId?: string;
+
     const tracking: EmailTracking = {
+      id: trackingEvent.id,
+      hash,
       metadata: { ...metadata, hash },
       type: "sequence",
       pixel: generateTrackingPixel(hash),
@@ -160,7 +170,7 @@ export async function addTrackingToEmail(
       trackedContent = await wrapLinksWithTracking(
         trackedContent,
         tracking.metadata.hash!,
-        tracking.trackingId
+        tracking.trackingId!
       );
     }
 

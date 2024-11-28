@@ -8,22 +8,27 @@ generator client {
 }
 
 model Account {
-    id                String  @id @default(cuid())
+    id                String    @id @default(cuid())
     userId            String
     type              String
     provider          String
     providerAccountId String
-    refresh_token     String? @db.Text
-    access_token      String? @db.Text
+    refresh_token     String?   @db.Text
+    access_token      String?   @db.Text
     expires_at        Int?
     token_type        String?
     scope             String?
-    id_token          String? @db.Text
+    id_token          String?   @db.Text
     session_state     String?
+    watchHistoryId    String?   @db.Text
+    watchExpiration   DateTime?
+    messageId         String?   @db.Text
 
     user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     @@unique([provider, providerAccountId])
+    @@index([watchHistoryId])
+    @@index([userId])
 }
 
 model Session {
@@ -66,10 +71,11 @@ model Contact {
     contacts    SequenceContact[] @relation("ContactToSequence")
     stats       SequenceStats[]
 
-    user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+    user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
     drafts     Draft[]
-    company    Company?    @relation(fields: [companyId], references: [id])
-    emailLists EmailList[] @relation("EmailListContacts")
+    company    Company?     @relation(fields: [companyId], references: [id])
+    emailLists EmailList[]  @relation("EmailListContacts")
+    EmailEvent EmailEvent[]
 
     @@index([userId])
     @@index([companyId])
@@ -162,6 +168,7 @@ model Sequence {
     emailListId  String?
     stats        SequenceStats[]
     contacts     SequenceContact[] @relation("SequenceToContact")
+    EmailEvent   EmailEvent[]
 
     @@index([userId])
 }
@@ -290,4 +297,31 @@ model LinkClick {
 
     @@index([trackedLinkId])
     @@index([timestamp])
+}
+
+// Add this model to your schema
+model EmailEvent {
+    id         String         @id @default(cuid())
+    emailId    String
+    type       EmailEventType
+    timestamp  DateTime       @default(now())
+    metadata   Json?
+    sequence   Sequence       @relation(fields: [sequenceId], references: [id])
+    sequenceId String
+    contact    Contact        @relation(fields: [contactId], references: [id])
+    contactId  String
+
+    @@index([emailId, type])
+    @@index([sequenceId, type])
+    @@index([timestamp])
+}
+
+enum EmailEventType {
+    SENT
+    OPENED
+    CLICKED
+    REPLIED
+    BOUNCED
+    SPAM
+    UNSUBSCRIBED
 }

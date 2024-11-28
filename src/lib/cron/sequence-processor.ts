@@ -7,6 +7,8 @@ import {
   createEmailTracking,
   addTrackingToEmail,
 } from "@/lib/tracking-service";
+import { trackEmailEvent } from "@/lib/email-events";
+import type { EmailEventType } from "@prisma/client";
 
 interface GoogleAccount {
   access_token: string;
@@ -76,7 +78,6 @@ async function handleEmailSend(
   account: GoogleAccount
 ): Promise<string | undefined> {
   try {
-    // Add tracking to email content
     const trackedContent = await addTrackingToEmail(
       emailOptions.content,
       tracking
@@ -88,13 +89,31 @@ async function handleEmailSend(
       accessToken: account.access_token,
     });
 
-    // Log tracking info
+    await trackEmailEvent(
+      tracking.id,
+      "SENT" as EmailEventType,
+      {
+        threadId: result.threadId,
+        messageId: result.messageId,
+      },
+      tracking.metadata
+    );
+
     console.log(`📊 Email sent with tracking:`, {
       email: emailOptions.to,
       type: tracking.type,
       hasPixel: true,
       hasLinkTracking: tracking.wrappedLinks,
     });
+
+    // if (result.messageId) {
+    //   await prisma.emailTrackingEvent.update({
+    //     where: { hash: tracking.hash },
+    //     data: {
+    //       messageId: result.messageId,
+    //     },
+    //   });
+    // }
 
     return result.threadId;
   } catch (error: any) {
@@ -106,7 +125,6 @@ async function handleEmailSend(
         throw new Error("Failed to refresh token");
       }
 
-      // Update the token in database
       await prisma.account.update({
         where: {
           provider_providerAccountId: {
@@ -119,7 +137,6 @@ async function handleEmailSend(
         },
       });
 
-      // Retry with new token
       console.log(`🔄 Retrying with new token...`);
       const retryContent = await addTrackingToEmail(
         emailOptions.content,
@@ -143,6 +160,15 @@ async function handleEmailSend(
 
       return retryResult.threadId;
     } else {
+      await trackEmailEvent(
+        tracking.id,
+        "BOUNCED" as EmailEventType,
+        {
+          bounceReason: error.message,
+        },
+        tracking.metadata
+      );
+
       console.error(`❌ Error sending email:`, error);
       throw error;
     }
@@ -194,7 +220,6 @@ export async function processSequences() {
     );
     console.log(`📝 Mode: ${sequence.testMode ? "Test" : "Live"}`);
 
-    // Get user's Google account
     const googleAccount = await getGoogleAccount(sequence.userId);
     if (!googleAccount) {
       console.error(
@@ -203,7 +228,6 @@ export async function processSequences() {
       continue;
     }
 
-    // Only fetch dev settings if sequence is in test mode
     const devSettings = sequence.testMode
       ? await getDevSettings(sequence.userId)
       : null;
@@ -239,7 +263,6 @@ export async function processSequences() {
           ? `[TEST MODE] Email intended for: ${sequenceContact.contact.email}\n\n${currentStep.content}`
           : currentStep.content;
 
-        // Use dev settings test emails if in test mode and test emails exist
         const recipientEmail =
           sequence.testMode && devSettings?.testEmails?.length
             ? devSettings.testEmails[
@@ -251,7 +274,6 @@ export async function processSequences() {
           console.log(`🎯 Test mode: Redirecting email to ${recipientEmail}`);
         }
 
-        // Get thread ID based on replyToThread setting and existing threadId
         const threadId =
           currentStep.replyToThread && sequenceContact.threadId
             ? sequenceContact.threadId
@@ -294,13 +316,12 @@ export async function processSequences() {
             googleAccount
           );
 
-          // Update sequence contact with thread information
           await prisma.sequenceContact.update({
             where: {
               id: sequenceContact.id,
             },
             data: {
-              threadId: newThreadId || sequenceContact.threadId, // Keep existing threadId if no new one
+              threadId: newThreadId || sequenceContact.threadId,
               currentStep: sequenceContact.currentStep + 1,
               status:
                 sequenceContact.currentStep + 1 >= sequence.steps.length

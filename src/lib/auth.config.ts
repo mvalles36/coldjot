@@ -2,7 +2,7 @@ import type { NextAuthConfig } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
-
+import { setupGmailWatch } from "@/lib/gmail-watch";
 export const authConfig: NextAuthConfig = {
   providers: [
     GoogleProvider({
@@ -30,6 +30,7 @@ export const authConfig: NextAuthConfig = {
             "https://www.googleapis.com/auth/gmail.compose",
             // "https://www.googleapis.com/auth/gmail.metadata",
             "https://www.googleapis.com/auth/gmail.readonly",
+            "https://www.googleapis.com/auth/pubsub",
           ].join(" "),
         },
       },
@@ -37,6 +38,24 @@ export const authConfig: NextAuthConfig = {
   ],
   adapter: PrismaAdapter(prisma),
   callbacks: {
+    async signIn({ user, account }) {
+      if (account?.provider === "google" && account.access_token) {
+        try {
+          console.log("🚀 Setting up Gmail watch...");
+          // Set up Gmail watch when user signs in with Google
+          await setupGmailWatch({
+            userId: user.id!,
+            accessToken: account.access_token,
+            topicName: process.env.GMAIL_WATCH_TOPIC!,
+          });
+        } catch (error) {
+          console.error("Failed to setup Gmail watch:", error);
+          // Don't block sign in if watch setup fails
+        }
+      }
+      return true;
+    },
+
     async session({ session, user, token }) {
       if (session.user) {
         session.user.id = user.id;

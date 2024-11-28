@@ -260,3 +260,47 @@ export async function GET(
     });
   }
 }
+
+import { trackEmailEvent } from "@/lib/email-events";
+import { getUserAgent } from "@/lib/user-agent";
+import { getIpLocation } from "@/lib/ip-location";
+import type { EmailEventType } from "@prisma/client";
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: { eventType: string } }
+) {
+  try {
+    const { emailId } = await req.json();
+    const eventType = params.eventType.toUpperCase() as EmailEventType;
+
+    if (!emailId) {
+      return NextResponse.json(
+        { error: "Email ID is required" },
+        { status: 400 }
+      );
+    }
+
+    const userAgent = getUserAgent(req);
+    const ipAddress =
+      req.headers.get("x-forwarded-for") ||
+      req.headers.get("x-real-ip") ||
+      "unknown";
+    const location = await getIpLocation(ipAddress);
+
+    const event = await trackEmailEvent(emailId, eventType, {
+      userAgent: userAgent.userAgent,
+      ipAddress,
+      location: JSON.stringify(location),
+      deviceType: userAgent.device,
+    });
+
+    return NextResponse.json({ success: true, event });
+  } catch (error) {
+    console.error(`❌ Error tracking email event:`, error);
+    return NextResponse.json(
+      { error: "Failed to track email event" },
+      { status: 500 }
+    );
+  }
+}

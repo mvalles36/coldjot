@@ -108,14 +108,17 @@ export interface EmailTrackingMetadata {
   stepId: string;
   contactId: string;
   hash?: string;
+  trackingId?: string;
 }
 
 export interface EmailTracking {
-  metadata: EmailTrackingMetadata;
-  type: "sequence" | "manual";
-  pixel: string;
+  id: string;
+  hash: string;
+  type: string;
   wrappedLinks: boolean;
-  trackingId: string;
+  metadata: EmailTrackingMetadata;
+  pixel?: string;
+  trackingId?: string;
 }
 
 export interface SequenceEmailTracking {
