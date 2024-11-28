@@ -40,7 +40,7 @@ export async function PUT(
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { sequenceId: string; stepId: string } }
+  { params }: { params: { id: string; stepId: string } }
 ) {
   try {
     const session = await auth();
@@ -48,10 +48,10 @@ export async function DELETE(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { sequenceId } = await params;
+    const { id } = await params;
     const sequence = await prisma.sequence.findUnique({
       where: {
-        id: sequenceId,
+        id: id,
         userId: session.user.id,
       },
     });

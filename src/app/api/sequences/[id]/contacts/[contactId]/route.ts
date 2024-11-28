@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { sequenceId: string; contactId: string } }
+  { params }: { params: { id: string; contactId: string } }
 ) {
   try {
     const session = await auth();
@@ -12,10 +12,10 @@ export async function DELETE(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { sequenceId, contactId } = await params;
+    const { id, contactId } = await params;
     const sequence = await prisma.sequence.findUnique({
       where: {
-        id: sequenceId,
+        id: id,
         userId: session.user.id,
       },
     });
@@ -27,7 +27,7 @@ export async function DELETE(
     await prisma.sequenceContact.delete({
       where: {
         sequenceId_contactId: {
-          sequenceId,
+          sequenceId: id,
           contactId,
         },
       },

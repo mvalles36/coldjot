@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(
   req: Request,
-  { params }: { params: { sequenceId: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await auth();
@@ -12,7 +12,7 @@ export async function GET(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { sequenceId } = await params;
+    const { id } = await params;
     const { searchParams } = new URL(req.url);
     const timeframe = searchParams.get("timeframe") || "7d";
 
@@ -36,7 +36,7 @@ export async function GET(
     // Get sequence contacts with their status and steps
     const sequenceContacts = await prisma.sequenceContact.findMany({
       where: {
-        sequenceId,
+        id,
         updatedAt: {
           gte: startDate,
         },

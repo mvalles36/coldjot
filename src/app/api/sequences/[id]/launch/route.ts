@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 
 export async function POST(
   req: Request,
-  { params }: { params: { sequenceId: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await auth();
@@ -14,12 +14,12 @@ export async function POST(
     }
 
     const { testMode } = await req.json();
-    const { sequenceId } = await params;
+    const { id } = await params;
 
     // Update sequence status and test mode
     await prisma.sequence.update({
       where: {
-        id: sequenceId,
+        id: id,
         userId: session.user.id,
       },
       data: {

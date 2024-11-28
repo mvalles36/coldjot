@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 export async function POST(
   req: Request,
-  { params }: { params: { sequenceId: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await auth();
@@ -13,7 +13,7 @@ export async function POST(
     }
 
     const { action } = await req.json();
-    const { sequenceId } = await params;
+    const { id } = await params;
 
     if (!["pause", "resume"].includes(action)) {
       return new NextResponse("Invalid action", { status: 400 });
@@ -22,7 +22,7 @@ export async function POST(
     // Update sequence status
     const sequence = await prisma.sequence.update({
       where: {
-        id: sequenceId,
+        id: id,
         userId: session.user.id,
       },
       data: {

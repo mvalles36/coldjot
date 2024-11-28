@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 export async function POST(
   req: Request,
-  { params }: { params: { sequenceId: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await auth();
@@ -12,12 +12,12 @@ export async function POST(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { sequenceId } = await params;
+    const { id } = await params;
 
     // Verify sequence ownership
     const sequence = await prisma.sequence.findUnique({
       where: {
-        id: sequenceId,
+        id: id,
         userId: session.user.id,
       },
     });
@@ -30,14 +30,14 @@ export async function POST(
     await prisma.$transaction([
       // Reset sequence status
       prisma.sequence.update({
-        where: { id: sequenceId },
+        where: { id: id },
         data: {
           status: "draft",
         },
       }),
       // Reset all sequence contacts
       prisma.sequenceContact.updateMany({
-        where: { sequenceId },
+        where: { sequenceId: id },
         data: {
           status: "not_sent",
           currentStep: 0,

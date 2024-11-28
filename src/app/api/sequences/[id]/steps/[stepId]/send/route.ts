@@ -5,7 +5,7 @@ import { emailService } from "@/lib/email-service";
 
 export async function POST(
   req: Request,
-  { params }: { params: { sequenceId: string; stepId: string } }
+  { params }: { params: { id: string; stepId: string } }
 ) {
   try {
     const session = await auth();
@@ -13,7 +13,7 @@ export async function POST(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { sequenceId, stepId } = await params;
+    const { id, stepId } = await params;
     const { contactId } = await req.json();
 
     // Get step and contact details
@@ -37,7 +37,7 @@ export async function POST(
       to: contact.email,
       subject: step.subject || "(No subject)",
       content: step.content || "",
-      sequenceId,
+      sequenceId: id,
       stepId,
     });
 
@@ -45,7 +45,7 @@ export async function POST(
     await prisma.sequenceContact.update({
       where: {
         sequenceId_contactId: {
-          sequenceId,
+          sequenceId: id,
           contactId,
         },
       },

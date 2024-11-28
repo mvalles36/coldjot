@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 export async function POST(
   req: Request,
-  { params }: { params: { sequenceId: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await auth();
@@ -12,10 +12,10 @@ export async function POST(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { sequenceId } = await params;
+    const { id } = await params;
     const sequence = await prisma.sequence.findUnique({
       where: {
-        id: sequenceId,
+        id: id,
         userId: session.user.id,
       },
       include: {
@@ -68,17 +68,17 @@ export async function POST(
 
 export async function GET(
   req: Request,
-  { params }: { params: { sequenceId: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
-    const { sequenceId } = await params;
+    const { id } = await params;
     const steps = await prisma.sequenceStep.findMany({
       where: {
-        sequenceId: sequenceId,
+        sequenceId: id,
         sequence: {
           userId: session.user.id,
         },

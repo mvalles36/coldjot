@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 export async function GET(
   req: Request,
-  { params }: { params: { sequenceId: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await auth();
@@ -12,10 +12,10 @@ export async function GET(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { sequenceId } = await params;
+    const { id } = await params;
     const sequenceContacts = await prisma.sequenceContact.findMany({
       where: {
-        sequenceId,
+        sequenceId: id,
         sequence: {
           userId: session.user.id,
         },
@@ -38,7 +38,7 @@ export async function GET(
 
 export async function POST(
   req: Request,
-  { params }: { params: { sequenceId: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await auth();
@@ -47,11 +47,11 @@ export async function POST(
     }
 
     const { contactId } = await req.json();
-    const { sequenceId } = await params;
+    const { id } = await params;
 
     const sequence = await prisma.sequence.findUnique({
       where: {
-        id: sequenceId,
+        id: id,
         userId: session.user.id,
       },
     });
@@ -62,7 +62,7 @@ export async function POST(
 
     const sequenceContact = await prisma.sequenceContact.create({
       data: {
-        sequenceId,
+        sequenceId: id,
         contactId,
         status: "not_sent",
       },
