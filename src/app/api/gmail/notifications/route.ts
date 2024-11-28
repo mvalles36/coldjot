@@ -87,40 +87,51 @@ async function processMessageForReplies(
       format: "full",
     });
 
-    const headers = messageDetails.data.payload?.headers || [];
-
     console.log("🚀 Message details:", messageDetails.data);
 
-    // Check both In-Reply-To and References headers
-    const inReplyTo = headers
-      .find((h) => h.name === "In-Reply-To")
-      ?.value?.replace(/[<>]/g, "");
-    const references = headers
-      .find((h) => h.name === "References")
-      ?.value?.split(/\s+/)
-      .map((ref) => ref.replace(/[<>]/g, ""));
+    const headers = messageDetails.data.payload?.headers || [];
+    const threadId = messageDetails.data.threadId;
 
-    // Filter out undefined values and ensure string array
-    const possibleMessageIds = [inReplyTo, ...(references || [])].filter(
-      (id): id is string => typeof id === "string" && id.length > 0
-    );
+    console.log("🚀 Thread ID:", threadId);
 
-    if (possibleMessageIds.length > 0) {
-      // Look for any of these message IDs in our tracking system
+    if (!threadId) {
+      console.log("No thread ID found for message:", messageId);
+      return;
+    }
+
+    console.log("🚀 Finding email thread...");
+
+    // First try to find the thread in our EmailThread model
+    const emailThread = await prisma.emailThread.findUnique({
+      where: { gmailThreadId: threadId },
+      include: {
+        sequence: true,
+        contact: true,
+      },
+    });
+
+    if (emailThread) {
+      console.log("📨 Found matching thread:", emailThread.id);
+
+      // Find the original tracking event using firstMessageId
       const trackingEvent = await prisma.emailTrackingEvent.findFirst({
         where: {
-          messageId: { in: possibleMessageIds },
+          messageId: emailThread.firstMessageId,
           userId,
         },
       });
 
       if (trackingEvent) {
-        console.log(" Found reply to tracked email:", trackingEvent.hash);
-
-        // Get the email content and ensure non-null values
+        // Get email content and metadata
         const snippet = messageDetails.data.snippet || undefined;
-        const threadId = messageDetails.data.threadId;
         const from = headers.find((h) => h.name === "From")?.value || undefined;
+        const subject = headers.find((h) => h.name === "Subject")?.value;
+
+        console.log("📧 Processing reply in thread:", {
+          threadId,
+          from,
+          subject,
+        });
 
         // Track the reply event
         await trackEmailEvent(
@@ -128,21 +139,90 @@ async function processMessageForReplies(
           "REPLIED",
           {
             replyMessageId: messageId,
-            threadId: threadId!,
-            ...(from && { from }), // Only include if not null/undefined
-            ...(snippet && { snippet }), // Only include if not null/undefined
+            threadId,
+            ...(from && { from }),
+            ...(snippet && { snippet }),
             timestamp: new Date().toISOString(),
           },
           {
-            email: trackingEvent.email,
-            userId: trackingEvent.userId,
-            sequenceId: trackingEvent.sequenceId,
+            email: emailThread.contact.email,
+            userId: emailThread.userId,
+            sequenceId: emailThread.sequenceId,
             stepId: trackingEvent.stepId,
-            contactId: trackingEvent.contactId,
+            contactId: emailThread.contactId,
           }
         );
 
-        console.log("✅ Tracked reply event");
+        // Update sequence contact status if needed
+        await prisma.sequenceContact.updateMany({
+          where: {
+            sequenceId: emailThread.sequenceId,
+            contactId: emailThread.contactId,
+            status: {
+              notIn: ["completed", "replied", "opted_out"],
+            },
+          },
+          data: {
+            status: "replied",
+            updatedAt: new Date(),
+          },
+        });
+
+        console.log(
+          "✅ Tracked reply event for sequence:",
+          emailThread.sequenceId
+        );
+      }
+    } else {
+      // Fallback to checking References and In-Reply-To headers
+      const inReplyTo = headers
+        .find((h) => h.name === "In-Reply-To")
+        ?.value?.replace(/[<>]/g, "");
+      const references = headers
+        .find((h) => h.name === "References")
+        ?.value?.split(/\s+/)
+        .map((ref) => ref.replace(/[<>]/g, ""));
+
+      const possibleMessageIds = [inReplyTo, ...(references || [])].filter(
+        (id): id is string => typeof id === "string" && id.length > 0
+      );
+
+      if (possibleMessageIds.length > 0) {
+        const trackingEvent = await prisma.emailTrackingEvent.findFirst({
+          where: {
+            messageId: { in: possibleMessageIds },
+            userId,
+          },
+        });
+
+        if (trackingEvent) {
+          console.log("📨 Found reply through message references");
+          // Process reply using existing code...
+          const snippet = messageDetails.data.snippet || undefined;
+          const from =
+            headers.find((h) => h.name === "From")?.value || undefined;
+
+          await trackEmailEvent(
+            trackingEvent.hash,
+            "REPLIED",
+            {
+              replyMessageId: messageId,
+              threadId,
+              ...(from && { from }),
+              ...(snippet && { snippet }),
+              timestamp: new Date().toISOString(),
+            },
+            {
+              email: trackingEvent.email,
+              userId: trackingEvent.userId,
+              sequenceId: trackingEvent.sequenceId,
+              stepId: trackingEvent.stepId,
+              contactId: trackingEvent.contactId,
+            }
+          );
+
+          console.log("✅ Tracked reply event through references");
+        }
       }
     }
   } catch (error) {
@@ -255,27 +335,20 @@ export async function POST(req: NextRequest) {
       historyTypes: ["messageAdded", "labelAdded"],
     });
 
-    // console.log("🚀 Processing history:", history);
-    console.log("🚀 Processing history:", JSON.stringify(history, null, 2));
+    console.log("🚀 Processing history:", history.data);
+    // console.log("🚀 Processing history:", JSON.stringify(history, null, 2));
 
     // Process messages for opens and replies
     for (const record of history.data?.history || []) {
-      // Process new messages
-      for (const message of record.messagesAdded || []) {
-        if (!message.message?.id) continue;
+      // Process messages in history
+      for (const message of record.messages || []) {
+        if (!message.id) continue;
 
         // Process for opens
-        await processMessageForOpens(gmail, message.message.id, user.id);
+        await processMessageForOpens(gmail, message.id, user.id);
 
         // Process for replies
-        await processMessageForReplies(gmail, message.message.id, user.id);
-      }
-
-      // Process label changes (can indicate opens)
-      for (const label of record.labelsAdded || []) {
-        if (label.message?.id) {
-          await processMessageForOpens(gmail, label.message.id, user.id);
-        }
+        await processMessageForReplies(gmail, message.id, user.id);
       }
     }
 
