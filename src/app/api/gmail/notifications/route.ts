@@ -117,13 +117,15 @@ export async function POST(req: NextRequest) {
     const history = await gmail.users.history.list({
       userId: "me",
       startHistoryId: historyId,
-      historyTypes: ["messageAdded"],
+      historyTypes: ["messageAdded", "messageDeleted", "messageUpdated"], // Added other history types
     });
 
-    console.log(
-      "🚀 Processing history:",
-      JSON.stringify(history.data, null, 2)
-    );
+    // console.log(
+    //   "🚀 Processing history:",
+    //   JSON.stringify(history.data, null, 2)
+    // );
+
+    console.log("🚀 Processing history:", history);
 
     // Process new messages
     for (const record of history.data?.history || []) {
@@ -134,6 +136,8 @@ export async function POST(req: NextRequest) {
           userId: "me",
           id: message.message.id,
         });
+
+        console.log("🚀 Message details:", messageDetails);
 
         // Check if this is a reply to one of our tracked emails
         const inReplyTo = messageDetails.data?.payload?.headers?.find(

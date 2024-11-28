@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -13,11 +13,19 @@ import { DevSettings } from "@/types/sequence";
 import { Separator } from "@/components/ui/separator";
 import { useDevSettings } from "@/hooks/use-dev-settings";
 import { useRouter } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Badge } from "@/components/ui/badge";
+import { formatDistanceToNow } from "date-fns";
 
 interface SequenceDevSettingsProps {
   sequenceId: string;
   testMode: boolean;
   onTestModeChange: (checked: boolean) => void;
+}
+
+interface GmailWatchStatus {
+  watching: boolean;
+  expiration: string | null;
 }
 
 export function SequenceDevSettings({
@@ -29,6 +37,50 @@ export function SequenceDevSettings({
   const [newEmail, setNewEmail] = useState("");
   const { toast } = useToast();
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  // Fetch Gmail watch status
+  const { data: watchStatus, isLoading: watchStatusLoading } =
+    useQuery<GmailWatchStatus>({
+      queryKey: ["gmail-watch-status"],
+      queryFn: async () => {
+        const res = await fetch("/api/gmail/watch");
+        if (!res.ok) throw new Error("Failed to fetch Gmail watch status");
+        return res.json();
+      },
+    });
+
+  // Toggle Gmail watch mutation
+  const toggleWatch = useMutation({
+    mutationFn: async (enable: boolean) => {
+      setIsUpdating(true);
+      const res = await fetch("/api/gmail/watch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: enable ? "start" : "stop" }),
+      });
+      if (!res.ok) throw new Error("Failed to update Gmail watch status");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["gmail-watch-status"] });
+    },
+    onSettled: () => {
+      setIsUpdating(false);
+    },
+  });
+
+  const handleToggleWatch = useCallback(
+    async (checked: boolean) => {
+      try {
+        await toggleWatch.mutateAsync(checked);
+      } catch (error) {
+        console.error("Failed to toggle Gmail watch:", error);
+      }
+    },
+    [toggleWatch]
+  );
 
   if (isLoading) {
     return <div>Loading...</div>;
@@ -242,6 +294,37 @@ export function SequenceDevSettings({
           <Button onClick={handleSaveSettings} className="w-full">
             Save Development Settings
           </Button>
+
+          {/* Gmail Watch Toggle */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="gmail-watch">Gmail Reply Tracking</Label>
+                <div className="text-sm text-muted-foreground">
+                  Monitor Gmail for replies to sequence emails
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                {watchStatus?.expiration && watchStatus.watching && (
+                  <Badge variant="secondary" className="mr-2">
+                    Expires in{" "}
+                    {formatDistanceToNow(new Date(watchStatus.expiration))}
+                  </Badge>
+                )}
+                <Switch
+                  id="gmail-watch"
+                  checked={watchStatus?.watching || false}
+                  onCheckedChange={handleToggleWatch}
+                  disabled={isLoading || isUpdating}
+                />
+              </div>
+            </div>
+            {isUpdating && (
+              <div className="text-sm text-muted-foreground">
+                Updating Gmail watch status...
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>
