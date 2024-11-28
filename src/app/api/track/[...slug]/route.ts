@@ -174,9 +174,9 @@ export async function GET(
     console.log(`📝 Raw params:`, await params);
 
     // Parse the slug to get hash and action
-    const slug = (await params.slug) || [];
-    let hash = slug[0] || "";
-    const action = slug[1] || "";
+    const { slug } = (await params) || [];
+    let hash = slug![0] || "";
+    const action = slug![1] || "";
 
     // Remove .png extension if present
     hash = hash.replace(".png", "");

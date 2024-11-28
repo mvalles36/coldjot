@@ -127,3 +127,17 @@ export interface SequenceEmailTracking {
   sequenceId: string;
   metadata: EmailTrackingMetadata;
 }
+
+interface EmailEventMetadata {
+  messageId?: string;
+  threadId?: string;
+  from?: string;
+  snippet?: string;
+  timestamp?: string;
+  replyMessageId?: string;
+  bounceReason?: string;
+  userAgent?: string;
+  ipAddress?: string;
+  location?: string;
+  deviceType?: string;
+}

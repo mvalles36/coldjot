@@ -1,5 +1,5 @@
 import { EmailTrackingMetadata, EmailTracking } from "@/types/sequences";
-import { createHash } from "crypto";
+import { nanoid } from "nanoid";
 import { prisma } from "@/lib/prisma";
 import { getBaseUrl } from "@/utils/email-utils";
 
@@ -25,11 +25,7 @@ export async function createEmailTracking(
       );
     }
 
-    const hash = await createHash("sha256")
-      .update(
-        `${metadata.sequenceId}:${metadata.contactId}:${metadata.stepId}:${metadata.userId}`
-      )
-      .digest("hex");
+    const hash = await nanoid(48);
 
     const eventData = {
       hash,
@@ -271,4 +267,14 @@ async function wrapLinksWithTracking(
       }`
     );
   }
+}
+
+export async function updateTrackingWithMessageId(
+  hash: string,
+  messageId: string
+): Promise<void> {
+  await prisma.emailTrackingEvent.update({
+    where: { hash },
+    data: { messageId },
+  });
 }

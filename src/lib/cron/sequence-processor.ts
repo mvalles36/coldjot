@@ -89,31 +89,60 @@ async function handleEmailSend(
       accessToken: account.access_token,
     });
 
+    // Save both messageId and threadId
+    if (result.messageId) {
+      await prisma.emailTrackingEvent.update({
+        where: { hash: tracking.hash },
+        data: {
+          messageId: result.messageId,
+          gmailThreadId: result.threadId, // Add this field to track Gmail's thread ID
+        },
+      });
+
+      // If this is a new thread, update the sequence contact
+      if (result.threadId) {
+        await prisma.sequenceContact.update({
+          where: {
+            sequenceId_contactId: {
+              sequenceId: tracking.metadata.sequenceId,
+              contactId: tracking.metadata.contactId,
+            },
+          },
+          data: {
+            threadId: result.threadId,
+          },
+        });
+
+        // Also save to EmailThread model for better tracking
+        await prisma.emailThread.create({
+          data: {
+            gmailThreadId: result.threadId,
+            sequenceId: tracking.metadata.sequenceId,
+            contactId: tracking.metadata.contactId,
+            userId: tracking.metadata.userId,
+            subject: emailOptions.subject,
+            firstMessageId: result.messageId,
+          },
+        });
+      }
+    }
+
     await trackEmailEvent(
-      tracking.id,
-      "SENT" as EmailEventType,
+      tracking.hash,
+      "SENT",
       {
-        threadId: result.threadId,
         messageId: result.messageId,
+        threadId: result.threadId,
       },
       tracking.metadata
     );
 
     console.log(`📊 Email sent with tracking:`, {
       email: emailOptions.to,
+      messageId: result.messageId,
+      threadId: result.threadId,
       type: tracking.type,
-      hasPixel: true,
-      hasLinkTracking: tracking.wrappedLinks,
     });
-
-    // if (result.messageId) {
-    //   await prisma.emailTrackingEvent.update({
-    //     where: { hash: tracking.hash },
-    //     data: {
-    //       messageId: result.messageId,
-    //     },
-    //   });
-    // }
 
     return result.threadId;
   } catch (error: any) {

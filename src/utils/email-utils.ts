@@ -1,5 +1,5 @@
 import { EmailTrackingMetadata } from "@/types/sequences";
-import { createHash } from "crypto";
+import { nanoid } from "nanoid";
 
 // Sleep utility
 export const sleep = (ms: number) =>
@@ -54,7 +54,8 @@ export const getBaseUrl = () => {
 // Generate a unique tracking hash
 const generateTrackingHash = (metadata: EmailTrackingMetadata): string => {
   const data = `${metadata.email}:${metadata.userId}:${metadata.sequenceId}`;
-  return createHash("sha256").update(data).digest("hex");
+  // return createHash("sha256").update(data).digest("hex");
+  return nanoid(48);
 };
 
 export const generateTrackingPixel = (

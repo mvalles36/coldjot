@@ -40,9 +40,9 @@ model Session {
 }
 
 model User {
-    id            String       @id @default(cuid())
+    id            String        @id @default(cuid())
     name          String?
-    email         String?      @unique
+    email         String?       @unique
     emailVerified DateTime?
     image         String?
     accounts      Account[]
@@ -54,6 +54,7 @@ model User {
     EmailList     EmailList[]
     Sequence      Sequence[]
     devSettings   DevSettings?
+    EmailThread   EmailThread[]
 }
 
 model Contact {
@@ -71,11 +72,12 @@ model Contact {
     contacts    SequenceContact[] @relation("ContactToSequence")
     stats       SequenceStats[]
 
-    user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-    drafts     Draft[]
-    company    Company?     @relation(fields: [companyId], references: [id])
-    emailLists EmailList[]  @relation("EmailListContacts")
-    EmailEvent EmailEvent[]
+    user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+    drafts      Draft[]
+    company     Company?      @relation(fields: [companyId], references: [id])
+    emailLists  EmailList[]   @relation("EmailListContacts")
+    EmailEvent  EmailEvent[]
+    EmailThread EmailThread[]
 
     @@index([userId])
     @@index([companyId])
@@ -169,6 +171,7 @@ model Sequence {
     stats        SequenceStats[]
     contacts     SequenceContact[] @relation("SequenceToContact")
     EmailEvent   EmailEvent[]
+    EmailThread  EmailThread[]
 
     @@index([userId])
 }
@@ -246,17 +249,19 @@ model DevSettings {
 }
 
 model EmailTrackingEvent {
-    id         String   @id @default(cuid())
-    hash       String   @unique
-    email      String
-    userId     String
-    sequenceId String
-    stepId     String
-    contactId  String
-    type       String // CREATED, OPENED
-    openCount  Int      @default(0)
-    timestamp  DateTime @default(now())
-    createdAt  DateTime @default(now())
+    id            String   @id @default(cuid())
+    hash          String   @unique
+    email         String
+    userId        String
+    sequenceId    String
+    stepId        String
+    contactId     String
+    type          String // CREATED, OPENED, REPLIED
+    openCount     Int      @default(0)
+    messageId     String? // Gmail message ID
+    gmailThreadId String? // Add this field
+    timestamp     DateTime @default(now())
+    createdAt     DateTime @default(now())
 
     // Add relation to track links in the email
     links TrackedLink[]
@@ -267,6 +272,8 @@ model EmailTrackingEvent {
     @@index([userId])
     @@index([sequenceId])
     @@index([email])
+    @@index([messageId])
+    @@index([gmailThreadId])
 }
 
 // New model to store links that need to be tracked
@@ -324,4 +331,26 @@ enum EmailEventType {
     BOUNCED
     SPAM
     UNSUBSCRIBED
+}
+
+// Add a new model to track email threads
+model EmailThread {
+    id             String   @id @default(cuid())
+    gmailThreadId  String   @unique
+    sequenceId     String
+    contactId      String
+    userId         String
+    subject        String
+    firstMessageId String
+    createdAt      DateTime @default(now())
+    updatedAt      DateTime @updatedAt
+
+    sequence Sequence @relation(fields: [sequenceId], references: [id])
+    contact  Contact  @relation(fields: [contactId], references: [id])
+    user     User     @relation(fields: [userId], references: [id])
+
+    @@index([gmailThreadId])
+    @@index([sequenceId])
+    @@index([contactId])
+    @@index([userId])
 }

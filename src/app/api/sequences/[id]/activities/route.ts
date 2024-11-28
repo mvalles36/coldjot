@@ -36,7 +36,7 @@ export async function GET(
     // Get sequence contacts with their status and steps
     const sequenceContacts = await prisma.sequenceContact.findMany({
       where: {
-        id,
+        sequenceId: id,
         updatedAt: {
           gte: startDate,
         },

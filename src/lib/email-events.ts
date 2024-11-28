@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import type { EmailEventType, Prisma } from "@prisma/client";
 import type { EmailTrackingMetadata } from "@/types/sequences";
 
-interface EventMetadata {
+export interface EventMetadata {
   userAgent?: string;
   ipAddress?: string;
   location?: string;
@@ -11,6 +11,9 @@ interface EventMetadata {
   bounceReason?: string;
   threadId?: string;
   messageId?: string;
+  from?: string;
+  snippet?: string;
+  timestamp?: string;
 }
 
 export async function trackEmailEvent(

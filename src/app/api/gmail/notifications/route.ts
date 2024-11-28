@@ -15,6 +15,141 @@ const oauth2Client = new OAuth2Client(
   `${process.env.AUTH_URL}/api/auth/callback/google`
 );
 
+async function processMessageForOpens(
+  gmail: gmail_v1.Gmail,
+  messageId: string,
+  userId: string
+) {
+  try {
+    const messageDetails = await gmail.users.messages.get({
+      userId: "me",
+      id: messageId,
+      format: "full",
+    });
+
+    const headers = messageDetails.data.payload?.headers || [];
+
+    // Get the References header to find the original message
+    const references = headers
+      .find((h) => h.name === "References")
+      ?.value?.split(/\s+/);
+
+    // Get the original message ID (last in references chain)
+    const originalMessageId = references?.[references.length - 1]?.replace(
+      /[<>]/g,
+      ""
+    );
+
+    if (originalMessageId) {
+      // Find our tracking record for this email
+      const trackingEvent = await prisma.emailTrackingEvent.findFirst({
+        where: {
+          messageId: originalMessageId,
+          userId,
+        },
+      });
+
+      if (trackingEvent) {
+        // Record the open event
+        await trackEmailEvent(
+          trackingEvent.hash,
+          "OPENED",
+          {
+            messageId: messageId,
+            threadId: messageDetails.data.threadId!,
+          },
+          {
+            email: trackingEvent.email,
+            userId: trackingEvent.userId,
+            sequenceId: trackingEvent.sequenceId,
+            stepId: trackingEvent.stepId,
+            contactId: trackingEvent.contactId,
+          }
+        );
+
+        console.log(`✅ Tracked open event for email: ${trackingEvent.hash}`);
+      }
+    }
+  } catch (error) {
+    console.error("Error processing message for opens:", error);
+  }
+}
+
+async function processMessageForReplies(
+  gmail: gmail_v1.Gmail,
+  messageId: string,
+  userId: string
+) {
+  try {
+    const messageDetails = await gmail.users.messages.get({
+      userId: "me",
+      id: messageId,
+      format: "full",
+    });
+
+    const headers = messageDetails.data.payload?.headers || [];
+
+    console.log("🚀 Message details:", messageDetails.data);
+
+    // Check both In-Reply-To and References headers
+    const inReplyTo = headers
+      .find((h) => h.name === "In-Reply-To")
+      ?.value?.replace(/[<>]/g, "");
+    const references = headers
+      .find((h) => h.name === "References")
+      ?.value?.split(/\s+/)
+      .map((ref) => ref.replace(/[<>]/g, ""));
+
+    // Filter out undefined values and ensure string array
+    const possibleMessageIds = [inReplyTo, ...(references || [])].filter(
+      (id): id is string => typeof id === "string" && id.length > 0
+    );
+
+    if (possibleMessageIds.length > 0) {
+      // Look for any of these message IDs in our tracking system
+      const trackingEvent = await prisma.emailTrackingEvent.findFirst({
+        where: {
+          messageId: { in: possibleMessageIds },
+          userId,
+        },
+      });
+
+      if (trackingEvent) {
+        console.log(" Found reply to tracked email:", trackingEvent.hash);
+
+        // Get the email content and ensure non-null values
+        const snippet = messageDetails.data.snippet || undefined;
+        const threadId = messageDetails.data.threadId;
+        const from = headers.find((h) => h.name === "From")?.value || undefined;
+
+        // Track the reply event
+        await trackEmailEvent(
+          trackingEvent.hash,
+          "REPLIED",
+          {
+            replyMessageId: messageId,
+            threadId: threadId!,
+            ...(from && { from }), // Only include if not null/undefined
+            ...(snippet && { snippet }), // Only include if not null/undefined
+            timestamp: new Date().toISOString(),
+          },
+          {
+            email: trackingEvent.email,
+            userId: trackingEvent.userId,
+            sequenceId: trackingEvent.sequenceId,
+            stepId: trackingEvent.stepId,
+            contactId: trackingEvent.contactId,
+          }
+        );
+
+        console.log("✅ Tracked reply event");
+      }
+    }
+  } catch (error) {
+    console.error("Error processing message for replies:", error);
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     console.log("🚀 Received Gmail notification...");
@@ -117,67 +252,40 @@ export async function POST(req: NextRequest) {
     const history = await gmail.users.history.list({
       userId: "me",
       startHistoryId: historyId,
-      historyTypes: ["messageAdded", "messageDeleted", "messageUpdated"], // Added other history types
+      historyTypes: ["messageAdded", "labelAdded"],
     });
 
-    // console.log(
-    //   "🚀 Processing history:",
-    //   JSON.stringify(history.data, null, 2)
-    // );
+    // console.log("🚀 Processing history:", history);
+    console.log("🚀 Processing history:", JSON.stringify(history, null, 2));
 
-    console.log("🚀 Processing history:", history);
-
-    // Process new messages
+    // Process messages for opens and replies
     for (const record of history.data?.history || []) {
+      // Process new messages
       for (const message of record.messagesAdded || []) {
         if (!message.message?.id) continue;
 
-        const messageDetails = await gmail.users.messages.get({
-          userId: "me",
-          id: message.message.id,
-        });
+        // Process for opens
+        await processMessageForOpens(gmail, message.message.id, user.id);
 
-        console.log("🚀 Message details:", messageDetails);
+        // Process for replies
+        await processMessageForReplies(gmail, message.message.id, user.id);
+      }
 
-        // Check if this is a reply to one of our tracked emails
-        const inReplyTo = messageDetails.data?.payload?.headers?.find(
-          (h: MessagePartHeader) => h.name === "In-Reply-To" && h.value
-        )?.value;
-
-        if (inReplyTo) {
-          // Find the original email in our tracking system
-          const originalEmail = await prisma.emailTrackingEvent.findFirst({
-            where: {
-              hash: inReplyTo.replace(/[<>]/g, ""),
-            },
-          });
-
-          if (originalEmail) {
-            console.log("📨 Found reply to tracked email:", originalEmail.hash);
-            const threadId = messageDetails.data?.threadId || undefined;
-
-            // Track the reply event
-            await trackEmailEvent(
-              originalEmail.hash,
-              "REPLIED",
-              {
-                replyMessageId: message.message.id,
-                threadId: threadId,
-              },
-              {
-                email: originalEmail.email,
-                userId: user.id,
-                sequenceId: originalEmail.sequenceId,
-                stepId: originalEmail.stepId,
-                contactId: originalEmail.contactId,
-              }
-            );
-
-            console.log("✅ Tracked reply event");
-          }
+      // Process label changes (can indicate opens)
+      for (const label of record.labelsAdded || []) {
+        if (label.message?.id) {
+          await processMessageForOpens(gmail, label.message.id, user.id);
         }
       }
     }
+
+    // Update the historyId in the account
+    await prisma.account.update({
+      where: { id: account.id },
+      data: {
+        watchHistoryId: history.data.historyId?.toString(),
+      },
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -188,3 +296,33 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+// 🚀 Processing history: {
+//   "history": [
+//     {
+//       "id": "5414717",
+//       "messages": [
+//         {
+//           "id": "193743f5359a3c56",
+//           "threadId": "193742e193b91bb8"
+//         }
+//       ]
+//     }
+//   ],
+//   "historyId": "5414717"
+// }
+
+// 🚀 Processing history: {
+//   "history": [
+//     {
+//       "id": "5414780",
+//       "messages": [
+//         {
+//           "id": "1937444c276ab7f0",
+//           "threadId": "193742e193b91bb8"
+//         }
+//       ]
+//     }
+//   ],
+//   "historyId": "5414780"
+// }
