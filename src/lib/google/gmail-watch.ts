@@ -1,7 +1,7 @@
 import { google } from "googleapis";
 import { OAuth2Client } from "google-auth-library";
 import { prisma } from "@/lib/prisma";
-import { refreshAccessToken } from "@/lib/email";
+import { refreshAccessToken } from "@/lib/email/email";
 
 interface WatchRequest {
   userId: string;

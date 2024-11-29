@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { recordEmailOpen, recordLinkClick } from "@/lib/tracking-service";
+import { trackEmailEvent } from "@/lib/tracking/email-events";
+import { getUserAgent } from "@/lib/user-agent";
+import { getIpLocation } from "@/lib/ip-location";
+import type { EmailEventType } from "@prisma/client";
+
+import {
+  recordEmailOpen,
+  recordLinkClick,
+} from "@/lib/tracking/tracking-service";
 
 const TRANSPARENT_PIXEL = Buffer.from(
   "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
@@ -260,11 +268,6 @@ export async function GET(
     });
   }
 }
-
-import { trackEmailEvent } from "@/lib/email-events";
-import { getUserAgent } from "@/lib/user-agent";
-import { getIpLocation } from "@/lib/ip-location";
-import type { EmailEventType } from "@prisma/client";
 
 export async function POST(
   req: NextRequest,

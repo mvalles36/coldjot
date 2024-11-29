@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { sendGmailDraft, refreshAccessToken } from "@/lib/gmail";
+import { sendGmailDraft, refreshAccessToken } from "@/lib/google/gmail";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {

@@ -2,7 +2,7 @@ import type { NextAuthConfig } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
-import { setupGmailWatch } from "@/lib/gmail-watch";
+import { setupGmailWatch } from "@/lib/google/gmail-watch";
 export const authConfig: NextAuthConfig = {
   providers: [
     GoogleProvider({

@@ -1,17 +1,18 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id: companyId } = await params;
+  const { id } = await params;
+  const companyId = id;
 
   try {
     const contacts = await prisma.contact.findMany({

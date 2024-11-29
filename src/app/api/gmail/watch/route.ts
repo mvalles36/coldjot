@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { setupGmailWatch, stopGmailWatch } from "@/lib/gmail-watch";
+import { setupGmailWatch, stopGmailWatch } from "@/lib/google/gmail-watch";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 

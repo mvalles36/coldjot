@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { refreshGmailWatch } from "@/lib/gmail-watch";
+import { refreshGmailWatch } from "@/lib/google/gmail-watch";
 
 export async function GET(req: Request) {
   try {

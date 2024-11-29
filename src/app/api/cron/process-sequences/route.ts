@@ -1,4 +1,4 @@
-import { processSequences } from "@/lib/cron/sequence-processor";
+import { processSequences } from "@/lib/sequence/sequence-processor";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {

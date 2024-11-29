@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { processSequences } from "@/lib/cron/sequence-processor";
+import { processSequences } from "@/lib/sequence/sequence-processor";
 import { NextResponse } from "next/server";
 
 export async function POST(

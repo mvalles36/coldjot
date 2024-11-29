@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
 import { OAuth2Client } from "google-auth-library";
 import { prisma } from "@/lib/prisma";
-import { trackEmailEvent } from "@/lib/email-events";
+import { trackEmailEvent } from "@/lib/tracking/email-events";
 import { verifyPubSubJwt } from "@/lib/auth/pubsub";
-import { refreshAccessToken } from "@/lib/email";
+import { refreshAccessToken } from "@/lib/email/email";
 import type { gmail_v1 } from "googleapis";
 
 type MessagePartHeader = gmail_v1.Schema$MessagePartHeader;
