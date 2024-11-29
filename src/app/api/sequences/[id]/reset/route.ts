@@ -26,15 +26,17 @@ export async function POST(
       return new NextResponse("Not found", { status: 404 });
     }
 
-    // Reset sequence and all its contacts
+    // Reset sequence and all related data
     await prisma.$transaction([
       // Reset sequence status
       prisma.sequence.update({
-        where: { id: id },
+        where: { id },
         data: {
           status: "draft",
+          testMode: false,
         },
       }),
+
       // Reset all sequence contacts
       prisma.sequenceContact.updateMany({
         where: { sequenceId: id },
@@ -43,6 +45,34 @@ export async function POST(
           currentStep: 0,
           lastProcessedAt: null,
           completedAt: null,
+          threadId: null,
+        },
+      }),
+
+      // Reset sequence stats
+      prisma.sequenceStats.updateMany({
+        where: { sequenceId: id },
+        data: {
+          status: "not_sent",
+          currentStep: 0,
+        },
+      }),
+
+      // Delete all email events
+      prisma.emailEvent.deleteMany({
+        where: { sequenceId: id },
+      }),
+
+      // Delete all email threads
+      prisma.emailThread.deleteMany({
+        where: { sequenceId: id },
+      }),
+
+      // Reset sequence steps
+      prisma.sequenceStep.updateMany({
+        where: { sequenceId: id },
+        data: {
+          status: "not_sent",
           threadId: null,
         },
       }),

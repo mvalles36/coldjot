@@ -114,16 +114,24 @@ async function handleEmailSend(
         });
 
         // Also save to EmailThread model for better tracking
-        await prisma.emailThread.create({
-          data: {
+        const existingThread = await prisma.emailThread.findUnique({
+          where: {
             gmailThreadId: result.threadId,
-            sequenceId: tracking.metadata.sequenceId,
-            contactId: tracking.metadata.contactId,
-            userId: tracking.metadata.userId,
-            subject: emailOptions.subject,
-            firstMessageId: result.messageId,
           },
         });
+
+        if (!existingThread) {
+          await prisma.emailThread.create({
+            data: {
+              gmailThreadId: result.threadId,
+              sequenceId: tracking.metadata.sequenceId,
+              contactId: tracking.metadata.contactId,
+              userId: tracking.metadata.userId,
+              subject: emailOptions.subject,
+              firstMessageId: result.messageId,
+            },
+          });
+        }
       }
     }
 
@@ -382,3 +390,5 @@ export async function processSequences() {
     }
   }
 }
+
+// {"bounceReason": "\nInvalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__[\"prisma\"].emailThread.create()` invocation in\n/Volumes/Data/zk-mail/.next/server/chunks/[root of the server]__68b887._.js:988:164\n\n  985     }\n  986 });\n  987 // Also save to EmailThread model for better tracking\n→ 988 await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__[\"prisma\"].emailThread.create(\nUnique constraint failed on the fields: (`gmailThreadId`)"}
