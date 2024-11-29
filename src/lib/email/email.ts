@@ -9,6 +9,8 @@ import {
   normalizeSubject,
 } from "@/utils/email-utils";
 
+import { oauth2Client } from "@/lib/google/google-account";
+
 export interface SendEmailOptions {
   to: string;
   subject: string;
@@ -32,65 +34,6 @@ export interface SendDraftOptions {
 export interface EmailResponse {
   messageId: string;
   threadId?: string;
-}
-
-// Configure Gmail OAuth2 client
-const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  `${process.env.AUTH_URL}/api/auth/callback/google`
-);
-
-interface TokenRefreshError extends Error {
-  code?: string;
-  status?: number;
-}
-
-export async function refreshAccessToken(
-  refreshToken: string,
-  maxRetries = 3
-): Promise<string | null> {
-  let attempt = 0;
-
-  while (attempt < maxRetries) {
-    try {
-      oauth2Client.setCredentials({
-        refresh_token: refreshToken,
-      });
-
-      const { credentials } = await oauth2Client.refreshAccessToken();
-
-      if (!credentials.access_token) {
-        throw new Error("No access token returned");
-      }
-
-      console.log(`🔄 Token refreshed successfully on attempt ${attempt + 1}`);
-      return credentials.access_token;
-    } catch (error) {
-      attempt++;
-      const err = error as TokenRefreshError;
-
-      // Log the error details
-      console.error(`❌ Token refresh attempt ${attempt} failed:`, {
-        error: err.message,
-        code: err.code,
-        status: err.status,
-      });
-
-      // If we've exhausted all retries, throw the error
-      if (attempt === maxRetries) {
-        console.error(`❌ Token refresh failed after ${maxRetries} attempts`);
-        throw new Error(`Failed to refresh token: ${err.message}`);
-      }
-
-      // Calculate delay with exponential backoff (1s, 2s, 4s, etc.)
-      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
-      console.log(`⏳ Retrying in ${delay}ms...`);
-      await sleep(delay);
-    }
-  }
-
-  return null;
 }
 
 // Add new types and utilities for email threading

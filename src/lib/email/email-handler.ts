@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { sendEmail, refreshAccessToken } from "@/lib/email/email";
+import { sendEmail } from "@/lib/email/email";
+import { refreshAccessToken } from "@/lib/google/google-account";
 import type { SendEmailOptions } from "@/lib/email/email";
 import { EmailTrackingMetadata, EmailTracking } from "@/types/sequences";
 import { addTrackingToEmail } from "@/lib/tracking/tracking-service";

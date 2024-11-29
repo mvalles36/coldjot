@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { setupGmailWatch, stopGmailWatch } from "@/lib/google/gmail-watch";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { refreshAccessToken } from "@/lib/google/google-account";
 
 export async function POST(req: NextRequest) {
   try {
@@ -26,19 +27,41 @@ export async function POST(req: NextRequest) {
         },
         select: {
           access_token: true,
+          refresh_token: true,
+          providerAccountId: true,
         },
       });
 
-      if (!account?.access_token) {
+      if (!account?.access_token || !account?.refresh_token) {
         return NextResponse.json(
           { error: "No Google account found" },
           { status: 404 }
         );
       }
 
+      const freshAccessToken = await refreshAccessToken(account.refresh_token);
+      if (!freshAccessToken) {
+        return NextResponse.json(
+          { error: "Failed to refresh access token" },
+          { status: 401 }
+        );
+      }
+
+      await prisma.account.update({
+        where: {
+          provider_providerAccountId: {
+            provider: "google",
+            providerAccountId: account.providerAccountId,
+          },
+        },
+        data: {
+          access_token: freshAccessToken,
+        },
+      });
+
       await setupGmailWatch({
         userId: session.user.id,
-        accessToken: account.access_token,
+        accessToken: freshAccessToken,
         topicName: process.env.GMAIL_WATCH_TOPIC!,
       });
 
@@ -73,12 +96,39 @@ export async function GET(req: NextRequest) {
       select: {
         watchHistoryId: true,
         watchExpiration: true,
+        refresh_token: true,
+        access_token: true,
+        providerAccountId: true,
       },
     });
 
+    if (!account) {
+      return NextResponse.json(
+        { error: "No Google account found" },
+        { status: 404 }
+      );
+    }
+
+    if (account.watchHistoryId && account.refresh_token) {
+      const freshAccessToken = await refreshAccessToken(account.refresh_token);
+      if (freshAccessToken && freshAccessToken !== account.access_token) {
+        await prisma.account.update({
+          where: {
+            provider_providerAccountId: {
+              provider: "google",
+              providerAccountId: account.providerAccountId,
+            },
+          },
+          data: {
+            access_token: freshAccessToken,
+          },
+        });
+      }
+    }
+
     return NextResponse.json({
-      watching: !!account?.watchHistoryId,
-      expiration: account?.watchExpiration,
+      watching: !!account.watchHistoryId,
+      expiration: account.watchExpiration,
     });
   } catch (error) {
     console.error("Failed to get Gmail watch status:", error);

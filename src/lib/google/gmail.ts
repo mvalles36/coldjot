@@ -19,26 +19,6 @@ interface SendDraftOptions {
   draftId: string;
 }
 
-export async function refreshAccessToken(refreshToken: string) {
-  const oauth2Client = new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    `${process.env.AUTH_URL}/api/auth/callback/google`
-  );
-
-  oauth2Client.setCredentials({
-    refresh_token: refreshToken,
-  });
-
-  try {
-    const { credentials } = await oauth2Client.refreshAccessToken();
-    return credentials.access_token;
-  } catch (error) {
-    console.error("Error refreshing access token:", error);
-    throw error;
-  }
-}
-
 export async function createGmailDraft({
   accessToken,
   to,

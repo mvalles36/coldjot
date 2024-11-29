@@ -4,16 +4,16 @@ import { OAuth2Client } from "google-auth-library";
 import { prisma } from "@/lib/prisma";
 import { trackEmailEvent } from "@/lib/tracking/email-events";
 import { verifyPubSubJwt } from "@/lib/auth/pubsub";
-import { refreshAccessToken } from "@/lib/email/email";
+import { refreshAccessToken, oauth2Client } from "@/lib/google/google-account";
 import type { gmail_v1 } from "googleapis";
 
 type MessagePartHeader = gmail_v1.Schema$MessagePartHeader;
 
-const oauth2Client = new OAuth2Client(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  `${process.env.AUTH_URL}/api/auth/callback/google`
-);
+// const oauth2Client = new OAuth2Client(
+//   process.env.GOOGLE_CLIENT_ID,
+//   process.env.GOOGLE_CLIENT_SECRET,
+//   `${process.env.AUTH_URL}/api/auth/callback/google`
+// );
 
 async function processMessageForOpens(
   gmail: gmail_v1.Gmail,
@@ -87,7 +87,15 @@ async function processMessageForReplies(
       format: "full",
     });
 
-    console.log("🚀 Message details:", messageDetails.data);
+    const messageData = messageDetails.data;
+    const consoleMessageData = {
+      id: messageData.id,
+      threadId: messageData.threadId,
+      snippet: messageData.snippet,
+      labelIds: messageData.labelIds,
+    };
+    // console.log("🚀 Message details:", messageDetails.data);
+    console.log("🚀 Message details:", consoleMessageData);
 
     const headers = messageDetails.data.payload?.headers || [];
     const threadId = messageDetails.data.threadId;
@@ -320,6 +328,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // TODO: check if we need a local variable or not
     // Set up Gmail API client
     oauth2Client.setCredentials({
       access_token: accessToken,
