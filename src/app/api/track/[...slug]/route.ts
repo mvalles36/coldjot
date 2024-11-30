@@ -180,6 +180,7 @@ export async function GET(
   try {
     console.log(`\n🎯 New tracking request received`);
     console.log(`📝 Raw params:`, await params);
+    console.log(`📝 Request headers:`, request.headers);
 
     // Parse the slug to get hash and action
     const { slug } = (await params) || [];

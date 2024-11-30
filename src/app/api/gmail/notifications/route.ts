@@ -473,6 +473,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    console.log("🚀 Email headers:", req.headers);
+
     const token = authorization.replace("Bearer ", "");
     const isValid = await verifyPubSubJwt(token);
     if (!isValid) {
