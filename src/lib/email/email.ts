@@ -17,6 +17,7 @@ export interface SendEmailOptions {
   content: string;
   threadId?: string;
   accessToken?: string;
+  originalContent?: string;
 }
 
 export interface CreateDraftOptions {
@@ -77,6 +78,7 @@ export async function sendEmail({
   content,
   threadId,
   accessToken,
+  originalContent,
 }: SendEmailOptions): Promise<EmailResponse> {
   try {
     if (accessToken) {
@@ -88,9 +90,12 @@ export async function sendEmail({
 
       const gmail = google.gmail({ version: "v1", auth });
 
+      // Generate a single messageId for both versions
+      const messageId = generateMessageId();
+
       // Get thread information and build headers
       let threadHeaders: ThreadHeaders = {
-        messageId: generateMessageId(),
+        messageId: messageId, // Use the same messageId
       };
 
       let originalSubject: string | undefined;
@@ -111,14 +116,12 @@ export async function sendEmail({
 
           if (thread.data.messages && thread.data.messages.length > 0) {
             const messages = thread.data.messages;
-            // Get subject from the first message in the thread
             const firstMessage = messages[0];
             const firstMessageHeaders = firstMessage.payload?.headers || [];
             const rawOriginalSubject = firstMessageHeaders.find(
               (h) => h.name?.toLowerCase() === "subject"
             )?.value;
 
-            // Decode MIME encoded subject if necessary
             if (rawOriginalSubject) {
               originalSubject = rawOriginalSubject.replace(
                 /=\?UTF-8\?B\?(.*?)\?=/g,
@@ -129,12 +132,10 @@ export async function sendEmail({
             const lastMessage = messages[messages.length - 1];
             const headers = lastMessage.payload?.headers || [];
 
-            // Get the last message ID for In-Reply-To
             const lastMessageId = headers.find(
               (h) => h.name?.toLowerCase() === "message-id"
             )?.value;
 
-            // Build references chain
             const references = messages
               .map((msg) => {
                 const msgIdHeader = msg.payload?.headers?.find(
@@ -145,15 +146,10 @@ export async function sendEmail({
               .filter(Boolean);
 
             threadHeaders = {
-              messageId: generateMessageId(),
+              messageId: messageId, // Use the same messageId
               inReplyTo: lastMessageId || undefined,
               references: references,
             };
-
-            console.log("📧 Thread headers prepared:", threadHeaders);
-            if (originalSubject) {
-              console.log("📧 Using original thread subject:", originalSubject);
-            }
           }
         } catch (error) {
           console.error("Error getting thread details:", error);
@@ -166,7 +162,7 @@ export async function sendEmail({
         "MIME-Version: 1.0",
         `To: ${to}`,
         `Subject: ${normalizeSubject(subject, !!threadId, originalSubject)}`,
-        `Message-ID: ${threadHeaders.messageId}`,
+        `Message-ID: <${messageId}>`, // Use formatted messageId
         ...(threadHeaders.inReplyTo
           ? [`In-Reply-To: ${threadHeaders.inReplyTo}`]
           : []),
@@ -177,18 +173,12 @@ export async function sendEmail({
         content,
       ].join("\n");
 
-      console.log("📧 Email headers:", {
-        subject: normalizeSubject(subject, !!threadId, originalSubject),
-        messageId: threadHeaders.messageId,
-        inReplyTo: threadHeaders.inReplyTo,
-        referencesCount: threadHeaders.references?.length,
-      });
-
       const encodedMessage = base64Encode(message)
         .replace(/\+/g, "-")
         .replace(/\//g, "_")
         .replace(/=+$/, "");
 
+      // Send tracked version to recipient
       const response = await gmail.users.messages.send({
         userId: "me",
         requestBody: {
@@ -196,6 +186,53 @@ export async function sendEmail({
           threadId: threadId || undefined,
         },
       });
+
+      // Insert untracked version in sender's mailbox
+      if (originalContent) {
+        const sentMessage = await gmail.users.messages.get({
+          userId: "me",
+          id: response.data.id || "",
+          format: "full",
+        });
+
+        const headers = sentMessage.data.payload?.headers || [];
+        const from =
+          headers.find((h) => h.name?.toLowerCase() === "from")?.value || "";
+        const date =
+          headers.find((h) => h.name?.toLowerCase() === "date")?.value || "";
+
+        const untrackedMessage = [
+          "Content-Type: text/html; charset=utf-8",
+          "MIME-Version: 1.0",
+          `From: ${from}`,
+          `Date: ${date}`,
+          `To: ${to}`,
+          `Subject: ${normalizeSubject(subject, !!threadId, originalSubject)}`,
+          `Message-ID: <${messageId}>`, // Use the same formatted messageId
+          ...(threadHeaders.inReplyTo
+            ? [`In-Reply-To: ${threadHeaders.inReplyTo}`]
+            : []),
+          ...(threadHeaders.references?.length
+            ? [`References: ${threadHeaders.references.join(" ")}`]
+            : []),
+          "",
+          originalContent,
+        ].join("\n");
+
+        const encodedUntrackedMessage = base64Encode(untrackedMessage)
+          .replace(/\+/g, "-")
+          .replace(/\//g, "_")
+          .replace(/=+$/, "");
+
+        await gmail.users.messages.insert({
+          userId: "me",
+          requestBody: {
+            raw: encodedUntrackedMessage,
+            threadId: response.data.threadId || undefined,
+            labelIds: ["SENT"],
+          },
+        });
+      }
 
       return {
         messageId: response.data.id || "",
@@ -238,6 +275,7 @@ export async function sendEmail({
     }
   } catch (error: any) {
     if (error.status === 401) {
+      // TODO : handle token refresh
       throw new Error("TOKEN_EXPIRED");
     }
     console.error("Error sending email:", error);

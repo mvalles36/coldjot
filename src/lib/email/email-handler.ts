@@ -22,6 +22,7 @@ export async function handleEmailSend(
     const result = await sendEmail({
       ...emailOptions,
       content: trackedContent,
+      originalContent: emailOptions.content,
       accessToken: account.access_token,
     });
 
@@ -119,6 +120,7 @@ export async function handleEmailSend(
         ...emailOptions,
         content: retryContent,
         accessToken: newAccessToken,
+        originalContent: emailOptions.content,
       });
 
       if (retryResult.threadId) {
