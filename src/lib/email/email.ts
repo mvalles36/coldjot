@@ -2,6 +2,8 @@ import { google } from "googleapis";
 import { createTransport } from "nodemailer";
 import { encode as base64Encode } from "js-base64";
 import type { TransportOptions } from "nodemailer";
+import nodemailer from "nodemailer";
+
 import { EmailTrackingMetadata } from "@/types/sequences";
 import {
   sleep,
@@ -9,7 +11,8 @@ import {
   normalizeSubject,
 } from "@/utils/email-utils";
 
-import { oauth2Client } from "@/lib/google/google-account";
+import { oauth2Client, refreshAccessToken } from "@/lib/google/google-account";
+import { prisma } from "@/lib/prisma";
 
 export interface SendEmailOptions {
   to: string;
@@ -72,6 +75,34 @@ const getBaseUrl = () => {
   return url;
 };
 
+// Add flag to test SMTP approach
+const USE_SMTP_DUAL_DELIVERY = process.env.USE_SMTP_DUAL_DELIVERY === "true";
+const GMAIL_EMAIL = process.env.GMAIL_EMAIL;
+
+// Common function to prepare mail options
+function prepareMailOptions(
+  to: string,
+  subject: string,
+  content: string,
+  threadId?: string,
+  messageId?: string
+) {
+  return {
+    from: process.env.GMAIL_EMAIL || "me",
+    to,
+    subject,
+    html: content,
+    messageId: messageId ? `<${messageId}>` : undefined,
+    ...(threadId && {
+      headers: {
+        "In-Reply-To": threadId,
+        References: threadId,
+        "X-GM-THRID": threadId, // Gmail-specific threading
+      },
+    }),
+  };
+}
+
 export async function sendEmail({
   to,
   subject,
@@ -81,7 +112,7 @@ export async function sendEmail({
   originalContent,
 }: SendEmailOptions): Promise<EmailResponse> {
   try {
-    if (accessToken) {
+    if (!accessToken) {
       const auth = new google.auth.OAuth2();
       auth.setCredentials({
         access_token: accessToken,
@@ -239,43 +270,79 @@ export async function sendEmail({
         threadId: response.data.threadId || undefined,
       };
     } else {
-      // Fallback to Nodemailer if no access token
-      const transport = createTransport({
-        host: "smtp.gmail.com",
-        port: 465,
-        secure: true,
-        auth: {
-          type: "OAuth2",
-          user: process.env.GMAIL_EMAIL,
-          clientId: process.env.GOOGLE_CLIENT_ID,
-          clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-          refreshToken: process.env.GOOGLE_REFRESH_TOKEN, // TODO : use custom value from user
-          accessToken: await oauth2Client.getAccessToken(),
-        },
-      } as TransportOptions);
+      // SMTP fallback with dual delivery
+      const smtpMessageId = generateMessageId();
 
-      const mailOptions = {
+      // Refresh token from account
+      const account = await prisma.account.findFirst({
+        where: {
+          access_token: accessToken,
+          provider: "google",
+        },
+        select: {
+          refresh_token: true,
+        },
+      });
+
+      const refreshToken = account?.refresh_token;
+      if (!refreshToken) {
+        throw new Error("No refresh token found for account");
+      }
+
+      const transport = await createGmailTransport(accessToken!, refreshToken!);
+
+      // First, send untracked version to sent folder only
+      if (originalContent && USE_SMTP_DUAL_DELIVERY) {
+        const untrackedMailOptions = {
+          from: process.env.GMAIL_EMAIL,
+          to: process.env.GMAIL_EMAIL, // Send to self
+          subject,
+          html: originalContent,
+          messageId: `<${smtpMessageId}>`,
+          inReplyTo: threadId,
+          references: threadId,
+          envelope: {
+            from: process.env.GMAIL_EMAIL,
+            to: process.env.GMAIL_EMAIL, // Force to sent folder
+          },
+          headers: {
+            "X-GM-THRID": threadId || "", // Ensure it's always a string
+          },
+        };
+
+        await transport.sendMail(untrackedMailOptions);
+      }
+
+      // Then send tracked version to recipient
+      const trackedMailOptions = {
         from: process.env.GMAIL_EMAIL,
         to,
         subject,
         html: content,
-        ...(threadId && {
-          headers: {
-            "In-Reply-To": threadId,
-            References: threadId,
-          },
-        }),
+        messageId: `<${smtpMessageId}>`,
+        inReplyTo: threadId,
+        references: threadId,
+        envelope: {
+          from: process.env.GMAIL_EMAIL,
+          to, // Send to recipient
+        },
+        headers: {
+          "X-GM-THRID": threadId || "", // Ensure it's always a string
+        },
       };
 
-      const result = await transport.sendMail(mailOptions);
+      const result = await transport.sendMail(trackedMailOptions);
+
       return {
-        messageId: result.messageId || "",
-        threadId: undefined,
+        messageId: smtpMessageId,
+        threadId: threadId,
       };
     }
   } catch (error: any) {
-    if (error.status === 401) {
-      // TODO : handle token refresh
+    if (
+      error.status === 401 ||
+      (error.responseCode === 535 && error.command === "AUTH XOAUTH2")
+    ) {
       throw new Error("TOKEN_EXPIRED");
     }
     console.error("Error sending email:", error);
@@ -353,4 +420,58 @@ export async function sendDraft({ accessToken, draftId }: SendDraftOptions) {
     console.error("Error sending draft:", error);
     throw error;
   }
+}
+
+async function createGmailTransport(accessToken: string, refreshToken: string) {
+  // Create OAuth2 client
+  const oauth2Client = new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    process.env.NEXTAUTH_URL + "/api/auth/callback/google"
+  );
+
+  // Set credentials
+  oauth2Client.setCredentials({
+    access_token: accessToken,
+    refresh_token: refreshToken,
+  });
+
+  // Create SMTP transport
+  const transport = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      type: "OAuth2",
+      user: process.env.GMAIL_EMAIL,
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      refreshToken: refreshToken,
+      accessToken: accessToken,
+      expires: 3599, // Default token expiry time in seconds
+    },
+    pool: true, // Use pooled connections
+    maxConnections: 5, // Maximum number of simultaneous connections
+    maxMessages: 100, // Maximum number of messages per connection
+    rateDelta: 1000, // How many milliseconds between messages
+    rateLimit: 5, // Maximum number of messages per rateDelta
+  } as TransportOptions);
+
+  // Verify SMTP connection configuration
+  try {
+    await new Promise((resolve, reject) => {
+      transport.verify((error) => {
+        if (error) {
+          console.error("SMTP Connection Error:", error);
+          reject(error);
+        } else {
+          console.log("SMTP Connection Successful");
+          resolve(true);
+        }
+      });
+    });
+  } catch (error) {
+    console.error("Failed to verify SMTP connection:", error);
+    throw error;
+  }
+
+  return transport;
 }
