@@ -69,6 +69,23 @@ export async function refreshAccessToken(
       }
 
       console.log(`🔄 Token refreshed successfully on attempt ${attempt + 1}`);
+
+      // Save the new access token
+      const account = await prisma.account.findFirst({
+        where: {
+          refresh_token: refreshToken,
+        },
+      });
+
+      if (!account) {
+        throw new Error("Account not found");
+      }
+
+      await prisma.account.update({
+        where: { id: account.id },
+        data: { access_token: credentials.access_token },
+      });
+
       return credentials.access_token;
     } catch (error) {
       attempt++;

@@ -3,6 +3,7 @@ import { createTransport } from "nodemailer";
 import { encode as base64Encode } from "js-base64";
 import type { TransportOptions } from "nodemailer";
 import nodemailer from "nodemailer";
+import { sendGmailSMTP } from "@/lib/smtp/gmail";
 
 import { EmailTrackingMetadata } from "@/types/sequences";
 import {
@@ -88,7 +89,7 @@ function prepareMailOptions(
   messageId?: string
 ) {
   return {
-    from: process.env.GMAIL_EMAIL || "me",
+    from: GMAIL_EMAIL || "me",
     to,
     subject,
     html: content,
@@ -103,6 +104,11 @@ function prepareMailOptions(
   };
 }
 
+// Add helper for MIME boundaries
+function generateMimeBoundary() {
+  return `00000000000${Math.random().toString(36).substr(2, 12)}`;
+}
+
 export async function sendEmail({
   to,
   subject,
@@ -112,7 +118,7 @@ export async function sendEmail({
   originalContent,
 }: SendEmailOptions): Promise<EmailResponse> {
   try {
-    if (!accessToken) {
+    if (accessToken && !USE_SMTP_DUAL_DELIVERY) {
       const auth = new google.auth.OAuth2();
       auth.setCredentials({
         access_token: accessToken,
@@ -270,72 +276,17 @@ export async function sendEmail({
         threadId: response.data.threadId || undefined,
       };
     } else {
-      // SMTP fallback with dual delivery
-      const smtpMessageId = generateMessageId();
-
-      // Refresh token from account
-      const account = await prisma.account.findFirst({
-        where: {
-          access_token: accessToken,
-          provider: "google",
-        },
-        select: {
-          refresh_token: true,
-        },
-      });
-
-      const refreshToken = account?.refresh_token;
-      if (!refreshToken) {
-        throw new Error("No refresh token found for account");
-      }
-
-      const transport = await createGmailTransport(accessToken!, refreshToken!);
-
-      // First, send untracked version to sent folder only
-      if (originalContent && USE_SMTP_DUAL_DELIVERY) {
-        const untrackedMailOptions = {
-          from: process.env.GMAIL_EMAIL,
-          to: process.env.GMAIL_EMAIL, // Send to self
-          subject,
-          html: originalContent,
-          messageId: `<${smtpMessageId}>`,
-          inReplyTo: threadId,
-          references: threadId,
-          envelope: {
-            from: process.env.GMAIL_EMAIL,
-            to: process.env.GMAIL_EMAIL, // Force to sent folder
-          },
-          headers: {
-            "X-GM-THRID": threadId || "", // Ensure it's always a string
-          },
-        };
-
-        await transport.sendMail(untrackedMailOptions);
-      }
-
-      // Then send tracked version to recipient
-      const trackedMailOptions = {
-        from: process.env.GMAIL_EMAIL,
+      const email = await sendGmailSMTP({
         to,
         subject,
-        html: content,
-        messageId: `<${smtpMessageId}>`,
-        inReplyTo: threadId,
-        references: threadId,
-        envelope: {
-          from: process.env.GMAIL_EMAIL,
-          to, // Send to recipient
-        },
-        headers: {
-          "X-GM-THRID": threadId || "", // Ensure it's always a string
-        },
-      };
-
-      const result = await transport.sendMail(trackedMailOptions);
+        content,
+        threadId,
+        originalContent,
+        accessToken,
+      });
 
       return {
-        messageId: smtpMessageId,
-        threadId: threadId,
+        ...email,
       };
     }
   } catch (error: any) {
@@ -349,7 +300,6 @@ export async function sendEmail({
     throw error;
   }
 }
-
 export async function createDraft({
   accessToken,
   to,
