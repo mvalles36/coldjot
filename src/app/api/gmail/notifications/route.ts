@@ -490,6 +490,7 @@ export async function POST(req: NextRequest) {
 
     const { emailAddress, historyId } = data;
 
+    // TODO : Add a check for alias accounts
     // Find user and their Google account
     const user = await prisma.user.findUnique({
       where: { email: emailAddress },
@@ -517,6 +518,8 @@ export async function POST(req: NextRequest) {
 
     const account = user.accounts[0];
 
+    console.log(`🔄 Account found: ${account}`);
+
     // Check if token needs refresh
     const now = Math.floor(Date.now() / 1000);
     let accessToken = account.access_token;
@@ -530,6 +533,7 @@ export async function POST(req: NextRequest) {
       try {
         console.log(`3️⃣ Refreshing access token point`);
         accessToken = await refreshAccessToken(user.id, account.refresh_token);
+        console.log(`Refreshed access token: ${accessToken}`);
         if (!accessToken) {
           throw new Error("Failed to refresh token");
         }

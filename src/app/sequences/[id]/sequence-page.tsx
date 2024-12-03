@@ -216,7 +216,7 @@ export default function SequencePage({ sequence }: SequencePageProps) {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="contacts">Contacts</TabsTrigger>
           <TabsTrigger value="emails">Emails</TabsTrigger>
-          <TabsTrigger value="report">Report</TabsTrigger>
+          {/* <TabsTrigger value="report">Report</TabsTrigger> */}
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
@@ -324,11 +324,11 @@ export default function SequencePage({ sequence }: SequencePageProps) {
           />
         </TabsContent>
 
-        <TabsContent value="report" className="mt-6">
+        {/* <TabsContent value="report" className="mt-6">
           <div className="text-center text-muted-foreground py-8">
             Reports will be available once sequence is launched
           </div>
-        </TabsContent>
+        </TabsContent> */}
 
         <TabsContent value="settings" className="mt-6">
           <div className="space-y-6">

@@ -75,11 +75,13 @@ export async function refreshAccessToken(
       console.log(`🔄 Token refreshed successfully on attempt ${attempt + 1}`);
 
       // Save the new access token
+      console.log(`🔄 Finding account for user ${userId}`);
       const account = await prisma.account.findFirst({
         where: {
           userId: userId,
         },
       });
+      console.log(`🔄 Account found: ${account?.id}`);
 
       if (!account) {
         console.error(`❌ Account not found for user ${userId}`);
@@ -87,17 +89,26 @@ export async function refreshAccessToken(
         // throw new Error("Account not found");
       }
 
-      console.log(`🔄 Updating account ${account.id} with new access token`);
+      console.log(
+        `🔄 Updating account ${account.id} : ${userId} with new access token`
+      );
       console.log(credentials);
 
-      await prisma.account.update({
-        where: { id: account.id },
-        data: {
-          access_token: credentials.access_token,
-          expires_at: credentials.expiry_date,
-          id_token: credentials.id_token,
-        },
-      });
+      try {
+        const updatedAccount = await prisma.account.update({
+          where: { id: account.id },
+          data: {
+            access_token: credentials.access_token,
+            expires_at: credentials.expiry_date
+              ? credentials.expiry_date / 1000
+              : null,
+            // id_token: credentials.id_token,
+          },
+        });
+        console.log(`🔄 Updated account: ${updatedAccount}`);
+      } catch (error) {
+        console.error(`❌ Error updating account: ${error}`);
+      }
 
       return credentials.access_token;
     } catch (error) {
@@ -110,6 +121,11 @@ export async function refreshAccessToken(
         code: err.code,
         status: err.status,
       });
+
+      console.log(`🔄 Attempt ${attempt} failed`);
+      console.log(userId);
+      console.log(refreshToken);
+      console.log(maxRetries);
 
       // If we've exhausted all retries, throw the error
       if (attempt === maxRetries) {
