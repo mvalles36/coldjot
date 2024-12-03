@@ -44,14 +44,6 @@ export async function createEmailTracking(
       data: eventData,
     });
 
-    // id: string;
-    // hash: string;
-    // type: string;
-    // wrappedLinks: boolean;
-    // metadata: EmailTrackingMetadata;
-    // pixel?: string;
-    // trackingId?: string;
-
     const tracking: EmailTracking = {
       id: trackingEvent.id,
       hash,

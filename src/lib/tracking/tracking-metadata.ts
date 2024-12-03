@@ -23,7 +23,5 @@ export function generateTrackingMetadata(
     contactId,
   };
 
-  console.log("Generated metadata:", metadata);
-
   return metadata;
 }
