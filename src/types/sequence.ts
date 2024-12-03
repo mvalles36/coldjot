@@ -10,6 +10,7 @@ export interface Sequence {
     contacts: number;
   };
   testMode: boolean;
+  stats?: SequenceStats | null;
 }
 
 export interface DevSettings {
@@ -35,4 +36,22 @@ export interface SequenceStep {
   replyToThread?: boolean;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface SequenceStats {
+  id: string;
+  sequenceId: string;
+  totalEmails: number;
+  sentEmails: number;
+  openedEmails: number;
+  clickedEmails: number;
+  repliedEmails: number;
+  bouncedEmails: number;
+  openRate: number;
+  clickRate: number;
+  replyRate: number;
+  bounceRate: number;
+  avgResponseTime: number | null;
+  updatedAt: Date;
+  createdAt: Date;
 }

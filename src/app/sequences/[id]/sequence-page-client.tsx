@@ -1,8 +1,6 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Mail, Plus, Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AddSequenceStep } from "@/components/sequences/steps/add-sequence-step";
 import { SequenceStepList } from "@/components/sequences/steps/sequence-step-list";
@@ -20,22 +18,32 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { SequenceEmailEditor } from "@/components/sequences/editor/sequence-email-editor";
+import { SequenceStepEditor } from "@/components/sequences/steps/sequence-step-editor";
 import { toast } from "react-hot-toast";
 import { SequenceEmailStats } from "@/components/sequences/sequence-email-stats";
 import { LaunchSequenceModal } from "@/components/sequences/launch-sequence-modal";
-
 import { SequenceStatusBadge } from "@/components/sequences/sequence-status-badge";
 import { SequenceControls } from "@/components/sequences/sequence-controls";
 import { SequenceDevSettings } from "@/components/sequences/sequence-dev-settings";
-import { Sequence } from "@/types/sequence";
-import type { SequenceStep } from "@/types/sequences";
-import { SequenceStepEditor } from "@/components/sequences/steps/sequence-step-editor";
+import { Loader2 } from "lucide-react";
+import { SequenceStats } from "@/components/sequences/sequence-stats";
+import { SequenceTabs } from "@/components/sequences/sequence-tabs";
 
-interface SequencePageProps {
+import type {
+  Sequence,
+  SequenceStats as SequenceStatsType,
+  SequenceStep,
+} from "@/types/sequence";
+
+interface SequencePageClientProps {
   sequence: Sequence;
+  initialStats: SequenceStatsType | null;
 }
 
-export default function SequencePage({ sequence }: SequencePageProps) {
+export default function SequencePageClient({
+  sequence,
+  initialStats,
+}: SequencePageClientProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("overview");
   const {
@@ -54,7 +62,7 @@ export default function SequencePage({ sequence }: SequencePageProps) {
 
   // Initial setup of steps
   useEffect(() => {
-    setSteps(sequence.steps as SequenceStep[]);
+    setSteps(sequence.steps);
   }, [sequence.steps, setSteps]);
 
   // Fetch steps when needed
@@ -91,19 +99,19 @@ export default function SequencePage({ sequence }: SequencePageProps) {
       if (!response.ok) throw new Error("Failed to reorder steps");
 
       // Update local state
-      setSteps(updatedSteps as SequenceStep[]);
+      setSteps(updatedSteps as []);
       toast.success("Steps reordered successfully");
     } catch (error) {
       toast.error("Failed to reorder steps");
     }
   };
 
-  const handleStepEdit = (step: any) => {
+  const handleStepEdit = (step: SequenceStep) => {
     setEditingStep(step);
     setShowStepEditor(true);
   };
 
-  const handleTemplateEdit = (step: any) => {
+  const handleTemplateEdit = (step: SequenceStep) => {
     const currentStepIndex = steps.findIndex((s) => s.id === step.id);
     const previousStepId =
       currentStepIndex > 0 ? steps[currentStepIndex - 1].id : undefined;
@@ -206,107 +214,52 @@ export default function SequencePage({ sequence }: SequencePageProps) {
         </div>
       </div>
 
-      <Tabs
-        defaultValue="overview"
-        className="w-full"
-        value={activeTab}
-        onValueChange={setActiveTab}
-      >
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="contacts">Contacts</TabsTrigger>
-          <TabsTrigger value="emails">Emails</TabsTrigger>
-          {/* <TabsTrigger value="report">Report</TabsTrigger> */}
-          <TabsTrigger value="settings">Settings</TabsTrigger>
-        </TabsList>
-
+      <SequenceTabs activeTab={activeTab} onTabChange={setActiveTab}>
         <TabsContent value="overview" className="mt-6">
-          <div className="space-y-4">
-            {/* <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-4">
-                <h3 className="font-medium">STATISTICS</h3>
-                <div className="grid grid-cols-5 gap-4 text-center">
-                  <div>
-                    <div className="text-2xl font-semibold">-</div>
-                    <div className="text-sm text-muted-foreground">Active</div>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-semibold">-</div>
-                    <div className="text-sm text-muted-foreground">Paused</div>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-semibold">-</div>
-                    <div className="text-sm text-muted-foreground">
-                      Finished
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-semibold">-</div>
-                    <div className="text-sm text-muted-foreground">Bounced</div>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-semibold">-</div>
-                    <div className="text-sm text-muted-foreground">
-                      Not sent
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h3 className="font-medium">
-                  EMAIL STATS PER INDIVIDUAL CONTACT
-                </h3>
-                <div className="grid grid-cols-5 gap-4 text-center">
-                  <div>
-                    <div className="text-2xl font-semibold">-</div>
-                    <div className="text-sm text-muted-foreground">
-                      Scheduled
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-semibold">-</div>
-                    <div className="text-sm text-muted-foreground">
-                      Delivered
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-semibold">-</div>
-                    <div className="text-sm text-muted-foreground">Reply</div>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-semibold">-</div>
-                    <div className="text-sm text-muted-foreground">
-                      Interested
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-semibold">-</div>
-                    <div className="text-sm text-muted-foreground">Opt out</div>
-                  </div>
-                </div>
-              </div>
-            </div> */}
-
-            {isLoading ? (
-              <div className="flex items-center justify-center p-8">
-                <div className="flex flex-col items-center gap-2">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">
-                    Loading steps...
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <SequenceStepList
-                steps={steps}
-                onReorder={handleStepReorder}
-                onEdit={handleStepEdit}
-                onEditTemplate={handleTemplateEdit}
-                onDuplicate={duplicateStep}
-                onDelete={deleteStep}
+          <div className="space-y-8">
+            <div>
+              <h2 className="text-lg font-semibold mb-4">
+                Sequence Statistics
+              </h2>
+              <SequenceStats
+                stats={
+                  initialStats || {
+                    totalEmails: 0,
+                    sentEmails: 0,
+                    openedEmails: 0,
+                    clickedEmails: 0,
+                    repliedEmails: 0,
+                    bouncedEmails: 0,
+                    openRate: 0,
+                    clickRate: 0,
+                    replyRate: 0,
+                    bounceRate: 0,
+                  }
+                }
               />
-            )}
+            </div>
+
+            <div className="space-y-4">
+              {isLoading ? (
+                <div className="flex items-center justify-center p-8">
+                  <div className="flex flex-col items-center gap-2">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">
+                      Loading steps...
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <SequenceStepList
+                  steps={steps}
+                  onReorder={handleStepReorder}
+                  onEdit={handleStepEdit}
+                  onEditTemplate={handleTemplateEdit}
+                  onDuplicate={duplicateStep}
+                  onDelete={deleteStep}
+                />
+              )}
+            </div>
           </div>
         </TabsContent>
 
@@ -323,12 +276,6 @@ export default function SequencePage({ sequence }: SequencePageProps) {
             isActive={sequence.status === "active"}
           />
         </TabsContent>
-
-        {/* <TabsContent value="report" className="mt-6">
-          <div className="text-center text-muted-foreground py-8">
-            Reports will be available once sequence is launched
-          </div>
-        </TabsContent> */}
 
         <TabsContent value="settings" className="mt-6">
           <div className="space-y-6">
@@ -400,7 +347,7 @@ export default function SequencePage({ sequence }: SequencePageProps) {
                 <SequenceDevSettings
                   sequenceId={sequence.id}
                   testMode={sequence.testMode}
-                  onTestModeChange={(checked) => {
+                  onTestModeChange={() => {
                     router.refresh();
                   }}
                 />
@@ -408,7 +355,7 @@ export default function SequencePage({ sequence }: SequencePageProps) {
             )}
           </div>
         </TabsContent>
-      </Tabs>
+      </SequenceTabs>
 
       <SequenceStepEditor
         open={showStepEditor}

@@ -177,18 +177,31 @@ model Sequence {
 }
 
 model SequenceStats {
-    id          String   @id @default(cuid())
-    sequenceId  String
-    sequence    Sequence @relation(fields: [sequenceId], references: [id])
-    contactId   String
-    contact     Contact  @relation(fields: [contactId], references: [id])
-    status      String   @default("not_sent")
-    currentStep Int      @default(0)
-    startedAt   DateTime @default(now())
-    updatedAt   DateTime @updatedAt
+    id         String   @id @default(cuid())
+    sequenceId String   @unique
+    sequence   Sequence @relation(fields: [sequenceId], references: [id])
 
-    @@index([sequenceId])
-    @@index([contactId])
+    // Email counts
+    totalEmails   Int @default(0)
+    sentEmails    Int @default(0)
+    openedEmails  Int @default(0)
+    clickedEmails Int @default(0)
+    repliedEmails Int @default(0)
+    bouncedEmails Int @default(0)
+
+    // Rates (stored as percentages)
+    openRate   Float @default(0)
+    clickRate  Float @default(0)
+    replyRate  Float @default(0)
+    bounceRate Float @default(0)
+
+    // Time metrics (in minutes)
+    avgResponseTime Float?
+
+    updatedAt DateTime @updatedAt
+    createdAt DateTime @default(now())
+    Contact   Contact? @relation(fields: [contactId], references: [id])
+    contactId String?
 }
 
 model SequenceStep {
@@ -308,19 +321,19 @@ model LinkClick {
 
 // Add this model to your schema
 model EmailEvent {
-    id         String         @id @default(cuid())
-    emailId    String
-    type       EmailEventType
-    timestamp  DateTime       @default(now())
-    metadata   Json?
-    sequence   Sequence       @relation(fields: [sequenceId], references: [id])
+    id        String   @id @default(cuid())
+    emailId   String
+    type      String // sent, opened, clicked, replied, bounced
+    timestamp DateTime @default(now())
+    metadata  Json? // Additional tracking data
+
+    sequence   Sequence @relation(fields: [sequenceId], references: [id])
     sequenceId String
-    contact    Contact        @relation(fields: [contactId], references: [id])
-    contactId  String
+    Contact    Contact? @relation(fields: [contactId], references: [id])
+    contactId  String?
 
     @@index([emailId, type])
     @@index([sequenceId, type])
-    @@index([timestamp])
 }
 
 enum EmailEventType {

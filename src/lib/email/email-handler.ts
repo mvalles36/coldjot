@@ -5,7 +5,7 @@ import type { SendEmailOptions } from "@/lib/email/email";
 import { EmailTrackingMetadata, EmailTracking } from "@/types/sequences";
 import { addTrackingToEmail } from "@/lib/tracking/tracking-service";
 import { trackEmailEvent } from "@/lib/tracking/email-events";
-import type { EmailEventType } from "@prisma/client";
+// import type { EmailEventType } from "@prisma/client";
 import type { GoogleAccount } from "@/lib/google/google-account";
 
 export async function handleEmailSend(
@@ -141,7 +141,7 @@ export async function handleEmailSend(
     } else {
       await trackEmailEvent(
         tracking.id,
-        "BOUNCED" as EmailEventType,
+        "BOUNCED",
         {
           bounceReason: error.message,
         },

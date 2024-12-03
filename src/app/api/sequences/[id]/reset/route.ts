@@ -53,8 +53,16 @@ export async function POST(
       prisma.sequenceStats.updateMany({
         where: { sequenceId: id },
         data: {
-          status: "not_sent",
-          currentStep: 0,
+          totalEmails: 0,
+          sentEmails: 0,
+          openedEmails: 0,
+          clickedEmails: 0,
+          repliedEmails: 0,
+          bouncedEmails: 0,
+          openRate: 0,
+          clickRate: 0,
+          replyRate: 0,
+          bounceRate: 0,
         },
       }),
 

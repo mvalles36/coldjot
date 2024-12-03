@@ -42,22 +42,30 @@ export const authConfig: NextAuthConfig = {
     async signIn({ user, account, profile }) {
       if (account?.provider === "google" && account.access_token) {
         try {
+          console.log("🚀 Signing in with Google...");
+          console.log(user, account, profile);
           // Ensure we save the user's email and name
-          await prisma.user.update({
-            where: { id: user.id! },
-            data: {
-              email: user.email,
-              name: user.name,
-            },
-          });
+          // await prisma.user.update({
+          //   where: { id: user.id! },
+          //   data: {
+          //     email: user.email,
+          //     name: user.name,
+          //   },
+          // });
 
           console.log("🚀 Setting up Gmail watch...");
           // Set up Gmail watch when user signs in with Google
-          await setupGmailWatch({
-            userId: user.id!,
-            accessToken: account.access_token,
-            topicName: process.env.GMAIL_WATCH_TOPIC!,
-          });
+          // TODO: Only setup watch if user has no watch already
+
+          // add 3 seconds delay
+          await new Promise((resolve) => setTimeout(resolve, 3000));
+
+          // TODO: Uncomment this when we have a way to check if the user already has a watch
+          // await setupGmailWatch({
+          //   userId: user.id!,
+          //   accessToken: account.access_token,
+          //   topicName: process.env.GMAIL_WATCH_TOPIC!,
+          // });
         } catch (error) {
           console.error("Failed to setup Gmail watch:", error);
           // Don't block sign in if watch setup fails

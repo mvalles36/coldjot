@@ -1,3 +1,6 @@
+import { trackEmailEvent } from "./tracking-service";
+import type { EmailEventType } from "./tracking-service";
+
 export type EmailStatus = "queued" | "sent" | "failed" | "bounced";
 
 interface SendEmailOptions {
@@ -17,24 +20,54 @@ interface SendEmailResult {
 // Mock email service for testing
 export class MockEmailService {
   async sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      // Simulate network delay
+      await new Promise((resolve) => setTimeout(resolve, 1500));
 
-    // Simulate random success/failure (90% success rate)
-    const success = Math.random() < 0.9;
+      // Simulate random success/failure (90% success rate)
+      const success = Math.random() < 0.9;
 
-    if (success) {
-      return {
-        status: "sent",
-        messageId: `mock_${Date.now()}_${Math.random()
+      if (success) {
+        const messageId = `mock_${Date.now()}_${Math.random()
           .toString(36)
-          .substring(7)}`,
-      };
-    } else {
-      return {
-        status: "failed",
-        error: "Mock sending failed",
-      };
+          .substring(7)}`;
+
+        // Track the sent event
+        if (options.sequenceId) {
+          await trackEmailEvent(messageId, options.sequenceId, "sent", {
+            messageId,
+          });
+        }
+
+        return {
+          status: "sent",
+          messageId,
+        };
+      } else {
+        const failedMessageId = `failed_${Date.now()}_${Math.random()
+          .toString(36)
+          .substring(7)}`;
+
+        // Track bounce event
+        if (options.sequenceId) {
+          await trackEmailEvent(
+            failedMessageId,
+            options.sequenceId,
+            "bounced",
+            {
+              bounceReason: "Mock sending failed",
+            }
+          );
+        }
+
+        return {
+          status: "failed",
+          error: "Mock sending failed",
+        };
+      }
+    } catch (error) {
+      console.error("Error sending email:", error);
+      throw error;
     }
   }
 }
