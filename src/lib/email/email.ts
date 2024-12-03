@@ -78,36 +78,6 @@ const getBaseUrl = () => {
 
 // Add flag to test SMTP approach
 const USE_SMTP_DUAL_DELIVERY = process.env.USE_SMTP_DUAL_DELIVERY === "true";
-const GMAIL_EMAIL = process.env.GMAIL_EMAIL;
-
-// Common function to prepare mail options
-function prepareMailOptions(
-  to: string,
-  subject: string,
-  content: string,
-  threadId?: string,
-  messageId?: string
-) {
-  return {
-    from: GMAIL_EMAIL || "me",
-    to,
-    subject,
-    html: content,
-    messageId: messageId ? `<${messageId}>` : undefined,
-    ...(threadId && {
-      headers: {
-        "In-Reply-To": threadId,
-        References: threadId,
-        "X-GM-THRID": threadId, // Gmail-specific threading
-      },
-    }),
-  };
-}
-
-// Add helper for MIME boundaries
-function generateMimeBoundary() {
-  return `00000000000${Math.random().toString(36).substr(2, 12)}`;
-}
 
 export async function sendEmail({
   to,
@@ -126,6 +96,29 @@ export async function sendEmail({
       });
 
       const gmail = google.gmail({ version: "v1", auth });
+
+      // Get user's email and name
+      const account = await prisma.account.findFirst({
+        where: { access_token: accessToken },
+        include: {
+          user: {
+            select: {
+              email: true,
+              name: true,
+            },
+          },
+        },
+      });
+
+      if (!account?.user?.email) {
+        throw new Error("User email not found");
+      }
+
+      const senderEmail = account.user.email;
+      const senderName = account.user.name;
+      const fromHeader = senderName
+        ? `${senderName} <${senderEmail}>`
+        : senderEmail;
 
       // Generate a single messageId for both versions
       const messageId = generateMessageId();
@@ -197,6 +190,7 @@ export async function sendEmail({
       const message = [
         "Content-Type: text/html; charset=utf-8",
         "MIME-Version: 1.0",
+        `From: ${fromHeader}`,
         `To: ${to}`,
         `Subject: ${normalizeSubject(subject, !!threadId, originalSubject)}`,
         `Message-ID: <${messageId}>`, // Use formatted messageId
@@ -370,58 +364,4 @@ export async function sendDraft({ accessToken, draftId }: SendDraftOptions) {
     console.error("Error sending draft:", error);
     throw error;
   }
-}
-
-async function createGmailTransport(accessToken: string, refreshToken: string) {
-  // Create OAuth2 client
-  const oauth2Client = new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    process.env.NEXTAUTH_URL + "/api/auth/callback/google"
-  );
-
-  // Set credentials
-  oauth2Client.setCredentials({
-    access_token: accessToken,
-    refresh_token: refreshToken,
-  });
-
-  // Create SMTP transport
-  const transport = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      type: "OAuth2",
-      user: process.env.GMAIL_EMAIL,
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      refreshToken: refreshToken,
-      accessToken: accessToken,
-      expires: 3599, // Default token expiry time in seconds
-    },
-    pool: true, // Use pooled connections
-    maxConnections: 5, // Maximum number of simultaneous connections
-    maxMessages: 100, // Maximum number of messages per connection
-    rateDelta: 1000, // How many milliseconds between messages
-    rateLimit: 5, // Maximum number of messages per rateDelta
-  } as TransportOptions);
-
-  // Verify SMTP connection configuration
-  try {
-    await new Promise((resolve, reject) => {
-      transport.verify((error) => {
-        if (error) {
-          console.error("SMTP Connection Error:", error);
-          reject(error);
-        } else {
-          console.log("SMTP Connection Successful");
-          resolve(true);
-        }
-      });
-    });
-  } catch (error) {
-    console.error("Failed to verify SMTP connection:", error);
-    throw error;
-  }
-
-  return transport;
 }

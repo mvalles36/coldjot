@@ -34,22 +34,36 @@ export async function sendGmailSMTP({
   originalContent,
   accessToken,
 }: SendGmailOptions): Promise<GmailResponse> {
-  // const messageId = `<${generateMessageId()}@depexel.com>`;
   const messageId = `<${generateMessageId()}@gmail.com>`;
   const boundary = generateMimeBoundary();
 
-  const senderEmail = process.env.GMAIL_EMAIL;
-  if (!senderEmail) {
-    throw new Error("GMAIL_EMAIL environment variable is not defined");
-  }
-
   const account = await prisma.account.findFirst({
     where: { access_token: accessToken },
+    include: {
+      user: {
+        select: {
+          email: true,
+          name: true,
+        },
+      },
+    },
   });
 
+  if (!account?.user?.email) {
+    throw new Error("User email not found");
+  }
+
+  const senderEmail = account.user.email;
+  const senderName = account.user.name;
+  const fromHeader = senderName
+    ? `${senderName} <${senderEmail}>`
+    : senderEmail;
+
   const transport = await createGmailTransport(
-    account?.access_token! || "",
-    account?.refresh_token! || ""
+    account.access_token! || "",
+    account.refresh_token! || "",
+    senderEmail,
+    senderName || undefined
   );
 
   const plainText = (originalContent || content)
@@ -59,7 +73,7 @@ export async function sendGmailSMTP({
 
   const headers = [
     "MIME-Version: 1.0",
-    `From: ${senderEmail}`,
+    `From: ${fromHeader}`,
     `To: ${to}`,
     `Subject: ${subject}`,
     threadId ? `References: ${threadId}` : "",

@@ -39,9 +39,18 @@ export const authConfig: NextAuthConfig = {
   ],
   adapter: PrismaAdapter(prisma),
   callbacks: {
-    async signIn({ user, account }) {
+    async signIn({ user, account, profile }) {
       if (account?.provider === "google" && account.access_token) {
         try {
+          // Ensure we save the user's email and name
+          await prisma.user.update({
+            where: { id: user.id! },
+            data: {
+              email: user.email,
+              name: user.name,
+            },
+          });
+
           console.log("🚀 Setting up Gmail watch...");
           // Set up Gmail watch when user signs in with Google
           await setupGmailWatch({

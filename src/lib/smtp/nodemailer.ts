@@ -4,32 +4,44 @@ import { createTransport, TransportOptions } from "nodemailer";
 
 export async function createGmailTransport(
   accessToken: string,
-  refreshToken: string
+  refreshToken: string,
+  userEmail: string,
+  userName?: string
 ) {
-  // Create OAuth2 client
-  const oauth2Client = new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    process.env.NEXTAUTH_URL + "/api/auth/callback/google"
-  );
-
-  // Set credentials
-  await oauth2Client.setCredentials({
-    access_token: accessToken,
-    refresh_token: refreshToken,
-  });
-
   // Create SMTP transport
   const transport = await nodemailer.createTransport({
     service: "gmail",
     auth: {
       type: "OAuth2",
-      user: process.env.GMAIL_EMAIL,
+      user: userEmail,
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       refreshToken: refreshToken,
       accessToken: accessToken,
-      expires: 3599, // Default token expiry time in seconds
+      // Add OAuth2 refresh token handler
+      oauth2: {
+        refreshToken: refreshToken,
+        accessToken: accessToken,
+        expires: 3599,
+        refreshAccessToken: async () => {
+          try {
+            const oauth2Client = new google.auth.OAuth2(
+              process.env.GOOGLE_CLIENT_ID,
+              process.env.GOOGLE_CLIENT_SECRET,
+              process.env.NEXTAUTH_URL + "/api/auth/callback/google"
+            );
+            oauth2Client.setCredentials({
+              refresh_token: refreshToken,
+            });
+            const { token } = await oauth2Client.getAccessToken();
+            console.log("Refreshed access token:", token);
+            return token;
+          } catch (error) {
+            console.error("Error refreshing access token:", error);
+            throw error;
+          }
+        },
+      },
     },
     pool: true, // Use pooled connections
     maxConnections: 5, // Maximum number of simultaneous connections
