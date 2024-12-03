@@ -6,6 +6,7 @@ export interface GoogleAccount {
   access_token: string;
   refresh_token: string;
   providerAccountId: string;
+  userId: string;
 }
 
 export async function getGoogleAccount(
@@ -17,6 +18,7 @@ export async function getGoogleAccount(
       provider: "google",
     },
     select: {
+      userId: true,
       access_token: true,
       refresh_token: true,
       providerAccountId: true,
@@ -35,6 +37,7 @@ export async function getGoogleAccount(
     access_token: account.access_token,
     refresh_token: account.refresh_token,
     providerAccountId: account.providerAccountId,
+    userId: account.userId,
   };
 }
 
@@ -51,6 +54,7 @@ interface TokenRefreshError extends Error {
 }
 
 export async function refreshAccessToken(
+  userId: string,
   refreshToken: string,
   maxRetries = 3
 ): Promise<string | null> {
@@ -73,17 +77,26 @@ export async function refreshAccessToken(
       // Save the new access token
       const account = await prisma.account.findFirst({
         where: {
-          refresh_token: refreshToken,
+          userId: userId,
         },
       });
 
       if (!account) {
-        throw new Error("Account not found");
+        console.error(`❌ Account not found for user ${userId}`);
+        return null;
+        // throw new Error("Account not found");
       }
+
+      console.log(`🔄 Updating account ${account.id} with new access token`);
+      console.log(credentials);
 
       await prisma.account.update({
         where: { id: account.id },
-        data: { access_token: credentials.access_token },
+        data: {
+          access_token: credentials.access_token,
+          expires_at: credentials.expiry_date,
+          id_token: credentials.id_token,
+        },
       });
 
       return credentials.access_token;

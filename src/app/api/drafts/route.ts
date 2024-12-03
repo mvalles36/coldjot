@@ -14,6 +14,7 @@ export async function POST(request: Request) {
   const { contactId, templateId, content } = json;
 
   try {
+    // TODO : Get google account
     // Get the user's account with tokens
     const account = await prisma.account.findFirst({
       where: {
@@ -24,6 +25,7 @@ export async function POST(request: Request) {
         access_token: true,
         refresh_token: true,
         providerAccountId: true,
+        userId: true,
       },
     });
 
@@ -68,22 +70,26 @@ export async function POST(request: Request) {
     } catch (error: any) {
       if (error.message === "TOKEN_EXPIRED") {
         // Refresh the token
-        const newAccessToken = await refreshAccessToken(account.refresh_token);
+        console.log(`1️⃣ Refreshing access token point`);
+        const newAccessToken = await refreshAccessToken(
+          account.userId,
+          account.refresh_token
+        );
 
         // Update the token in the database
         // TODO :  save the expiration date
         console.log("newAccessToken", newAccessToken);
-        await prisma.account.update({
-          where: {
-            provider_providerAccountId: {
-              provider: "google",
-              providerAccountId: account.providerAccountId,
-            },
-          },
-          data: {
-            access_token: newAccessToken,
-          },
-        });
+        // await prisma.account.update({
+        //   where: {
+        //     provider_providerAccountId: {
+        //       provider: "google",
+        //       providerAccountId: account.providerAccountId,
+        //     },
+        //   },
+        //   data: {
+        //     access_token: newAccessToken,
+        //   },
+        // });
 
         // Retry with new token
         const gmailDraftId = await createGmailDraft({

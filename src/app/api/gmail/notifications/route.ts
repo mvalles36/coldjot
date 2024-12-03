@@ -528,19 +528,20 @@ export async function POST(req: NextRequest) {
     ) {
       console.log("🔄 Refreshing access token...");
       try {
-        accessToken = await refreshAccessToken(account.refresh_token);
+        console.log(`3️⃣ Refreshing access token point`);
+        accessToken = await refreshAccessToken(user.id, account.refresh_token);
         if (!accessToken) {
           throw new Error("Failed to refresh token");
         }
 
         // Update the token in database
-        await prisma.account.update({
-          where: { id: account.id },
-          data: {
-            access_token: accessToken,
-            expires_at: Math.floor(Date.now() / 1000 + 3600),
-          },
-        });
+        // await prisma.account.update({
+        //   where: { id: account.id },
+        //   data: {
+        //     access_token: accessToken,
+        //     expires_at: Math.floor(Date.now() / 1000 + 3600),
+        //   },
+        // });
       } catch (error) {
         console.error("Failed to refresh token:", error);
         return NextResponse.json(

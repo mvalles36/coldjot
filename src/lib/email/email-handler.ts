@@ -93,23 +93,27 @@ export async function handleEmailSend(
   } catch (error: any) {
     if (error.message === "TOKEN_EXPIRED") {
       console.log(`🔄 Refreshing access token...`);
-      const newAccessToken = await refreshAccessToken(account.refresh_token);
+      console.log(`6️⃣ Refreshing access token point`);
+      const newAccessToken = await refreshAccessToken(
+        account.userId,
+        account.refresh_token
+      );
 
       if (!newAccessToken) {
         throw new Error("Failed to refresh token");
       }
 
-      await prisma.account.update({
-        where: {
-          provider_providerAccountId: {
-            provider: "google",
-            providerAccountId: account.providerAccountId,
-          },
-        },
-        data: {
-          access_token: newAccessToken,
-        },
-      });
+      // await prisma.account.update({
+      //   where: {
+      //     provider_providerAccountId: {
+      //       provider: "google",
+      //       providerAccountId: account.providerAccountId,
+      //     },
+      //   },
+      //   data: {
+      //     access_token: newAccessToken,
+      //   },
+      // });
 
       console.log(`🔄 Retrying with new token...`);
       const retryContent = await addTrackingToEmail(

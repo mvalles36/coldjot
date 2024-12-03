@@ -10,13 +10,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const userId = session.user.id;
   const json = await request.json();
   const { draftId } = json;
 
   try {
     const account = await prisma.account.findFirst({
       where: {
-        userId: session.user.id,
+        userId: userId,
         provider: "google",
       },
       select: {
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
     const draft = await prisma.draft.findUnique({
       where: {
         id: draftId,
-        userId: session.user.id,
+        userId: userId,
       },
     });
 
@@ -60,19 +61,24 @@ export async function POST(request: Request) {
     } catch (error: any) {
       if (error.message === "TOKEN_EXPIRED") {
         // Refresh token and retry
-        const newAccessToken = await refreshAccessToken(account.refresh_token);
+        // const newAccessToken = await refreshAccessToken(account.refresh_token);
+        console.log(`2️⃣ Refreshing access token point`);
+        const newAccessToken = await refreshAccessToken(
+          userId,
+          account.refresh_token
+        );
 
-        await prisma.account.update({
-          where: {
-            provider_providerAccountId: {
-              provider: "google",
-              providerAccountId: account.providerAccountId,
-            },
-          },
-          data: {
-            access_token: newAccessToken,
-          },
-        });
+        // await prisma.account.update({
+        //   where: {
+        //     provider_providerAccountId: {
+        //       provider: "google",
+        //       providerAccountId: account.providerAccountId,
+        //     },
+        //   },
+        //   data: {
+        //     access_token: newAccessToken,
+        //   },
+        // });
 
         // Retry with new token
         await sendGmailDraft({

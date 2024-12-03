@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
           provider: "google",
         },
         select: {
+          userId: true,
           access_token: true,
           refresh_token: true,
           providerAccountId: true,
@@ -39,29 +40,23 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const freshAccessToken = await refreshAccessToken(account.refresh_token);
-      if (!freshAccessToken) {
+      // const freshAccessToken = await refreshAccessToken(account.refresh_token);
+      console.log(`4️⃣ Refreshing access token point`);
+      const newAccessToken = await refreshAccessToken(
+        account.userId,
+        account.refresh_token
+      );
+
+      if (!newAccessToken) {
         return NextResponse.json(
           { error: "Failed to refresh access token" },
           { status: 401 }
         );
       }
 
-      await prisma.account.update({
-        where: {
-          provider_providerAccountId: {
-            provider: "google",
-            providerAccountId: account.providerAccountId,
-          },
-        },
-        data: {
-          access_token: freshAccessToken,
-        },
-      });
-
       await setupGmailWatch({
         userId: session.user.id,
-        accessToken: freshAccessToken,
+        accessToken: newAccessToken,
         topicName: process.env.GMAIL_WATCH_TOPIC!,
       });
 
@@ -94,6 +89,7 @@ export async function GET(req: NextRequest) {
         provider: "google",
       },
       select: {
+        userId: true,
         watchHistoryId: true,
         watchExpiration: true,
         refresh_token: true,
@@ -107,23 +103,6 @@ export async function GET(req: NextRequest) {
         { error: "No Google account found" },
         { status: 404 }
       );
-    }
-
-    if (account.watchHistoryId && account.refresh_token) {
-      const freshAccessToken = await refreshAccessToken(account.refresh_token);
-      if (freshAccessToken && freshAccessToken !== account.access_token) {
-        await prisma.account.update({
-          where: {
-            provider_providerAccountId: {
-              provider: "google",
-              providerAccountId: account.providerAccountId,
-            },
-          },
-          data: {
-            access_token: freshAccessToken,
-          },
-        });
-      }
     }
 
     return NextResponse.json({

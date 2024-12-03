@@ -75,6 +75,7 @@ export async function refreshGmailWatch(userId: string) {
     },
     select: {
       id: true,
+      userId: true,
       access_token: true,
       refresh_token: true,
     },
@@ -88,16 +89,23 @@ export async function refreshGmailWatch(userId: string) {
 
   try {
     // Refresh token if needed
-    const newToken = await refreshAccessToken(account.refresh_token);
-    if (newToken) {
-      accessToken = newToken;
 
-      // Update the access token in the database
-      await prisma.account.update({
-        where: { id: account.id },
-        data: { access_token: newToken },
-      });
-    }
+    console.log(`7️⃣ Refreshing access token point`);
+    const newAccessToken = await refreshAccessToken(
+      account.userId,
+      account.refresh_token
+    );
+
+    if (newAccessToken) accessToken = newAccessToken;
+    // if (newToken) {
+    //   accessToken = newToken;
+
+    //   // Update the access token in the database
+    //   await prisma.account.update({
+    //     where: { id: account.id },
+    //     data: { access_token: newToken },
+    //   });
+    // }
 
     return await setupGmailWatch({
       userId,
@@ -141,20 +149,24 @@ export async function stopGmailWatch(userId: string): Promise<boolean> {
       account.expires_at < now &&
       account.refresh_token
     ) {
-      const newToken = await refreshAccessToken(account.refresh_token);
-      if (!newToken) {
+      console.log(`7️⃣ Refreshing access token point`);
+      const newAccessToken = await refreshAccessToken(
+        userId,
+        account.refresh_token
+      );
+      if (!newAccessToken) {
         throw new Error("Failed to refresh token");
       }
-      accessToken = newToken;
+      accessToken = newAccessToken;
 
       // Update the token in database
-      await prisma.account.update({
-        where: { id: account.id },
-        data: {
-          access_token: accessToken,
-          expires_at: Math.floor(Date.now() / 1000 + 3600),
-        },
-      });
+      // await prisma.account.update({
+      //   where: { id: account.id },
+      //   data: {
+      //     access_token: accessToken,
+      //     expires_at: Math.floor(Date.now() / 1000 + 3600),
+      //   },
+      // });
     }
 
     // Initialize Gmail API client
