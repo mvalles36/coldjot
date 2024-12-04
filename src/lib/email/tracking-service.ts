@@ -1,11 +1,5 @@
 import { prisma } from "@/lib/prisma";
-
-export type EmailEventType =
-  | "sent"
-  | "opened"
-  | "clicked"
-  | "replied"
-  | "bounced";
+import { EmailEventType } from "@/types";
 
 export interface EmailEventMetadata {
   [key: string]: string | number | boolean | null | undefined;

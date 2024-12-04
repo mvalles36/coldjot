@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { trackEmailEvent } from "@/lib/tracking/email-events";
+import { EmailEventType, trackEmailEvent } from "@/lib/tracking/email-events";
 import { getUserAgent } from "@/lib/user-agent";
 import { getIpLocation } from "@/lib/ip-location";
 import { updateSequenceStats } from "@/lib/stats/sequence-stats-service";
@@ -279,7 +279,7 @@ export async function POST(
       "unknown";
     const location = await getIpLocation(ipAddress);
 
-    const event = await trackEmailEvent(emailId, eventType, {
+    const event = await trackEmailEvent(emailId, eventType as EmailEventType, {
       userAgent: userAgent.userAgent,
       ipAddress,
       location: JSON.stringify(location),

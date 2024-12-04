@@ -1,5 +1,5 @@
 import { trackEmailEvent } from "./tracking-service";
-import type { EmailEventType } from "./tracking-service";
+import { EmailEventType } from "@/types";
 
 export type EmailStatus = "queued" | "sent" | "failed" | "bounced";
 

@@ -4,7 +4,7 @@ import { refreshAccessToken } from "@/lib/google/google-account";
 import type { SendEmailOptions } from "@/lib/email/email";
 import { EmailTrackingMetadata, EmailTracking } from "@/types/sequences";
 import { addTrackingToEmail } from "@/lib/tracking/tracking-service";
-import { trackEmailEvent } from "@/lib/tracking/email-events";
+import { trackEmailEvent } from "@/lib/tracking/tracking-service";
 // import type { EmailEventType } from "@prisma/client";
 import type { GoogleAccount } from "@/lib/google/google-account";
 
@@ -14,14 +14,9 @@ export async function handleEmailSend(
   account: GoogleAccount
 ): Promise<string | undefined> {
   try {
-    const trackedContent = await addTrackingToEmail(
-      emailOptions.content,
-      tracking
-    );
-
     const result = await sendEmail({
       ...emailOptions,
-      content: trackedContent,
+      content: emailOptions.content,
       originalContent: emailOptions.content,
       accessToken: account.access_token,
     });
@@ -73,8 +68,8 @@ export async function handleEmailSend(
     }
 
     await trackEmailEvent(
-      tracking.hash,
-      "SENT",
+      tracking.id,
+      "sent",
       {
         messageId: result.messageId,
         threadId: result.threadId,
@@ -93,7 +88,6 @@ export async function handleEmailSend(
   } catch (error: any) {
     if (error.message === "TOKEN_EXPIRED") {
       console.log(`🔄 Refreshing access token...`);
-      console.log(`6️⃣ Refreshing access token point`);
       const newAccessToken = await refreshAccessToken(
         account.userId,
         account.refresh_token
@@ -103,26 +97,10 @@ export async function handleEmailSend(
         throw new Error("Failed to refresh token");
       }
 
-      // await prisma.account.update({
-      //   where: {
-      //     provider_providerAccountId: {
-      //       provider: "google",
-      //       providerAccountId: account.providerAccountId,
-      //     },
-      //   },
-      //   data: {
-      //     access_token: newAccessToken,
-      //   },
-      // });
-
       console.log(`🔄 Retrying with new token...`);
-      const retryContent = await addTrackingToEmail(
-        emailOptions.content,
-        tracking
-      );
       const retryResult = await sendEmail({
         ...emailOptions,
-        content: retryContent,
+        content: emailOptions.content,
         accessToken: newAccessToken,
         originalContent: emailOptions.content,
       });
@@ -141,7 +119,7 @@ export async function handleEmailSend(
     } else {
       await trackEmailEvent(
         tracking.id,
-        "BOUNCED",
+        "bounced",
         {
           bounceReason: error.message,
         },

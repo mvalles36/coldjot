@@ -14,6 +14,11 @@ export type StepPriority = "high" | "medium" | "low";
 export type StepTiming = "immediate" | "delay";
 export type StepType = "manual_email" | "automated_email";
 
+export interface DevSettings {
+  disableSending: boolean;
+  testEmails: string[];
+}
+
 export interface Sequence {
   id: string;
   name: string;
@@ -80,6 +85,24 @@ export interface SequenceStats {
   replied: number;
   interested: number;
   optedOut: number;
+}
+
+export interface SequenceStats {
+  id: string;
+  sequenceId: string;
+  totalEmails: number;
+  sentEmails: number;
+  openedEmails: number;
+  clickedEmails: number;
+  repliedEmails: number;
+  bouncedEmails: number;
+  openRate: number;
+  clickRate: number;
+  replyRate: number;
+  bounceRate: number;
+  avgResponseTime: number | null;
+  updatedAt: Date;
+  createdAt: Date;
 }
 
 export interface StepData {

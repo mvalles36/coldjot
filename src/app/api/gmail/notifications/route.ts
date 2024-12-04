@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
 import { OAuth2Client } from "google-auth-library";
 import { prisma } from "@/lib/prisma";
-import { trackEmailEvent } from "@/lib/tracking/email-events";
+import { trackEmailEvent } from "@/lib/tracking/tracking-service";
 import { verifyPubSubJwt } from "@/lib/auth/pubsub";
 import { refreshAccessToken, oauth2Client } from "@/lib/google/google-account";
 import { updateSequenceStats } from "@/lib/stats/sequence-stats-service";
@@ -55,7 +55,7 @@ async function processMessageForOpens(
         // Record the open event
         await trackEmailEvent(
           trackingEvent.hash,
-          "OPENED",
+          "opened",
           {
             messageId: messageId,
             threadId: messageDetails.data.threadId!,
@@ -184,7 +184,7 @@ async function processMessageForReplies(
           // Track the reply event
           await trackEmailEvent(
             trackingEvent.hash,
-            "REPLIED",
+            "replied",
             {
               replyMessageId: messageId,
               threadId,
@@ -286,7 +286,7 @@ async function processMessageForReplies(
 
           await trackEmailEvent(
             trackingEvent.hash,
-            "REPLIED",
+            "replied",
             {
               replyMessageId: messageId,
               threadId,
@@ -440,7 +440,7 @@ async function processMessageForBounces(
         // Track the bounce event
         await trackEmailEvent(
           trackingEvent.hash,
-          "BOUNCED",
+          "bounced",
           {
             bounceReason: failedRecipient!,
             messageId,

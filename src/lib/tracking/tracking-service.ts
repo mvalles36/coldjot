@@ -4,7 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { getBaseUrl } from "@/utils/email-utils";
 import { updateSequenceStats } from "@/lib/stats/sequence-stats-service";
 import { EmailEventMetadata } from "@/lib/email/tracking-service";
-import { EmailEventType } from "@/lib/email/tracking-service";
+import type { Prisma } from "@prisma/client";
+import { EmailEventType } from "@/types";
 
 export async function createEmailTracking(
   metadata: EmailTrackingMetadata
@@ -312,54 +313,105 @@ async function wrapLinksWithTracking(
   }
 }
 
-export async function updateTrackingWithMessageId(
-  hash: string,
-  messageId: string
-): Promise<void> {
-  await prisma.emailTrackingEvent.update({
-    where: { hash },
-    data: { messageId },
+export async function getEmailEvents(emailId: string) {
+  return await prisma.emailEvent.findMany({
+    where: { emailId },
+    orderBy: { timestamp: "desc" },
   });
 }
 
-export const trackEmailEvent = async (
-  emailId: string,
+export async function getSequenceEvents(
   sequenceId: string,
-  type: EmailEventType,
-  metadata?: EmailEventMetadata,
-  contactId?: string
-) => {
-  try {
-    // Check for existing event of this type for this email
-    const existingEvent = await prisma.emailEvent.findFirst({
-      where: {
-        emailId,
-        type,
-        sequenceId,
+  timeframe?: { start: Date; end: Date }
+) {
+  const where = {
+    sequenceId,
+    ...(timeframe && {
+      timestamp: {
+        gte: timeframe.start,
+        lte: timeframe.end,
       },
-    });
+    }),
+  };
 
-    // For all events except clicks and sends, only record if it's the first one
-    if (existingEvent && type !== "clicked" && type !== "sent") {
-      console.log(`Event ${type} already recorded for email ${emailId}`);
-      return;
+  return await prisma.emailEvent.findMany({
+    where,
+    orderBy: { timestamp: "desc" },
+    include: {
+      Contact: true,
+    },
+  });
+}
+
+export interface EventMetadata {
+  userAgent?: string;
+  ipAddress?: string;
+  location?: string;
+  deviceType?: string;
+  replyMessageId?: string;
+  bounceReason?: string;
+  threadId?: string;
+  messageId?: string;
+  from?: string;
+  snippet?: string;
+  timestamp?: string;
+}
+
+/**
+ * Track an email event and update sequence stats
+ */
+export async function trackEmailEvent(
+  emailId: string,
+  type: EmailEventType,
+  metadata?: EventMetadata,
+  trackingData?: EmailTrackingMetadata
+) {
+  try {
+    // Check for existing event of this type for this email (except for clicks)
+    if (type !== "clicked") {
+      const existingEvent = await prisma.emailEvent.findFirst({
+        where: {
+          emailId,
+          type,
+          sequenceId: trackingData?.sequenceId,
+        },
+      });
+
+      if (existingEvent) {
+        console.log(`Event ${type} already recorded for email ${emailId}`);
+        return existingEvent;
+      }
     }
 
-    // Record the event
-    await prisma.emailEvent.create({
+    // Create the event
+    const event = await prisma.emailEvent.create({
       data: {
         emailId,
         type,
-        sequenceId,
-        contactId,
-        metadata: metadata ? JSON.parse(JSON.stringify(metadata)) : null,
+        metadata: metadata as Prisma.JsonObject,
+        sequenceId: trackingData?.sequenceId || "",
+        contactId: trackingData?.contactId,
       },
     });
 
-    // Update sequence stats
-    await updateSequenceStats(sequenceId, type, contactId);
+    // Update sequence stats if we have sequence info
+    if (trackingData?.sequenceId) {
+      await updateSequenceStats(
+        trackingData.sequenceId,
+        type,
+        trackingData.contactId
+      );
+    }
+
+    console.log(`📊 Tracked email event:`, {
+      emailId,
+      type,
+      eventId: event.id,
+    });
+
+    return event;
   } catch (error) {
-    console.error("Error tracking email event:", error);
+    console.error(`❌ Failed to track email event:`, error);
     throw error;
   }
-};
+}

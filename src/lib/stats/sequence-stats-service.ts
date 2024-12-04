@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type { EmailEventType } from "@/lib/email/tracking-service";
+import { EmailEventType } from "@/types";
 
 export const updateSequenceStats = async (
   sequenceId: string,
