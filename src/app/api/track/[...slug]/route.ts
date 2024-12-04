@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { trackEmailEvent } from "@/lib/tracking/email-events";
 import { getUserAgent } from "@/lib/user-agent";
 import { getIpLocation } from "@/lib/ip-location";
-import type { EmailEventType } from "@prisma/client";
+import { updateSequenceStats } from "@/lib/stats/sequence-stats-service";
+// import type { EmailEventType } from "@prisma/client";
 
 import {
   recordEmailOpen,
@@ -25,6 +26,8 @@ async function handleEmailOpen(hash: string) {
       id: true,
       email: true,
       openCount: true,
+      sequenceId: true,
+      contactId: true,
     },
   });
 
@@ -39,6 +42,16 @@ async function handleEmailOpen(hash: string) {
   });
 
   await recordEmailOpen(hash);
+
+  // Update sequence stats for open
+  if (existingEvent.sequenceId && existingEvent.contactId) {
+    await updateSequenceStats(
+      existingEvent.sequenceId,
+      "opened",
+      existingEvent.contactId
+    );
+  }
+
   console.log(`✅ Recorded email open for ${existingEvent.email}`);
 
   return new NextResponse(TRANSPARENT_PIXEL, {
@@ -65,6 +78,8 @@ async function handleLinkClick(hash: string, linkId: string | null) {
     select: {
       id: true,
       email: true,
+      sequenceId: true,
+      contactId: true,
       links: {
         where: { id: linkId },
         select: {
@@ -95,81 +110,19 @@ async function handleLinkClick(hash: string, linkId: string | null) {
   });
 
   await recordLinkClick(linkId);
-  console.log(`✅ Recorded link click for ${trackedLink.originalUrl}`);
 
-  // In development, show debug info
-  if (process.env.NODE_ENV === "development") {
-    console.log(`🛠️ Showing debug info in development`);
-    const debugHtml = `
-      <html>
-        <head>
-          <title>Link Click Debug</title>
-          <style>
-            body { 
-              font-family: system-ui; 
-              padding: 20px; 
-              border-radius: 8px;
-              overflow-x: auto;
-            }
-            pre { 
-              background: #f0f0f0; 
-              padding: 15px; 
-              border-radius: 8px;
-              overflow-x: auto;
-            }
-            .debug-info {
-              background: #f8fafc;
-              border: 1px solid #e2e8f0;
-              padding: 20px;
-              border-radius: 8px;
-              margin: 20px 0;
-            }
-            .redirect-info {
-              background: #f0fdf4;
-              border: 1px solid #bbf7d0;
-              padding: 15px;
-              border-radius: 8px;
-              margin-top: 20px;
-            }
-          </style>
-        </head>
-        <body>
-          <h1>🔍 Link Click Tracking Debug</h1>
-          <div class="debug-info">
-            <h2>📊 Tracking Information</h2>
-            <p><strong>Hash:</strong> ${hash}</p>
-            <p><strong>Email:</strong> ${existingEvent.email}</p>
-            <p><strong>Link ID:</strong> ${linkId}</p>
-            <p><strong>Click Count:</strong> ${trackedLink.clickCount + 1}</p>
-            <p><strong>Original URL:</strong> ${trackedLink.originalUrl}</p>
-          </div>
-          <div class="redirect-info">
-            <p>⏳ Redirecting in 3 seconds...</p>
-          </div>
-          <script>
-            console.log('🔄 Starting redirect countdown...');
-            setTimeout(() => {
-              console.log('↪️ Redirecting to:', '${trackedLink.originalUrl}');
-              window.location.href = "${trackedLink.originalUrl}";
-            }, 3000);
-          </script>
-        </body>
-      </html>
-    `;
-    return new NextResponse(debugHtml, {
-      headers: { "Content-Type": "text/html" },
-    });
+  // Update sequence stats for click
+  if (existingEvent.sequenceId && existingEvent.contactId) {
+    await updateSequenceStats(
+      existingEvent.sequenceId,
+      "clicked",
+      existingEvent.contactId
+    );
   }
 
-  // In production, redirect immediately
-  console.log(`↪️ Redirecting to: ${trackedLink.originalUrl}`);
-  return NextResponse.redirect(trackedLink.originalUrl, {
-    headers: {
-      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-      Pragma: "no-cache",
-      Expires: "0",
-    },
-  });
+  console.log(`✅ Recorded link click for ${trackedLink.originalUrl}`);
+
+  return NextResponse.redirect(trackedLink.originalUrl);
 }
 
 // Main route handler
@@ -276,7 +229,7 @@ export async function POST(
 ) {
   try {
     const { emailId } = await req.json();
-    const eventType = params.eventType.toUpperCase() as EmailEventType;
+    const eventType = params.eventType.toUpperCase();
 
     if (!emailId) {
       return NextResponse.json(

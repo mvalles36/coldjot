@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { trackEmailEvent } from "@/lib/tracking/email-events";
 import { verifyPubSubJwt } from "@/lib/auth/pubsub";
 import { refreshAccessToken, oauth2Client } from "@/lib/google/google-account";
+import { updateSequenceStats } from "@/lib/stats/sequence-stats-service";
 import type { gmail_v1 } from "googleapis";
 
 type MessagePartHeader = gmail_v1.Schema$MessagePartHeader;
@@ -186,6 +187,13 @@ async function processMessageForReplies(
             stepId: trackingEvent.stepId,
             contactId: emailThread.contactId,
           }
+        );
+
+        // Update sequence stats for reply
+        await updateSequenceStats(
+          emailThread.sequenceId,
+          "replied",
+          emailThread.contactId
         );
 
         // Update sequence contact status if needed
@@ -406,12 +414,9 @@ async function processMessageForBounces(
         trackingEvent.hash,
         "BOUNCED",
         {
-          messageId: messageId,
-          threadId: threadId!,
           bounceReason: failedRecipient!,
-          ...(subject && { subject }),
-          ...(snippet && { snippet }),
-          timestamp: new Date().toISOString(),
+          messageId,
+          threadId: emailThread.gmailThreadId,
         },
         {
           email: emailThread.contact.email,
@@ -420,6 +425,13 @@ async function processMessageForBounces(
           stepId: trackingEvent.stepId,
           contactId: emailThread.contactId,
         }
+      );
+
+      // Update sequence stats for bounce
+      await updateSequenceStats(
+        emailThread.sequenceId,
+        "bounced",
+        emailThread.contactId
       );
 
       // Update sequence contact status
@@ -473,7 +485,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log("🚀 Email headers:", req.headers);
+    // console.log("🚀 Email headers:", req.headers);
 
     const token = authorization.replace("Bearer ", "");
     const isValid = await verifyPubSubJwt(token);

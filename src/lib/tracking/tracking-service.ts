@@ -2,6 +2,9 @@ import { EmailTrackingMetadata, EmailTracking } from "@/types/sequences";
 import { nanoid } from "nanoid";
 import { prisma } from "@/lib/prisma";
 import { getBaseUrl } from "@/utils/email-utils";
+import { updateSequenceStats } from "@/lib/stats/sequence-stats-service";
+import { EmailEventMetadata } from "@/lib/email/tracking-service";
+import { EmailEventType } from "@/lib/email/tracking-service";
 
 export async function createEmailTracking(
   metadata: EmailTrackingMetadata
@@ -67,6 +70,14 @@ export async function createEmailTracking(
 
 export async function recordEmailOpen(hash: string): Promise<void> {
   try {
+    const trackingEvent = await prisma.emailTrackingEvent.findUnique({
+      where: { hash },
+    });
+
+    if (!trackingEvent) {
+      throw new Error("No tracking event found");
+    }
+
     await prisma.emailTrackingEvent.update({
       where: { hash },
       data: {
@@ -77,18 +88,32 @@ export async function recordEmailOpen(hash: string): Promise<void> {
         timestamp: new Date(),
       },
     });
+
+    // Update sequence stats for open event
+    await updateSequenceStats(
+      trackingEvent.sequenceId,
+      "opened",
+      trackingEvent.contactId
+    );
   } catch (error) {
     console.error("Error recording email open:", error);
-    throw new Error(
-      `Failed to record email open: ${
-        error instanceof Error ? error.message : "Unknown error"
-      }`
-    );
+    throw error;
   }
 }
 
 export async function recordLinkClick(linkId: string): Promise<void> {
   try {
+    const trackedLink = await prisma.trackedLink.findUnique({
+      where: { id: linkId },
+      include: {
+        emailTracking: true,
+      },
+    });
+
+    if (!trackedLink || !trackedLink.emailTracking) {
+      throw new Error("No tracked link found");
+    }
+
     // Create click record and update click count in a transaction
     await prisma.$transaction(async (prisma) => {
       // Create click record
@@ -110,13 +135,16 @@ export async function recordLinkClick(linkId: string): Promise<void> {
         },
       });
     });
+
+    // Update sequence stats for click event
+    await updateSequenceStats(
+      trackedLink.emailTracking.sequenceId,
+      "clicked",
+      trackedLink.emailTracking.contactId
+    );
   } catch (error) {
     console.error("Error recording link click:", error);
-    throw new Error(
-      `Failed to record link click: ${
-        error instanceof Error ? error.message : "Unknown error"
-      }`
-    );
+    throw error;
   }
 }
 
@@ -270,3 +298,25 @@ export async function updateTrackingWithMessageId(
     data: { messageId },
   });
 }
+
+export const trackEmailEvent = async (
+  emailId: string,
+  sequenceId: string,
+  type: EmailEventType,
+  metadata?: EmailEventMetadata,
+  contactId?: string
+) => {
+  // Record the event
+  await prisma.emailEvent.create({
+    data: {
+      emailId,
+      type,
+      sequenceId,
+      contactId,
+      metadata: metadata ? JSON.parse(JSON.stringify(metadata)) : null,
+    },
+  });
+
+  // Update sequence stats
+  await updateSequenceStats(sequenceId, type, contactId);
+};

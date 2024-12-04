@@ -9,6 +9,7 @@ interface SendEmailOptions {
   content: string;
   sequenceId?: string;
   stepId?: string;
+  contactId?: string;
 }
 
 interface SendEmailResult {
@@ -36,6 +37,7 @@ export class MockEmailService {
         if (options.sequenceId) {
           await trackEmailEvent(messageId, options.sequenceId, "sent", {
             messageId,
+            contactId: options.contactId,
           });
         }
 
@@ -56,6 +58,7 @@ export class MockEmailService {
             "bounced",
             {
               bounceReason: "Mock sending failed",
+              contactId: options.contactId,
             }
           );
         }

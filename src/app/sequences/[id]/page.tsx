@@ -43,6 +43,9 @@ export default async function SequencePage({
   const { id: sequenceId } = await params;
   const stats = await prisma.sequenceStats.findUnique({
     where: { sequenceId: sequenceId },
+    include: {
+      Contact: true,
+    },
   });
 
   // return <SequencePageClient sequence={sequence} initialStats={stats} />;

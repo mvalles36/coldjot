@@ -6,6 +6,7 @@ import { getGoogleAccount } from "@/lib/google/google-account";
 import { getDevSettings } from "@/lib/dev-settings";
 import { handleEmailSend } from "@/lib/email/email-handler";
 import { generateTrackingMetadata } from "@/lib/tracking/tracking-metadata";
+import { updateSequenceStats } from "@/lib/stats/sequence-stats-service";
 
 export async function processSequences() {
   console.log("🔄 Starting sequence processing...");
@@ -132,35 +133,52 @@ export async function processSequences() {
             }`
           );
 
-          const newThreadId = await handleEmailSend(
-            emailOptions,
-            tracking,
-            googleAccount
-          );
+          try {
+            const newThreadId = await handleEmailSend(
+              emailOptions,
+              tracking,
+              googleAccount
+            );
 
-          await prisma.sequenceContact.update({
-            where: {
-              id: sequenceContact.id,
-            },
-            data: {
-              threadId: newThreadId || sequenceContact.threadId,
-              currentStep: sequenceContact.currentStep + 1,
-              status:
-                sequenceContact.currentStep + 1 >= sequence.steps.length
-                  ? "completed"
-                  : "in_progress",
-              lastProcessedAt: new Date(),
-              ...(sequenceContact.currentStep + 1 >= sequence.steps.length
-                ? { completedAt: new Date() }
-                : {}),
-            },
-          });
+            // Update sequence stats for successful send
+            await updateSequenceStats(
+              sequence.id,
+              "sent",
+              sequenceContact.contactId
+            );
 
-          console.log(
-            `💾 Updated sequence contact with ${
-              newThreadId ? "new" : "existing"
-            } thread ID: ${newThreadId || sequenceContact.threadId}`
-          );
+            await prisma.sequenceContact.update({
+              where: {
+                id: sequenceContact.id,
+              },
+              data: {
+                threadId: newThreadId || sequenceContact.threadId,
+                currentStep: sequenceContact.currentStep + 1,
+                status:
+                  sequenceContact.currentStep + 1 >= sequence.steps.length
+                    ? "completed"
+                    : "in_progress",
+                lastProcessedAt: new Date(),
+                ...(sequenceContact.currentStep + 1 >= sequence.steps.length
+                  ? { completedAt: new Date() }
+                  : {}),
+              },
+            });
+
+            console.log(
+              `💾 Updated sequence contact with ${
+                newThreadId ? "new" : "existing"
+              } thread ID: ${newThreadId || sequenceContact.threadId}`
+            );
+          } catch (error) {
+            console.error("Failed to send email:", error);
+            // Update sequence stats for bounced email
+            await updateSequenceStats(
+              sequence.id,
+              "bounced",
+              sequenceContact.contactId
+            );
+          }
         } else {
           console.log(
             `⏭️ Skipping email send (test mode without test emails configured)`
