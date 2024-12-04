@@ -167,8 +167,8 @@ export async function sendGmailSMTP({
   if (accessToken) {
     try {
       console.log("Updating sent email...");
-      console.log("Original content", originalContent);
-      console.log("Content", content);
+      // console.log("Original content", originalContent);
+      // console.log("Content", content);
       console.log("Thread ID", messageDetails.data.threadId);
       console.log("Message ID", messageId);
       await updateSentEmail({
@@ -223,7 +223,7 @@ async function debeaconizeContent(content: string): Promise<string> {
     }
   );
 
-  console.log("Debeaconized content in the function:", debeaconized);
+  // console.log("Debeaconized content in the function:", debeaconized);
 
   return debeaconized;
 }
@@ -268,12 +268,12 @@ export async function updateSentEmail({
     // Decode the raw message
     let emailContent = Buffer.from(originalRaw.data.raw, "base64").toString();
 
-    console.log("Email content:", emailContent);
+    // console.log("Email content:", emailContent);
 
     // Update the email content with the debeaconized version
     emailContent = await debeaconizeContent(emailContent);
 
-    console.log("Debeaconized email content:", emailContent);
+    // console.log("Debeaconized email content:", emailContent);
 
     // Generate debeaconized ID
     const debeaconizedId = crypto.randomBytes(8).toString("hex");

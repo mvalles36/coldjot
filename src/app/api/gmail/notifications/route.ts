@@ -22,6 +22,7 @@ async function processMessageForOpens(
   userId: string
 ) {
   try {
+    console.log("📧 Processing message for opens:", messageId);
     const messageDetails = await gmail.users.messages.get({
       userId: "me",
       id: messageId,
@@ -141,80 +142,97 @@ async function processMessageForReplies(
         },
       });
 
-      if (trackingEvent) {
-        // Get email content and metadata
-        const snippet = messageDetails.data.snippet || undefined;
-        const subject = headers.find((h) => h.name === "Subject")?.value;
-
-        console.log("📧 Processing reply in thread:", {
-          threadId,
-          from: fromHeader,
-          subject,
-        });
-        //TODO :  Rename emailId to trackingHash
-        // Check if we've already tracked this reply
-        const existingReply = await prisma.emailEvent.findFirst({
+      if (trackingEvent && emailThread) {
+        // Check if we already have a reply event for this thread
+        const existingReplyEvent = await prisma.emailEvent.findFirst({
           where: {
-            emailId: trackingEvent.hash,
+            sequenceId: emailThread.sequenceId,
+            contactId: emailThread.contactId,
             type: "REPLIED",
-            metadata: {
-              path: ["replyMessageId"],
-              equals: messageId,
-            },
           },
         });
 
-        if (existingReply) {
-          console.log("Skip - Reply already tracked for this message");
-          return;
-        }
+        // Only process if this is the first reply
+        if (!existingReplyEvent) {
+          // Get email content and metadata
+          const snippet = messageDetails.data.snippet || undefined;
+          const subject = headers.find((h) => h.name === "Subject")?.value;
 
-        // Track the reply event
-        await trackEmailEvent(
-          trackingEvent.hash,
-          "REPLIED",
-          {
-            replyMessageId: messageId,
+          console.log("📧 Processing reply in thread:", {
             threadId,
             from: fromHeader,
-            ...(snippet && { snippet }),
-            timestamp: new Date().toISOString(),
-          },
-          {
-            email: emailThread.contact.email,
-            userId: emailThread.userId,
-            sequenceId: emailThread.sequenceId,
-            stepId: trackingEvent.stepId,
-            contactId: emailThread.contactId,
-          }
-        );
-
-        // Update sequence stats for reply
-        await updateSequenceStats(
-          emailThread.sequenceId,
-          "replied",
-          emailThread.contactId
-        );
-
-        // Update sequence contact status if needed
-        await prisma.sequenceContact.updateMany({
-          where: {
-            sequenceId: emailThread.sequenceId,
-            contactId: emailThread.contactId,
-            status: {
-              notIn: ["completed", "replied", "opted_out"],
+            subject,
+          });
+          //TODO :  Rename emailId to trackingHash
+          // Check if we've already tracked this reply
+          const existingReply = await prisma.emailEvent.findFirst({
+            where: {
+              emailId: trackingEvent.hash,
+              type: "REPLIED",
+              metadata: {
+                path: ["replyMessageId"],
+                equals: messageId,
+              },
             },
-          },
-          data: {
-            status: "replied",
-            updatedAt: new Date(),
-          },
-        });
+          });
 
-        console.log(
-          "✅ Tracked reply event for sequence:",
-          emailThread.sequenceId
-        );
+          if (existingReply) {
+            console.log("Skip - Reply already tracked for this message");
+            return;
+          }
+
+          // Track the reply event
+          await trackEmailEvent(
+            trackingEvent.hash,
+            "REPLIED",
+            {
+              replyMessageId: messageId,
+              threadId,
+              from: fromHeader,
+              ...(snippet && { snippet }),
+              timestamp: new Date().toISOString(),
+            },
+            {
+              email: emailThread.contact.email,
+              userId: emailThread.userId,
+              sequenceId: emailThread.sequenceId,
+              stepId: trackingEvent.stepId,
+              contactId: emailThread.contactId,
+            }
+          );
+
+          // Update sequence stats for reply
+          await updateSequenceStats(
+            emailThread.sequenceId,
+            "replied",
+            emailThread.contactId
+          );
+
+          // Update sequence contact status if needed
+          await prisma.sequenceContact.updateMany({
+            where: {
+              sequenceId: emailThread.sequenceId,
+              contactId: emailThread.contactId,
+              status: {
+                notIn: ["completed", "replied", "opted_out"],
+              },
+            },
+            data: {
+              status: "replied",
+              updatedAt: new Date(),
+            },
+          });
+
+          console.log(
+            "✅ Tracked reply event for sequence:",
+            emailThread.sequenceId
+          );
+        } else {
+          console.log(
+            "⏭️ Skipping duplicate reply event for sequence:",
+            emailThread.sequenceId
+          );
+        }
       }
     } else {
       // Fallback to checking References and In-Reply-To headers
@@ -407,64 +425,69 @@ async function processMessageForBounces(
     const subject = headers.find((h) => h.name === "Subject")?.value;
     const snippet = messageDetails.data.snippet;
 
-    // Use a transaction to ensure all updates happen together
-    await prisma.$transaction(async (prisma) => {
-      // Track the bounce event
-      await trackEmailEvent(
-        trackingEvent.hash,
-        "BOUNCED",
-        {
-          bounceReason: failedRecipient!,
-          messageId,
-          threadId: emailThread.gmailThreadId,
-        },
-        {
-          email: emailThread.contact.email,
-          userId: emailThread.userId,
-          sequenceId: emailThread.sequenceId,
-          stepId: trackingEvent.stepId,
-          contactId: emailThread.contactId,
-        }
-      );
-
-      // Update sequence stats for bounce
-      await updateSequenceStats(
-        emailThread.sequenceId,
-        "bounced",
-        emailThread.contactId
-      );
-
-      // Update sequence contact status
-      await prisma.sequenceContact.updateMany({
+    if (trackingEvent && emailThread) {
+      // Check if we already have a bounce event for this thread
+      const existingBounceEvent = await prisma.emailEvent.findFirst({
         where: {
           sequenceId: emailThread.sequenceId,
           contactId: emailThread.contactId,
-          status: {
-            notIn: ["completed", "bounced", "opted_out"],
-          },
-        },
-        data: {
-          status: "bounced",
-          updatedAt: new Date(),
+          type: "BOUNCED",
         },
       });
 
-      // Update contact's email status
-      // await prisma.contact.update({
-      //   where: {
-      //     id: emailThread.contactId,
-      //   },
-      //   data: {
-      //     emailStatus: "bounced",
-      //     updatedAt: new Date(),
-      //   },
-      // });
-    });
+      // Only process if this is the first bounce
+      if (!existingBounceEvent) {
+        // Track the bounce event
+        await trackEmailEvent(
+          trackingEvent.hash,
+          "BOUNCED",
+          {
+            bounceReason: failedRecipient!,
+            messageId,
+            threadId: emailThread.gmailThreadId,
+          },
+          {
+            email: emailThread.contact.email,
+            userId: emailThread.userId,
+            sequenceId: emailThread.sequenceId,
+            stepId: trackingEvent.stepId,
+            contactId: emailThread.contactId,
+          }
+        );
 
-    console.log(
-      "✅ Tracked bounce event for sequence:",
-      emailThread.sequenceId
-    );
+        // Update sequence stats for bounce
+        await updateSequenceStats(
+          emailThread.sequenceId,
+          "bounced",
+          emailThread.contactId
+        );
+
+        // Update sequence contact status
+        await prisma.sequenceContact.updateMany({
+          where: {
+            sequenceId: emailThread.sequenceId,
+            contactId: emailThread.contactId,
+            status: {
+              notIn: ["completed", "bounced", "opted_out"],
+            },
+          },
+          data: {
+            status: "bounced",
+            updatedAt: new Date(),
+          },
+        });
+
+        console.log(
+          "✅ Tracked first bounce event for sequence:",
+          emailThread.sequenceId
+        );
+      } else {
+        console.log(
+          "⏭️ Skipping duplicate bounce event for sequence:",
+          emailThread.sequenceId
+        );
+      }
+    }
   } catch (error) {
     console.error("Error processing message for bounces:", error);
   }

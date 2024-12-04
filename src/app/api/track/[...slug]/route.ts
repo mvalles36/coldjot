@@ -10,6 +10,7 @@ import {
   recordEmailOpen,
   recordLinkClick,
 } from "@/lib/tracking/tracking-service";
+import { getGmailEmail, getGmailThread } from "@/lib/google/gmail";
 
 const TRANSPARENT_PIXEL = Buffer.from(
   "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
@@ -28,23 +29,56 @@ async function handleEmailOpen(hash: string) {
       openCount: true,
       sequenceId: true,
       contactId: true,
+      messageId: true,
+      userId: true,
+      gmailThreadId: true,
     },
   });
+
+  // get access token
+  const account = await prisma.account.findFirst({
+    where: { userId: existingEvent?.userId },
+  });
+
+  // const email = await getGmailEmail(
+  //   account?.access_token!,
+  //   existingEvent?.messageId!
+  // );
+  // console.log("Email", email);
+
+  const email = await getGmailThread(
+    account?.access_token!,
+    existingEvent?.gmailThreadId!
+  );
+  console.log("Email", email);
 
   if (!existingEvent) {
     console.error(`❌ No tracking event found for hash: ${hash}`);
     throw new Error("Invalid tracking hash");
   }
 
+  // Check for existing open event
+  const existingOpenEvent = await prisma.emailEvent.findFirst({
+    where: {
+      emailId: existingEvent.id,
+      type: "OPENED",
+      sequenceId: existingEvent.sequenceId,
+    },
+  });
+
   console.log(`✉️ Found email tracking event:`, {
     email: existingEvent.email,
     currentOpens: existingEvent.openCount,
   });
 
+  // Only record the first open for stats
+  const isFirstOpen = !existingOpenEvent;
+
+  // Always increment the open count for tracking purposes
   await recordEmailOpen(hash);
 
-  // Update sequence stats for open
-  if (existingEvent.sequenceId && existingEvent.contactId) {
+  // Only update sequence stats for the first open
+  if (isFirstOpen && existingEvent.sequenceId && existingEvent.contactId) {
     await updateSequenceStats(
       existingEvent.sequenceId,
       "opened",
@@ -111,7 +145,7 @@ async function handleLinkClick(hash: string, linkId: string | null) {
 
   await recordLinkClick(linkId);
 
-  // Update sequence stats for click
+  // Always update stats for clicks as we want to track all clicks
   if (existingEvent.sequenceId && existingEvent.contactId) {
     await updateSequenceStats(
       existingEvent.sequenceId,
