@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "react-hot-toast";
 import { Loader2, UserPlus, X } from "lucide-react";
 import { ListSelector } from "@/components/lists/list-selector";
+import type { SequenceContact } from "@/types/sequences";
 
 interface ContactWithCompany {
   id: string;
@@ -37,14 +38,6 @@ interface ContactWithCompany {
     website: string | null;
     domain: string | null;
   } | null;
-}
-
-interface SequenceContact {
-  id: string;
-  sequenceId: string;
-  contactId: string;
-  status: string;
-  contact: ContactWithCompany;
 }
 
 interface SequenceContactsProps {

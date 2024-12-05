@@ -3,7 +3,6 @@ import { nanoid } from "nanoid";
 import { prisma } from "@/lib/prisma";
 import { getBaseUrl } from "@/utils/email-utils";
 import { updateSequenceStats } from "@/lib/stats/sequence-stats-service";
-import { EmailEventMetadata } from "@/lib/email/tracking-service";
 import type { Prisma } from "@prisma/client";
 import { EmailEventType } from "@/types";
 
@@ -342,7 +341,6 @@ export async function getSequenceEvents(
     },
   });
 }
-
 export interface EventMetadata {
   userAgent?: string;
   ipAddress?: string;
@@ -359,21 +357,32 @@ export interface EventMetadata {
 
 /**
  * Track an email event and update sequence stats
+ * @param emailId - The ID of the email being tracked
+ * @param type - The type of event (sent, opened, clicked, etc.)
+ * @param metadata - Additional metadata about the event
+ * @param trackingData - Optional additional tracking data
  */
 export async function trackEmailEvent(
   emailId: string,
+  // sequenceId: string,
   type: EmailEventType,
   metadata?: EventMetadata,
   trackingData?: EmailTrackingMetadata
 ) {
   try {
+    const sequenceId = trackingData?.sequenceId;
+
+    if (!sequenceId) {
+      throw new Error("Sequence ID is required for tracking");
+    }
+
     // Check for existing event of this type for this email (except for clicks)
     if (type !== "clicked") {
       const existingEvent = await prisma.emailEvent.findFirst({
         where: {
           emailId,
           type,
-          sequenceId: trackingData?.sequenceId,
+          sequenceId,
         },
       });
 
@@ -388,20 +397,81 @@ export async function trackEmailEvent(
       data: {
         emailId,
         type,
-        metadata: metadata as Prisma.JsonObject,
-        sequenceId: trackingData?.sequenceId || "",
+        sequenceId,
+        metadata: metadata ? JSON.parse(JSON.stringify(metadata)) : null,
         contactId: trackingData?.contactId,
       },
     });
 
-    // Update sequence stats if we have sequence info
-    if (trackingData?.sequenceId) {
-      await updateSequenceStats(
-        trackingData.sequenceId,
-        type,
-        trackingData.contactId
-      );
+    // Update sequence stats
+    const stats = await prisma.sequenceStats.findUnique({
+      where: { sequenceId: trackingData?.sequenceId },
+    });
+
+    if (!stats) {
+      // Create initial stats if they don't exist
+      await prisma.sequenceStats.create({
+        data: {
+          sequenceId: sequenceId,
+          totalEmails: type === "sent" ? 1 : 0,
+          sentEmails: type === "sent" ? 1 : 0,
+          openedEmails: type === "opened" ? 1 : 0,
+          clickedEmails: type === "clicked" ? 1 : 0,
+          repliedEmails: type === "replied" ? 1 : 0,
+          bouncedEmails: type === "bounced" ? 1 : 0,
+          contactId: trackingData?.contactId,
+        },
+      });
+      return event;
     }
+
+    // Calculate updates based on event type
+    const updates: Partial<Prisma.SequenceStatsUpdateInput> = {
+      totalEmails: type === "sent" ? stats.totalEmails + 1 : stats.totalEmails,
+    };
+
+    switch (type) {
+      case "sent":
+        updates.sentEmails = stats.sentEmails + 1;
+        // Recalculate all rates
+        updates.openRate = (stats.openedEmails / (stats.sentEmails + 1)) * 100;
+        updates.clickRate =
+          (stats.clickedEmails / (stats.sentEmails + 1)) * 100;
+        updates.replyRate =
+          (stats.repliedEmails / (stats.sentEmails + 1)) * 100;
+        updates.bounceRate =
+          (stats.bouncedEmails / (stats.sentEmails + 1)) * 100;
+        break;
+
+      case "opened":
+        updates.openedEmails = stats.openedEmails + 1;
+        updates.openRate = ((stats.openedEmails + 1) / stats.sentEmails) * 100;
+        break;
+
+      case "clicked":
+        updates.clickedEmails = stats.clickedEmails + 1;
+        updates.clickRate =
+          ((stats.clickedEmails + 1) / stats.sentEmails) * 100;
+        break;
+
+      case "replied":
+        updates.repliedEmails = stats.repliedEmails + 1;
+        updates.replyRate =
+          ((stats.repliedEmails + 1) / stats.sentEmails) * 100;
+        break;
+
+      case "bounced":
+        updates.bouncedEmails = stats.bouncedEmails + 1;
+        updates.bounceRate =
+          ((stats.bouncedEmails + 1) / stats.sentEmails) * 100;
+        break;
+    }
+
+    // Update stats
+    await prisma.sequenceStats.update({
+      where: { sequenceId },
+      data: updates,
+    });
 
     console.log(`📊 Tracked email event:`, {
       emailId,

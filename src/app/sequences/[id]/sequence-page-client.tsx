@@ -33,7 +33,7 @@ import type {
   Sequence,
   SequenceStats as SequenceStatsType,
   SequenceStep,
-} from "@/types/sequence";
+} from "@/types/sequences";
 
 interface SequencePageClientProps {
   sequence: Sequence;

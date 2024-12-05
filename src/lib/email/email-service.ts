@@ -1,79 +1,262 @@
-import { trackEmailEvent } from "./tracking-service";
-import { EmailEventType } from "@/types";
+import { google } from "googleapis";
+import { sendGmailSMTP } from "@/lib/smtp/gmail";
+import type {
+  CreateDraftOptions,
+  EmailResponse,
+  SendDraftOptions,
+  SendEmailOptions,
+} from "@/types";
 
-export type EmailStatus = "queued" | "sent" | "failed" | "bounced";
+import type { EmailTracking } from "@/types/sequences";
+import type { GoogleAccount } from "@/lib/google/google-account";
 
-interface SendEmailOptions {
-  to: string;
-  subject: string;
-  content: string;
-  sequenceId?: string;
-  stepId?: string;
-  contactId?: string;
-}
+import { encode as base64Encode } from "js-base64";
+import {
+  getSenderInfo,
+  getThreadInfo,
+  createEmailMessage,
+  createUntrackedMessage,
+} from "./helper";
 
-interface SendEmailResult {
-  status: EmailStatus;
-  messageId?: string;
-  error?: string;
-}
+// Add flag to test SMTP approach
+const USE_SMTP_DUAL_DELIVERY = process.env.USE_SMTP_DUAL_DELIVERY === "true";
 
-// Mock email service for testing
-export class MockEmailService {
-  async sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
-    try {
-      // Simulate network delay
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
 
-      // Simulate random success/failure (90% success rate)
-      const success = Math.random() < 0.9;
+import {
+  updateTrackingEvent,
+  updateSequenceContact,
+  createOrGetEmailThread,
+  trackEmailSent,
+  trackEmailBounce,
+  handleTokenRefresh,
+} from "./helper";
 
-      if (success) {
-        const messageId = `mock_${Date.now()}_${Math.random()
-          .toString(36)
-          .substring(7)}`;
+/**
+ * Main function to handle email sending with tracking and error handling
+ */
+export async function handleEmailSend(
+  emailOptions: SendEmailOptions,
+  tracking: EmailTracking,
+  account: GoogleAccount
+): Promise<string | undefined> {
+  try {
+    // Send the email
+    const result = await sendEmail({
+      ...emailOptions,
+      content: emailOptions.content,
+      originalContent: emailOptions.content,
+      accessToken: account.access_token,
+    });
 
-        // Track the sent event
-        if (options.sequenceId) {
-          await trackEmailEvent(messageId, options.sequenceId, "sent", {
-            messageId,
-            contactId: options.contactId,
-          });
-        }
+    // Update tracking and thread information
+    await updateTrackingEvent(tracking, result);
 
-        return {
-          status: "sent",
-          messageId,
-        };
-      } else {
-        const failedMessageId = `failed_${Date.now()}_${Math.random()
-          .toString(36)
-          .substring(7)}`;
+    if (result.threadId) {
+      await updateSequenceContact(tracking, result.threadId);
+      await createOrGetEmailThread(tracking, result, emailOptions.subject);
+    }
 
-        // Track bounce event
-        if (options.sequenceId) {
-          await trackEmailEvent(
-            failedMessageId,
-            options.sequenceId,
-            "bounced",
-            {
-              bounceReason: "Mock sending failed",
-              contactId: options.contactId,
-            }
-          );
-        }
+    // Track the sent event
+    await trackEmailSent(tracking, result, emailOptions.to);
 
-        return {
-          status: "failed",
-          error: "Mock sending failed",
-        };
-      }
-    } catch (error) {
-      console.error("Error sending email:", error);
+    console.log(`Email sent with tracking:`, {
+      email: emailOptions.to,
+      messageId: result.messageId,
+      threadId: result.threadId,
+      type: tracking.type,
+    });
+
+    return result.threadId;
+  } catch (error: any) {
+    if (error.message === "TOKEN_EXPIRED") {
+      const retryResult = await handleTokenRefresh(account, emailOptions);
+      return retryResult.threadId;
+    } else {
+      await trackEmailBounce(tracking, error, emailOptions.to);
+      console.error(`❌ Error sending email:`, error);
       throw error;
     }
   }
 }
 
-// Singleton instance
-export const emailService = new MockEmailService();
+// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
+
+export async function sendEmail({
+  to,
+  subject,
+  content,
+  threadId,
+  accessToken,
+  originalContent,
+}: SendEmailOptions): Promise<EmailResponse> {
+  try {
+    if (accessToken && !USE_SMTP_DUAL_DELIVERY) {
+      const auth = new google.auth.OAuth2();
+      auth.setCredentials({
+        access_token: accessToken,
+        token_type: "Bearer",
+      });
+
+      const gmail = google.gmail({ version: "v1", auth });
+      const senderInfo = await getSenderInfo(accessToken);
+      const { threadHeaders, originalSubject } = await getThreadInfo(
+        gmail,
+        threadId
+      );
+
+      // Send tracked version to recipient
+      const encodedMessage = createEmailMessage({
+        fromHeader: senderInfo.header,
+        to,
+        subject,
+        content,
+        threadId,
+        originalSubject,
+        threadHeaders,
+      });
+
+      const response = await gmail.users.messages.send({
+        userId: "me",
+        requestBody: {
+          raw: encodedMessage,
+          threadId: threadId || undefined,
+        },
+      });
+
+      // Insert untracked version in sender's mailbox
+      if (originalContent && response.data.id) {
+        const encodedUntrackedMessage = await createUntrackedMessage({
+          gmail,
+          messageId: response.data.id,
+          to,
+          subject,
+          originalContent,
+          threadId,
+          originalSubject,
+          threadHeaders,
+        });
+
+        await gmail.users.messages.insert({
+          userId: "me",
+          requestBody: {
+            raw: encodedUntrackedMessage,
+            threadId: response.data.threadId || undefined,
+            labelIds: ["SENT"],
+          },
+        });
+      }
+
+      return {
+        messageId: response.data.id || "",
+        threadId: response.data.threadId || undefined,
+      };
+    } else {
+      const email = await sendGmailSMTP({
+        to,
+        subject,
+        content,
+        threadId,
+        originalContent,
+        accessToken,
+      });
+
+      return {
+        ...email,
+      };
+    }
+  } catch (error: any) {
+    if (
+      error.status === 401 ||
+      (error.responseCode === 535 && error.command === "AUTH XOAUTH2")
+    ) {
+      throw new Error("TOKEN_EXPIRED");
+    }
+    console.error("Error sending email:", error);
+    throw error;
+  }
+}
+
+// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
+
+export async function createDraft({
+  accessToken,
+  to,
+  subject,
+  content,
+}: CreateDraftOptions) {
+  try {
+    const auth = new google.auth.OAuth2();
+    auth.setCredentials({
+      access_token: accessToken,
+      token_type: "Bearer",
+    });
+
+    const gmail = google.gmail({ version: "v1", auth });
+
+    const message = [
+      "Content-Type: text/html; charset=utf-8",
+      "MIME-Version: 1.0",
+      `To: ${to}`,
+      `Subject: ${subject}`,
+      "",
+      content,
+    ].join("\n");
+
+    const encodedMessage = base64Encode(message)
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+
+    const response = await gmail.users.drafts.create({
+      userId: "me",
+      requestBody: {
+        message: {
+          raw: encodedMessage,
+        },
+      },
+    });
+
+    return response.data.id;
+  } catch (error: any) {
+    if (error.status === 401) {
+      throw new Error("TOKEN_EXPIRED");
+    }
+    console.error("Error creating draft:", error);
+    throw error;
+  }
+}
+
+// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
+
+export async function sendDraft({ accessToken, draftId }: SendDraftOptions) {
+  try {
+    const auth = new google.auth.OAuth2();
+    auth.setCredentials({
+      access_token: accessToken,
+      token_type: "Bearer",
+    });
+
+    const gmail = google.gmail({ version: "v1", auth });
+
+    const response = await gmail.users.drafts.send({
+      userId: "me",
+      requestBody: {
+        id: draftId,
+      },
+    });
+
+    return response.data;
+  } catch (error) {
+    console.error("Error sending draft:", error);
+    throw error;
+  }
+}

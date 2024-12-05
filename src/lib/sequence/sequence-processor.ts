@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type { SendEmailOptions } from "@/lib/email/email";
+import type { SendEmailOptions } from "@/types";
 import { TEST_CONTACTS, getRandomTestRecipient } from "@/config/test";
 import {
   createEmailTracking,
@@ -7,8 +7,8 @@ import {
 } from "@/lib/tracking/tracking-service";
 import { getGoogleAccount } from "@/lib/google/google-account";
 import { getDevSettings } from "@/lib/dev-settings";
-import { handleEmailSend } from "@/lib/email/email-handler";
-import { generateTrackingMetadata } from "@/lib/tracking/tracking-metadata";
+import { handleEmailSend } from "@/lib/email/email-service";
+import { generateTrackingMetadata } from "@/lib/tracking/helper";
 import { updateSequenceStats } from "@/lib/stats/sequence-stats-service";
 import type { Sequence, SequenceContact, SequenceStep } from "@prisma/client";
 

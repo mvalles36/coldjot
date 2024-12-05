@@ -33,6 +33,7 @@ export interface Sequence {
   _count: {
     contacts: number;
   };
+  testMode: boolean;
 }
 
 export interface SequenceStep {
@@ -151,7 +152,7 @@ export interface SequenceEmailTracking {
   metadata: EmailTrackingMetadata;
 }
 
-interface EmailEventMetadata {
+export interface EmailEventMetadata {
   messageId?: string;
   threadId?: string;
   from?: string;
@@ -163,4 +164,14 @@ interface EmailEventMetadata {
   ipAddress?: string;
   location?: string;
   deviceType?: string;
+}
+
+export interface EmailEventMetadata {
+  [key: string]: string | number | boolean | null | undefined;
+  userAgent?: string;
+  ipAddress?: string;
+  location?: string;
+  deviceType?: string;
+  replyMessageId?: string;
+  bounceReason?: string;
 }
