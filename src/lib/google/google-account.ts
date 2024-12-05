@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { sleep } from "@/utils/email-utils";
+import { sleep } from "@/utils";
 import { google } from "googleapis";
 
 export interface GoogleAccount {

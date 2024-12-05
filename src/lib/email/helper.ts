@@ -1,6 +1,6 @@
 import { encode as base64Encode } from "js-base64";
 import { prisma } from "@/lib/prisma";
-import { generateMessageId, normalizeSubject } from "@/utils/email-utils";
+import { generateMessageId, normalizeSubject } from "@/utils";
 import type { EmailResult, ThreadHeaders } from "@/types";
 import { sendEmail } from "@/lib/email/email-service";
 import { refreshAccessToken } from "@/lib/google/google-account";

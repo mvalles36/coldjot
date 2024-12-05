@@ -1,6 +1,6 @@
 import { createTransport } from "nodemailer";
 import type { TransportOptions } from "nodemailer";
-import { generateMessageId } from "@/utils/email-utils";
+import { generateMessageId } from "@/utils";
 import { prisma } from "@/lib/prisma";
 import { createGmailTransport } from "./nodemailer";
 import { encode as quotedPrintableEncode } from "quoted-printable";
