@@ -92,7 +92,6 @@ export async function refreshAccessToken(
       console.log(
         `🔄 Updating account ${account.id} : ${userId} with new access token`
       );
-      console.log(credentials);
 
       try {
         const updatedAccount = await prisma.account.update({

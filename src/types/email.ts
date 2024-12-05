@@ -1,3 +1,8 @@
+import type { gmail_v1 } from "googleapis";
+export type MessagePartHeader = gmail_v1.Schema$MessagePartHeader;
+export type Gmail = gmail_v1.Gmail;
+export type Message = gmail_v1.Schema$Message;
+
 export interface SendEmailOptions {
   to: string;
   subject: string;

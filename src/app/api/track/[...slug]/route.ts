@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { EmailEventType, trackEmailEvent } from "@/lib/tracking/email-events";
+import { trackEmailEvent } from "@/lib/tracking/tracking-service";
+import type { EmailEventType } from "@/types";
 import { getUserAgent } from "@/lib/user-agent";
 import { getIpLocation } from "@/lib/ip-location";
 import { updateSequenceStats } from "@/lib/stats/sequence-stats-service";
@@ -46,11 +47,11 @@ async function handleEmailOpen(hash: string) {
   // );
   // console.log("Email", email);
 
-  const email = await getGmailThread(
-    account?.access_token!,
-    existingEvent?.gmailThreadId!
-  );
-  console.log("Email", email);
+  // const email = await getGmailThread(
+  //   account?.access_token!,
+  //   existingEvent?.gmailThreadId!
+  // );
+  // console.log("Email", email);
 
   if (!existingEvent) {
     console.error(`❌ No tracking event found for hash: ${hash}`);

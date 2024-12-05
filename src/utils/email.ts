@@ -1,3 +1,6 @@
+import type { MessagePartHeader } from "@/types/email";
+import { NextRequest } from "next/server";
+
 // Message ID generation
 export const generateMessageId = () => {
   const domain = process.env.EMAIL_DOMAIN || "gmail.com";
@@ -27,4 +30,82 @@ export const normalizeSubject = (
   const cleanSubject = baseSubject.replace(/^(Re:\s*)+/i, "").trim();
   const finalSubject = isReply ? `Re: ${cleanSubject}` : cleanSubject;
   return encodeMIMEWords(finalSubject);
+};
+// ----------------------------------------------------------------------------
+
+// Helper Functions
+export const extractEmailFromHeader = (fromHeader: string): string => {
+  return fromHeader.match(/<(.+?)>|(.+)/)?.[1] || fromHeader;
+};
+
+// ----------------------------------------------------------------------------
+
+export const isSenderSequenceOwner = (
+  senderEmail: string,
+  userId: string
+): boolean => {
+  return senderEmail.toLowerCase() === userId.toLowerCase();
+};
+
+// ----------------------------------------------------------------------------
+
+// Helper functions for bounce processing
+export const isBounceMessage = (
+  headers: MessagePartHeader[],
+  labelIds: string[]
+) => {
+  return (
+    (labelIds.includes("UNDELIVERABLE") &&
+      headers.some(
+        (h) => h.name === "From" && h.value?.includes("mailer-daemon")
+      )) ||
+    headers.some((h) => h.name === "X-Failed-Recipients") ||
+    headers.some(
+      (h) =>
+        h.name === "Content-Type" &&
+        h.value?.includes("report-type=delivery-status")
+    )
+  );
+};
+
+// ----------------------------------------------------------------------------
+
+// Helper functions for reply processing
+export const shouldProcessMessage = (labelIds: string[]): boolean => {
+  return !(
+    labelIds.includes("SENT") ||
+    labelIds.includes("DRAFT") ||
+    !labelIds.includes("INBOX")
+  );
+};
+
+// ----------------------------------------------------------------------------
+
+export const extractPossibleMessageIds = (
+  headers: MessagePartHeader[]
+): string[] => {
+  const inReplyTo = headers
+    .find((h) => h.name === "In-Reply-To")
+    ?.value?.replace(/[<>]/g, "");
+  const references = headers
+    .find((h) => h.name === "References")
+    ?.value?.split(/\s+/)
+    .map((ref) => ref.replace(/[<>]/g, ""));
+
+  return [inReplyTo, ...(references || [])].filter(
+    (id): id is string => typeof id === "string" && id.length > 0
+  );
+};
+
+// ----------------------------------------------------------------------------
+
+// Helper functions for POST handler
+export const validateAuthorization = async (
+  req: NextRequest
+): Promise<string | null> => {
+  const authorization = req.headers.get("Authorization");
+  if (!authorization?.startsWith("Bearer ")) {
+    return null;
+  }
+  return authorization.replace("Bearer ", "");
 };

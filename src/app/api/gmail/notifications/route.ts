@@ -7,11 +7,17 @@ import { refreshAccessToken, oauth2Client } from "@/lib/google/google-account";
 import { updateSequenceStats } from "@/lib/stats/sequence-stats-service";
 import type { gmail_v1 } from "googleapis";
 import { GaxiosResponse } from "gaxios";
+import {
+  extractEmailFromHeader,
+  isBounceMessage,
+  isSenderSequenceOwner,
+  shouldProcessMessage,
+  extractPossibleMessageIds,
+  validateAuthorization,
+} from "@/utils";
 
 // Types and Interfaces
-type MessagePartHeader = gmail_v1.Schema$MessagePartHeader;
-type Gmail = gmail_v1.Gmail;
-type Message = gmail_v1.Schema$Message;
+import type { MessagePartHeader, Gmail, Message } from "@/types/email";
 
 interface NotificationData {
   emailAddress: string;
@@ -39,20 +45,6 @@ interface TrackingEvent {
   stepId: string;
   contactId: string;
 }
-
-// Helper Functions
-const extractEmailFromHeader = (fromHeader: string): string => {
-  return fromHeader.match(/<(.+?)>|(.+)/)?.[1] || fromHeader;
-};
-
-// ----------------------------------------------------------------------------
-
-const isSenderSequenceOwner = (
-  senderEmail: string,
-  userId: string
-): boolean => {
-  return senderEmail.toLowerCase() === userId.toLowerCase();
-};
 
 // ----------------------------------------------------------------------------
 
@@ -263,22 +255,6 @@ async function processMessageForBounces(
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
 
-// Helper functions for bounce processing
-const isBounceMessage = (headers: MessagePartHeader[], labelIds: string[]) => {
-  return (
-    (labelIds.includes("UNDELIVERABLE") &&
-      headers.some(
-        (h) => h.name === "From" && h.value?.includes("mailer-daemon")
-      )) ||
-    headers.some((h) => h.name === "X-Failed-Recipients") ||
-    headers.some(
-      (h) =>
-        h.name === "Content-Type" &&
-        h.value?.includes("report-type=delivery-status")
-    )
-  );
-};
-
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
@@ -377,15 +353,6 @@ const processBounceEvent = async (
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
 
-// Helper functions for reply processing
-const shouldProcessMessage = (labelIds: string[]): boolean => {
-  return !(
-    labelIds.includes("SENT") ||
-    labelIds.includes("DRAFT") ||
-    !labelIds.includes("INBOX")
-  );
-};
-
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
@@ -466,24 +433,6 @@ const processReferenceBasedReply = async (
     threadId,
     fromHeader,
     messageDetails
-  );
-};
-
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-
-const extractPossibleMessageIds = (headers: MessagePartHeader[]): string[] => {
-  const inReplyTo = headers
-    .find((h) => h.name === "In-Reply-To")
-    ?.value?.replace(/[<>]/g, "");
-  const references = headers
-    .find((h) => h.name === "References")
-    ?.value?.split(/\s+/)
-    .map((ref) => ref.replace(/[<>]/g, ""));
-
-  return [inReplyTo, ...(references || [])].filter(
-    (id): id is string => typeof id === "string" && id.length > 0
   );
 };
 
@@ -604,17 +553,6 @@ const trackReplyEvent = async (
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
-
-// Helper functions for POST handler
-const validateAuthorization = async (
-  req: NextRequest
-): Promise<string | null> => {
-  const authorization = req.headers.get("Authorization");
-  if (!authorization?.startsWith("Bearer ")) {
-    return null;
-  }
-  return authorization.replace("Bearer ", "");
-};
 
 const parseNotificationData = async (
   req: NextRequest
@@ -772,7 +710,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Initialize Gmail client
     const refreshToken = account.refresh_token;
     if (!refreshToken) {
       return NextResponse.json(
@@ -780,7 +717,7 @@ export async function POST(req: NextRequest) {
         { status: 401 }
       );
     }
-
+    // Initialize Gmail client
     const gmail = await initializeGmailClient(accessToken, refreshToken);
 
     // Process history

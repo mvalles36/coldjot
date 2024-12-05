@@ -34,6 +34,8 @@ import {
   handleTokenRefresh,
 } from "./helper";
 
+import { addTrackingToEmail } from "@/lib/tracking/tracking-service";
+
 /**
  * Main function to handle email sending with tracking and error handling
  */
@@ -43,10 +45,16 @@ export async function handleEmailSend(
   account: GoogleAccount
 ): Promise<string | undefined> {
   try {
+    // Add tracking pixel and wrap links
+    const trackedContent = await addTrackingToEmail(
+      emailOptions.content,
+      tracking
+    );
+
     // Send the email
     const result = await sendEmail({
       ...emailOptions,
-      content: emailOptions.content,
+      content: trackedContent,
       originalContent: emailOptions.content,
       accessToken: account.access_token,
     });

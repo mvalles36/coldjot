@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type { SendEmailOptions } from "@/types";
+import type { EmailTracking, SendEmailOptions } from "@/types";
 import { TEST_CONTACTS, getRandomTestRecipient } from "@/config/test";
 import {
   createEmailTracking,
@@ -11,6 +11,7 @@ import { handleEmailSend } from "@/lib/email/email-service";
 import { generateTrackingMetadata } from "@/lib/tracking/helper";
 import { updateSequenceStats } from "@/lib/stats/sequence-stats-service";
 import type { Sequence, SequenceContact, SequenceStep } from "@prisma/client";
+import { addTrackingToEmail } from "@/lib/tracking/tracking-service";
 
 // Types for better type safety
 type SequenceWithRelations = Sequence & {
@@ -191,6 +192,7 @@ async function processSequenceContact(
   console.log("Tracking Metadata:", trackingMetadata);
 
   const tracking = await createEmailTracking(trackingMetadata);
+
   const emailOptions = prepareEmailOptions(
     recipientEmail,
     content,
@@ -220,7 +222,7 @@ async function sendEmailAndUpdateStatus(
   sequence: SequenceWithRelations,
   sequenceContact: SequenceWithRelations["contacts"][0],
   emailOptions: SendEmailOptions,
-  tracking: any,
+  tracking: EmailTracking,
   googleAccount: any
 ): Promise<void> {
   console.log(`📤 Preparing to send email...`);
@@ -250,7 +252,7 @@ async function sendEmailAndUpdateStatus(
         contactId: sequenceContact.contactId,
         email: sequenceContact.contact.email,
         userId: sequence.userId,
-        stepId: tracking.stepId,
+        stepId: tracking.metadata.stepId,
       }
     );
 
@@ -275,7 +277,7 @@ async function sendEmailAndUpdateStatus(
         contactId: sequenceContact.contactId,
         email: sequenceContact.contact.email,
         userId: sequence.userId,
-        stepId: tracking.stepId,
+        stepId: tracking.metadata.stepId,
       }
     );
   }
