@@ -3,7 +3,11 @@ import type { TransportOptions } from "nodemailer";
 import { generateMessageId } from "@/utils";
 import { prisma } from "@/lib/prisma";
 import { createGmailTransport } from "./nodemailer";
-import { encode as quotedPrintableEncode } from "quoted-printable";
+import { google } from "googleapis";
+import {
+  encode as quotedPrintableEncode,
+  decode as quotedPrintableDecode,
+} from "quoted-printable";
 import crypto from "crypto";
 
 function generateMimeBoundary() {
@@ -35,6 +39,7 @@ export async function sendGmailSMTP({
   accessToken,
 }: SendGmailOptions): Promise<GmailResponse> {
   const messageId = `${generateMessageId()}`;
+  console.log("Generated message ID", messageId);
   const boundary = generateMimeBoundary();
 
   const account = await prisma.account.findFirst({
@@ -87,28 +92,29 @@ export async function sendGmailSMTP({
   const plainTextPart = [
     `--${boundary}`,
     'Content-Type: text/plain; charset="UTF-8"',
+    "Content-Transfer-Encoding: quoted-printable",
     "",
-    plainText,
+    quotedPrintableEncode(plainText),
     "",
   ].join("\r\n");
 
   const senderPart = [
     `--${boundary}`,
     'Content-Type: text/html; charset="UTF-8"',
-    // "Content-Transfer-Encoding: quoted-printable",
+    "Content-Transfer-Encoding: quoted-printable",
     "X-View-Type: sender",
     "",
-    originalContent || content,
+    quotedPrintableEncode(originalContent || content),
     "",
   ].join("\r\n");
 
   const recipientPart = [
     `--${boundary}`,
     'Content-Type: text/html; charset="UTF-8"',
-    // "Content-Transfer-Encoding: quoted-printable",
+    "Content-Transfer-Encoding: quoted-printable",
     "X-View-Type: recipient",
     "",
-    content,
+    quotedPrintableEncode(content),
     "",
     `--${boundary}--`,
   ].join("\r\n");
@@ -167,8 +173,6 @@ export async function sendGmailSMTP({
   if (accessToken) {
     try {
       console.log("Updating sent email...");
-      // console.log("Original content", originalContent);
-      // console.log("Content", content);
       console.log("Thread ID", messageDetails.data.threadId);
       console.log("Message ID", messageId);
       const newInsertedId = await updateSentEmail({
@@ -197,10 +201,6 @@ export async function sendGmailSMTP({
   };
 }
 
-import { google } from "googleapis";
-import { Base64 } from "js-base64";
-import { oauth2Client } from "@/lib/google/google-account";
-
 interface UpdateSentEmailOptions {
   to: string;
   subject: string;
@@ -211,28 +211,31 @@ interface UpdateSentEmailOptions {
 }
 
 async function debeaconizeContent(content: string): Promise<string> {
+  // First decode the quoted-printable content if it is encoded
+  let decodedContent = content;
+  try {
+    if (content.includes("=3D") || content.includes("=20")) {
+      decodedContent = quotedPrintableDecode(content);
+    }
+  } catch (error) {
+    console.log("Error decoding quoted-printable content:", error);
+  }
+
   // Replace tracking pixel with transparent GIF
   const transparentGif =
     "data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=";
 
-  // Replace tracking pixels
-  let debeaconized = content.replace(
-    /<img[^>]*src="https:\/\/[^"]*\/api\/track\/[^"]*\.png"[^>]*>/g,
+  // Replace tracking pixels with base64 encoded transparent GIF
+  let debeaconized = decodedContent.replace(
+    /<img[^>]*src="[^"]*\/api\/track\/[^"]*\.png"[^>]*>/g,
     `<img src="${transparentGif}" alt="" style="display:none" width="1" height="1">`
   );
 
-  // Add notrack=1 to all tracked links
-  debeaconized = debeaconized.replace(
-    /href="(https:\/\/[^"]*\/track[^"]+)"/g,
-    (match, url) => {
-      const separator = url.includes("?") ? "&" : "?";
-      return `href="${url}${separator}notrack=1"`;
-    }
+  // Re-encode as quoted-printable, but preserve the base64 encoded GIF
+  return quotedPrintableEncode(debeaconized).replace(
+    new RegExp(quotedPrintableEncode(transparentGif), "g"),
+    transparentGif
   );
-
-  // console.log("Debeaconized content in the function:", debeaconized);
-
-  return debeaconized;
 }
 
 export async function updateSentEmail({
@@ -251,6 +254,14 @@ export async function updateSentEmail({
 
   const account = await prisma.account.findFirst({
     where: { access_token: accessToken },
+    include: {
+      user: {
+        select: {
+          email: true,
+          name: true,
+        },
+      },
+    },
   });
 
   oauth2Client.setCredentials({
@@ -275,21 +286,50 @@ export async function updateSentEmail({
     // Decode the raw message
     let emailContent = Buffer.from(originalRaw.data.raw, "base64").toString();
 
-    // console.log("Email content:", emailContent);
+    // Split headers and body
+    const [headers, ...bodyParts] = emailContent.split("\r\n\r\n");
+    const body = bodyParts.join("\r\n\r\n");
 
-    // Update the email content with the debeaconized version
-    emailContent = await debeaconizeContent(emailContent);
+    // Parse the boundary from headers
+    const boundaryMatch = headers.match(/boundary="([^"]+)"/);
+    if (!boundaryMatch) {
+      throw new Error("Could not find boundary in email headers");
+    }
+    const boundary = boundaryMatch[1];
 
-    // console.log("Debeaconized email content:", emailContent);
+    // Split the body into parts using the boundary
+    const parts = body
+      .split(`--${boundary}`)
+      .filter((part) => part.trim() && !part.startsWith("--"));
+
+    // Process each part
+    const processedParts = await Promise.all(
+      parts.map(async (part) => {
+        const [partHeaders, ...partContent] = part.trim().split("\r\n\r\n");
+        const content = partContent.join("\r\n\r\n");
+
+        if (partHeaders.includes("Content-Type: text/html")) {
+          const debeaconized = await debeaconizeContent(content);
+          return `${partHeaders}\r\n\r\n${debeaconized}`;
+        }
+        return `${partHeaders}\r\n\r\n${content}`;
+      })
+    );
 
     // Generate debeaconized ID
     const debeaconizedId = crypto.randomBytes(8).toString("hex");
 
-    // Add debeaconization header while keeping original content
-    emailContent = `X-MT-Debeaconized-From: ${debeaconizedId}\r\n${emailContent}`;
+    // Reconstruct the email
+    const newEmailContent = [
+      `X-MT-Debeaconized-From: ${debeaconizedId}`,
+      headers,
+      "",
+      ...processedParts.map((part) => `--${boundary}\r\n${part}`),
+      `--${boundary}--\r\n`,
+    ].join("\r\n");
 
     // Convert back to base64url
-    const base64EncodedEmail = Buffer.from(emailContent)
+    const base64EncodedEmail = Buffer.from(newEmailContent)
       .toString("base64")
       .replace(/\+/g, "-")
       .replace(/\//g, "_")
@@ -307,7 +347,6 @@ export async function updateSentEmail({
 
     if (insertResponse.data.id) {
       console.log("Inserted message ID:", insertResponse.data.id);
-      // await new Promise((resolve) => setTimeout(resolve, 5000));
 
       try {
         console.log("Deleting original message:", messageId);

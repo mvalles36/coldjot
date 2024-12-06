@@ -2,9 +2,11 @@ import type { MessagePartHeader } from "@/types/email";
 import { NextRequest } from "next/server";
 
 // Message ID generation
-export const generateMessageId = () => {
+export const generateMessageId = (): string => {
   const domain = process.env.EMAIL_DOMAIN || "gmail.com";
-  return `<${Date.now()}.${Math.random().toString(36).substring(2)}@${domain}>`;
+  const timestamp = Date.now();
+  const randomPart = Math.random().toString(36).substring(2);
+  return `<${timestamp}.${randomPart}@${domain}>`;
 };
 
 export const normalizeMessageId = (messageId: string): string => {

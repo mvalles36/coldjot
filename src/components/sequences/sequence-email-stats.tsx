@@ -92,24 +92,9 @@ export function SequenceEmailStats({
     }
   };
 
-  const deliveryRate =
-    stats.notSent > 0
-      ? ((stats.delivered / (stats.delivered + stats.notSent)) * 100).toFixed(1)
-      : "N/A";
-
-  const replyRate =
-    stats.delivered > 0
-      ? ((stats.replied / stats.delivered) * 100).toFixed(1)
-      : "N/A";
-
-  const interestRate =
-    stats.delivered > 0
-      ? ((stats.interested / stats.delivered) * 100).toFixed(1)
-      : "N/A";
-
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      {/* <div className="flex justify-between items-center">
         <h3 className="text-lg font-medium">Email Activity</h3>
         <Select value={timeframe} onValueChange={setTimeframe}>
           <SelectTrigger className="w-[180px]">
@@ -122,46 +107,7 @@ export function SequenceEmailStats({
             <SelectItem value="all">All time</SelectItem>
           </SelectContent>
         </Select>
-      </div>
-
-      <div className="grid grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Delivery Rate
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {deliveryRate === "N/A" ? "N/A" : `${deliveryRate}%`}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Reply Rate
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {replyRate === "N/A" ? "N/A" : `${replyRate}%`}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Interest Rate
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {interestRate === "N/A" ? "N/A" : `${interestRate}%`}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      </div> */}
 
       <div className="rounded-lg border">
         <Table>

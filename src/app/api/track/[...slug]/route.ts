@@ -19,7 +19,7 @@ const TRANSPARENT_PIXEL = Buffer.from(
 );
 
 // Handle email opens
-async function handleEmailOpen(hash: string) {
+async function handleEmailOpen(hash: string, request: NextRequest) {
   console.log(`📨 Processing email open for hash: ${hash}`);
 
   const existingEvent = await prisma.emailTrackingEvent.findUnique({
@@ -41,14 +41,48 @@ async function handleEmailOpen(hash: string) {
     throw new Error("Invalid tracking hash");
   }
 
-  // Check for existing open event
-  const existingOpenEvent = await prisma.emailEvent.findFirst({
-    where: {
-      emailId: existingEvent.id,
-      type: "OPENED",
-      sequenceId: existingEvent.sequenceId,
-    },
-  });
+  // Get the referer header to check where the request came from
+  const referer = request.headers.get("referer");
+  const userAgent = request.headers.get("user-agent") || "";
+
+  // Check specifically for Gmail compose/reply patterns
+  const isGmailComposeView =
+    referer?.includes("mail.google.com/mail/u/") &&
+    (referer?.includes("/compose") ||
+      referer?.includes("?compose=") ||
+      referer?.includes("?reply=") ||
+      referer?.includes("?forward="));
+
+  if (isGmailComposeView) {
+    console.log(`⏭️ Request from Gmail compose/reply view - returning 307`);
+    return new NextResponse(TRANSPARENT_PIXEL, {
+      status: 307,
+      headers: {
+        "Content-Type": "image/png",
+        "Cache-Control": "max-age=60, private",
+        "X-Frame-Options": "deny",
+        "X-Robots-Tag": "noindex, nofollow",
+        Location: request.url,
+      },
+    });
+  }
+
+  // Skip tracking only if it's from Google/Gmail backend services
+  if (
+    userAgent.toLowerCase().includes("googlebot") ||
+    userAgent.toLowerCase().includes("google-smtp-source") ||
+    (referer && referer.includes("googleapis.com"))
+  ) {
+    console.log(`⏭️ Skipping tracking for request from Google/Gmail services`);
+    return new NextResponse(TRANSPARENT_PIXEL, {
+      headers: {
+        "Content-Type": "image/png",
+        "Cache-Control": "max-age=60, private",
+        "X-Frame-Options": "deny",
+        "X-Robots-Tag": "noindex, nofollow",
+      },
+    });
+  }
 
   console.log(`✉️ Found email tracking event:`, {
     email: existingEvent.email,
@@ -61,11 +95,12 @@ async function handleEmailOpen(hash: string) {
   console.log(`✅ Recorded email open for ${existingEvent.email}`);
 
   return new NextResponse(TRANSPARENT_PIXEL, {
+    status: 200,
     headers: {
-      "Content-Type": "image/gif",
-      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-      Pragma: "no-cache",
-      Expires: "0",
+      "Content-Type": "image/png",
+      "Cache-Control": "max-age=60, private",
+      "X-Frame-Options": "deny",
+      "X-Robots-Tag": "noindex, nofollow",
     },
   });
 }
@@ -165,7 +200,7 @@ export async function GET(
     if (isClickEvent) {
       return await handleLinkClick(hash, linkId);
     } else {
-      return await handleEmailOpen(hash);
+      return await handleEmailOpen(hash, request);
     }
   } catch (error) {
     console.error(`❌ Error processing tracking request:`, error);
