@@ -87,9 +87,7 @@ export async function recordEmailOpen(hash: string): Promise<void> {
       },
     });
 
-    // Only update stats if this is the first open for this email
-    const isFirstOpen = !existingOpenEvent;
-
+    // Always increment the open count
     await prisma.emailTrackingEvent.update({
       where: { hash },
       data: {
@@ -101,23 +99,22 @@ export async function recordEmailOpen(hash: string): Promise<void> {
       },
     });
 
-    // Only update sequence stats for the first open
-    if (isFirstOpen) {
-      await prisma.emailEvent.create({
-        data: {
-          emailId: trackingEvent.id,
-          type: "OPENED",
-          sequenceId: trackingEvent.sequenceId,
-          contactId: trackingEvent.contactId,
-        },
-      });
+    // Create an email event for this open
+    await prisma.emailEvent.create({
+      data: {
+        emailId: trackingEvent.id,
+        type: "OPENED",
+        sequenceId: trackingEvent.sequenceId,
+        contactId: trackingEvent.contactId,
+      },
+    });
 
-      await updateSequenceStats(
-        trackingEvent.sequenceId,
-        "opened",
-        trackingEvent.contactId
-      );
-    }
+    // Update sequence stats - this will handle both total opens and unique opens
+    await updateSequenceStats(
+      trackingEvent.sequenceId,
+      "opened",
+      trackingEvent.contactId
+    );
   } catch (error) {
     console.error("Error recording email open:", error);
     throw error;

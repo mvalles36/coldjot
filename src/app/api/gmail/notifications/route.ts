@@ -175,7 +175,8 @@ async function processMessageForReplies(
       return;
     }
 
-    await processThreadBasedReply(
+    // Try thread-based reply first
+    const threadBasedResult = await processThreadBasedReply(
       gmail,
       messageId,
       threadId,
@@ -184,15 +185,19 @@ async function processMessageForReplies(
       fromHeader,
       messageDetails
     );
-    await processReferenceBasedReply(
-      gmail,
-      messageId,
-      userId,
-      headers,
-      fromHeader,
-      threadId,
-      messageDetails
-    );
+
+    // Only try reference-based if thread-based didn't find anything
+    if (!threadBasedResult) {
+      await processReferenceBasedReply(
+        gmail,
+        messageId,
+        userId,
+        headers,
+        fromHeader,
+        threadId,
+        messageDetails
+      );
+    }
   } catch (error) {
     console.error("Error processing message for replies:", error);
   }
@@ -374,19 +379,19 @@ const processThreadBasedReply = async (
     },
   });
 
-  if (!emailThread) return;
+  if (!emailThread) return false;
 
   const trackingEvent = await findTrackingEvent(
     emailThread.firstMessageId,
     userId
   );
-  if (!trackingEvent) return;
+  if (!trackingEvent) return false;
 
   const existingReplyEvent = await hasExistingReplyEvent(
     emailThread.sequenceId,
     emailThread.contactId
   );
-  if (existingReplyEvent) return;
+  if (existingReplyEvent) return false;
 
   await processReplyEvent(
     trackingEvent,
@@ -396,8 +401,9 @@ const processThreadBasedReply = async (
     messageDetails,
     emailThread
   );
-};
 
+  return true;
+};
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------

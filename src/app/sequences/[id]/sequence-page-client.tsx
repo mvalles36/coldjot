@@ -33,16 +33,36 @@ import type {
   Sequence,
   SequenceStats as SequenceStatsType,
   SequenceStep,
+  SequenceContact,
 } from "@/types/sequences";
 
 interface SequencePageClientProps {
   sequence: Sequence;
   initialStats: SequenceStatsType | null;
+  initialContacts: SequenceContact[];
 }
+
+type SequenceStatsDisplay = {
+  totalEmails: number;
+  sentEmails: number;
+  openedEmails: number;
+  uniqueOpens: number;
+  clickedEmails: number;
+  repliedEmails: number;
+  bouncedEmails: number;
+  unsubscribed: number;
+  interested: number;
+  peopleContacted: number;
+  openRate: number;
+  clickRate: number;
+  replyRate: number;
+  bounceRate: number;
+};
 
 export default function SequencePageClient({
   sequence,
   initialStats,
+  initialContacts,
 }: SequencePageClientProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("overview");
@@ -59,6 +79,7 @@ export default function SequencePageClient({
   const [showEmailEditor, setShowEmailEditor] = useState(false);
   const [editingStep, setEditingStep] = useState<any>(null);
   const [showLaunchModal, setShowLaunchModal] = useState(false);
+  const [currentStats, setCurrentStats] = useState(initialStats);
 
   // Initial setup of steps
   useEffect(() => {
@@ -180,6 +201,23 @@ export default function SequencePageClient({
     }
   };
 
+  const mapStatsToDisplay = (stats: any): SequenceStatsDisplay => ({
+    totalEmails: stats?.totalEmails || 0,
+    sentEmails: stats?.sentEmails || 0,
+    openedEmails: stats?.openedEmails || 0,
+    uniqueOpens: stats?.uniqueOpens || 0,
+    clickedEmails: stats?.clickedEmails || 0,
+    repliedEmails: stats?.repliedEmails || 0,
+    bouncedEmails: stats?.bouncedEmails || 0,
+    unsubscribed: stats?.unsubscribed || 0,
+    interested: stats?.interested || 0,
+    peopleContacted: stats?.peopleContacted || 0,
+    openRate: stats?.openRate || 0,
+    clickRate: stats?.clickRate || 0,
+    replyRate: stats?.replyRate || 0,
+    bounceRate: stats?.bounceRate || 0,
+  });
+
   return (
     <div className="max-w-7xl mx-auto py-8 space-y-6">
       <div className="flex justify-between items-center">
@@ -221,22 +259,7 @@ export default function SequencePageClient({
               <h2 className="text-lg font-semibold mb-4">
                 Sequence Statistics
               </h2>
-              <SequenceStats
-                stats={
-                  initialStats || {
-                    totalEmails: 0,
-                    sentEmails: 0,
-                    openedEmails: 0,
-                    clickedEmails: 0,
-                    repliedEmails: 0,
-                    bouncedEmails: 0,
-                    openRate: 0,
-                    clickRate: 0,
-                    replyRate: 0,
-                    bounceRate: 0,
-                  }
-                }
-              />
+              <SequenceStats stats={mapStatsToDisplay(currentStats)} />
             </div>
 
             <div className="space-y-4">

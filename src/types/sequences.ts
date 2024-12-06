@@ -34,13 +34,14 @@ export interface Sequence {
     contacts: number;
   };
   testMode: boolean;
+  emailListId?: string | null;
 }
 
 export interface SequenceStep {
   id: string;
   sequenceId: string;
   stepType: StepType;
-  status: string;
+  status: StepStatus;
   priority: StepPriority;
   timing: StepTiming;
   delayAmount?: number;
@@ -52,9 +53,10 @@ export interface SequenceStep {
   order: number;
   previousStepId?: string;
   replyToThread?: boolean;
+  threadId?: string | null;
   createdAt: Date;
   updatedAt: Date;
-  templateId?: string;
+  templateId?: string | null;
 }
 
 export interface SequenceContact {
@@ -62,9 +64,12 @@ export interface SequenceContact {
   sequenceId: string;
   contactId: string;
   status: StepStatus;
-  currentStepId?: string;
+  currentStep: number;
   startedAt: Date;
-  completedAt?: Date;
+  updatedAt: Date;
+  lastProcessedAt?: Date | null;
+  completedAt?: Date | null;
+  threadId?: string | null;
   contact: {
     id: string;
     name: string;
@@ -76,34 +81,31 @@ export interface SequenceContact {
 }
 
 export interface SequenceStats {
-  active: number;
-  paused: number;
-  finished: number;
-  bounced: number;
-  notSent: number;
-  scheduled: number;
-  delivered: number;
-  replied: number;
-  interested: number;
-  optedOut: number;
-}
-
-export interface SequenceStats {
   id: string;
   sequenceId: string;
   totalEmails: number;
   sentEmails: number;
   openedEmails: number;
+  uniqueOpens: number;
   clickedEmails: number;
   repliedEmails: number;
   bouncedEmails: number;
+  unsubscribed: number;
+  interested: number;
+  peopleContacted: number;
   openRate: number;
   clickRate: number;
   replyRate: number;
   bounceRate: number;
   avgResponseTime: number | null;
-  updatedAt: Date;
   createdAt: Date;
+  updatedAt: Date;
+  contactId: string | null;
+  Contact?: {
+    id: string;
+    name: string;
+    email: string;
+  } | null;
 }
 
 export interface StepData {

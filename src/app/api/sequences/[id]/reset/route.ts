@@ -63,6 +63,7 @@ export async function POST(
           clickRate: 0,
           replyRate: 0,
           bounceRate: 0,
+          uniqueOpens: 0,
         },
       }),
 

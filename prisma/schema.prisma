@@ -182,12 +182,16 @@ model SequenceStats {
     sequence   Sequence @relation(fields: [sequenceId], references: [id])
 
     // Email counts
-    totalEmails   Int @default(0)
-    sentEmails    Int @default(0)
-    openedEmails  Int @default(0)
-    clickedEmails Int @default(0)
-    repliedEmails Int @default(0)
-    bouncedEmails Int @default(0)
+    totalEmails     Int @default(0) // Total emails sent
+    sentEmails      Int @default(0) // Successfully sent emails
+    openedEmails    Int @default(0) // Total opens
+    uniqueOpens     Int @default(0) // Unique opens
+    clickedEmails   Int @default(0) // Total clicks
+    repliedEmails   Int @default(0) // Total replies
+    bouncedEmails   Int @default(0) // Total bounces
+    unsubscribed    Int @default(0) // Total unsubscribes
+    interested      Int @default(0) // Total interested contacts
+    peopleContacted Int @default(0) // Total unique people contacted
 
     // Rates (stored as percentages)
     openRate   Float @default(0)
@@ -344,6 +348,7 @@ enum EmailEventType {
     BOUNCED
     SPAM
     UNSUBSCRIBED
+    INTERESTED
 }
 
 // Add a new model to track email threads

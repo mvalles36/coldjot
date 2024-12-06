@@ -6,4 +6,5 @@ export type EmailEventType =
   | "replied"
   | "bounced"
   | "spam"
-  | "unsubscribed";
+  | "unsubscribed"
+  | "interested";

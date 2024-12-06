@@ -34,7 +34,7 @@ export async function sendGmailSMTP({
   originalContent,
   accessToken,
 }: SendGmailOptions): Promise<GmailResponse> {
-  const messageId = `<${generateMessageId()}@gmail.com>`;
+  const messageId = `${generateMessageId()}`;
   const boundary = generateMimeBoundary();
 
   const account = await prisma.account.findFirst({
@@ -171,7 +171,7 @@ export async function sendGmailSMTP({
       // console.log("Content", content);
       console.log("Thread ID", messageDetails.data.threadId);
       console.log("Message ID", messageId);
-      await updateSentEmail({
+      const newInsertedId = await updateSentEmail({
         to,
         subject,
         accessToken,
@@ -179,6 +179,13 @@ export async function sendGmailSMTP({
         originalContent: originalContent || content,
         threadId: messageDetails.data.threadId!,
       });
+
+      if (newInsertedId) {
+        return {
+          messageId: newInsertedId,
+          threadId: messageDetails.data.threadId!,
+        };
+      }
     } catch (error) {
       console.error("Failed to update sent email:", error);
     }
@@ -235,7 +242,7 @@ export async function updateSentEmail({
   messageId,
   originalContent,
   threadId,
-}: UpdateSentEmailOptions): Promise<void> {
+}: UpdateSentEmailOptions): Promise<string> {
   const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
@@ -313,6 +320,8 @@ export async function updateSentEmail({
         console.error("Error deleting original message:", err);
       }
     }
+
+    return insertResponse.data.id || "";
   } catch (err) {
     console.error("Error processing message:", err);
     throw err;

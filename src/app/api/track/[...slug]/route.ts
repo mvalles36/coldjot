@@ -36,23 +36,6 @@ async function handleEmailOpen(hash: string) {
     },
   });
 
-  // get access token
-  const account = await prisma.account.findFirst({
-    where: { userId: existingEvent?.userId },
-  });
-
-  // const email = await getGmailEmail(
-  //   account?.access_token!,
-  //   existingEvent?.messageId!
-  // );
-  // console.log("Email", email);
-
-  // const email = await getGmailThread(
-  //   account?.access_token!,
-  //   existingEvent?.gmailThreadId!
-  // );
-  // console.log("Email", email);
-
   if (!existingEvent) {
     console.error(`❌ No tracking event found for hash: ${hash}`);
     throw new Error("Invalid tracking hash");
@@ -72,20 +55,8 @@ async function handleEmailOpen(hash: string) {
     currentOpens: existingEvent.openCount,
   });
 
-  // Only record the first open for stats
-  const isFirstOpen = !existingOpenEvent;
-
-  // Always increment the open count for tracking purposes
+  // Record the open - this will handle both tracking and stats update
   await recordEmailOpen(hash);
-
-  // Only update sequence stats for the first open
-  if (isFirstOpen && existingEvent.sequenceId && existingEvent.contactId) {
-    await updateSequenceStats(
-      existingEvent.sequenceId,
-      "opened",
-      existingEvent.contactId
-    );
-  }
 
   console.log(`✅ Recorded email open for ${existingEvent.email}`);
 
@@ -108,7 +79,7 @@ async function handleLinkClick(hash: string, linkId: string | null) {
     throw new Error("Missing link ID for click tracking");
   }
 
-  const existingEvent = await prisma.emailTrackingEvent.findFirst({
+  const existingEvent = await prisma.emailTrackingEvent.findUnique({
     where: { hash },
     select: {
       id: true,
