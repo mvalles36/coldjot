@@ -31,6 +31,9 @@
       ],
       "@/lib": [
         "./src/lib/*"
+      ],
+      "@/env": [
+        "./src/env.ts"
       ]
     },
     "noImplicitAny": true

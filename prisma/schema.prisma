@@ -385,3 +385,76 @@ model BusinessHours {
     createdAt  DateTime   @default(now())
     updatedAt  DateTime   @updatedAt
 }
+
+// Queue metrics
+model QueueMetrics {
+    id        String   @id @default(cuid())
+    timestamp DateTime @default(now())
+    metrics   Json
+}
+
+// Queue alerts
+model QueueAlert {
+    id        String   @id @default(cuid())
+    type      String
+    queueName String
+    value     String
+    threshold String
+    timestamp DateTime @default(now())
+}
+
+// Step status
+model StepStatus {
+    id          String    @id @default(cuid())
+    sequenceId  String
+    stepId      String
+    contactId   String
+    status      String    @default("pending") // pending, scheduled, sent, failed, bounced
+    scheduledAt DateTime?
+    sentAt      DateTime?
+    error       String?
+    messageId   String?
+    threadId    String?
+    bounceInfo  Json?
+    createdAt   DateTime  @default(now())
+    updatedAt   DateTime  @updatedAt
+
+    @@unique([sequenceId, stepId, contactId])
+}
+
+// Sequence progress
+model SequenceProgress {
+    id               String    @id @default(cuid())
+    sequenceId       String
+    contactId        String
+    currentStepIndex Int       @default(0)
+    lastProcessedAt  DateTime?
+    nextScheduledAt  DateTime?
+    completed        Boolean   @default(false)
+    completedAt      DateTime?
+    createdAt        DateTime  @default(now())
+    updatedAt        DateTime  @updatedAt
+
+    @@unique([sequenceId, contactId])
+}
+
+// Email tracking
+model EmailTracking {
+    id         String    @id @default(cuid())
+    messageId  String?   @unique
+    threadId   String?
+    hash       String    @unique
+    status     String    @default("pending") // pending, sent, opened, clicked, bounced
+    metadata   Json
+    sentAt     DateTime?
+    openedAt   DateTime?
+    clickedAt  DateTime?
+    bounceInfo Json?
+    createdAt  DateTime  @default(now())
+    updatedAt  DateTime  @updatedAt
+
+    @@index([messageId])
+    @@index([threadId])
+    @@index([hash])
+    @@index([status])
+}

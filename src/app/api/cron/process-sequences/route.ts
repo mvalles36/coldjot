@@ -1,4 +1,7 @@
-import { processSequences } from "@/lib/sequence/sequence-processor";
+import { queueService } from "@/lib/queue/queue-service";
+import { JOB_PRIORITIES } from "@/lib/queue/queue-config";
+import type { ProcessingJob } from "@/lib/queue/types";
+import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
@@ -9,8 +12,43 @@ export async function POST(req: Request) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    await processSequences();
-    return NextResponse.json({ success: true });
+    // Initialize queue service
+    await queueService.initialize();
+
+    // Get all active sequences
+    const activeSequences = await prisma.sequence.findMany({
+      where: {
+        status: "active",
+      },
+      select: {
+        id: true,
+        userId: true,
+        scheduleType: true,
+      },
+    });
+
+    // Create processing jobs for each active sequence
+    const jobs = activeSequences.map(
+      (sequence): ProcessingJob => ({
+        id: `sequence-${sequence.id}-${Date.now()}`,
+        priority: JOB_PRIORITIES.NORMAL,
+        timestamp: new Date(),
+        userId: sequence.userId,
+        type: "sequence",
+        data: {
+          sequenceId: sequence.id,
+          scheduleType: sequence.scheduleType as "business" | "custom",
+        },
+      })
+    );
+
+    // Add all jobs to the processing queue
+    await Promise.all(jobs.map((job) => queueService.addProcessingJob(job)));
+
+    return NextResponse.json({
+      success: true,
+      processed: jobs.length,
+    });
   } catch (error) {
     console.error("[PROCESS_SEQUENCES]", error);
     return new NextResponse("Internal Error", { status: 500 });

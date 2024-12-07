@@ -6,18 +6,11 @@ import {
   setHours,
   setMinutes,
   isSameDay,
+  addBusinessDays,
+  isWeekend,
 } from "date-fns";
 import { formatInTimeZone, toZonedTime } from "date-fns-tz";
-
-interface BusinessHours {
-  timezone: string;
-  workDays: number[]; // 0-6 (Sunday-Saturday)
-  workHours: {
-    start: string; // "09:00"
-    end: string; // "17:00"
-  };
-  holidays: Date[];
-}
+import type { BusinessHours } from "@/types/sequences";
 
 interface DelayConfig {
   amount: number;
@@ -55,7 +48,7 @@ function addDelay(date: Date, delay: DelayConfig): Date {
     case "hours":
       return addHours(date, delay.amount);
     case "days":
-      return addDays(date, delay.amount);
+      return addBusinessDays(date, delay.amount);
     default:
       throw new Error(`Invalid delay unit: ${delay.unit}`);
   }
@@ -115,6 +108,7 @@ export function isWithinBusinessHours(
   date: Date,
   businessHours: BusinessHours
 ): boolean {
+  // Convert to business timezone
   const zonedDate = toZonedTime(date, businessHours.timezone);
 
   // Check if it's a holiday
@@ -139,4 +133,63 @@ export function isWithinBusinessHours(
   const dayEnd = setHours(setMinutes(zonedDate, endMinute), endHour);
 
   return isWithinInterval(zonedDate, { start: dayStart, end: dayEnd });
+}
+
+export function getNextBusinessDay(
+  date: Date,
+  businessHours: BusinessHours
+): Date {
+  let nextDay = addDays(date, 1);
+
+  while (
+    isWeekend(nextDay) ||
+    !businessHours.workDays.includes(nextDay.getDay()) ||
+    businessHours.holidays.some((holiday) => isSameDay(nextDay, holiday))
+  ) {
+    nextDay = addDays(nextDay, 1);
+  }
+
+  return nextDay;
+}
+
+export function calculateProcessingWindow(businessHours: BusinessHours): {
+  start: Date;
+  end: Date;
+} {
+  const now = new Date();
+  const zonedNow = toZonedTime(now, businessHours.timezone);
+
+  const [startHour, startMinute] = businessHours.workHours.start
+    .split(":")
+    .map(Number);
+  const [endHour, endMinute] = businessHours.workHours.end
+    .split(":")
+    .map(Number);
+
+  const todayStart = setHours(setMinutes(zonedNow, startMinute), startHour);
+  const todayEnd = setHours(setMinutes(zonedNow, endMinute), endHour);
+
+  // If we're before today's start time, use today's window
+  if (zonedNow < todayStart) {
+    return { start: todayStart, end: todayEnd };
+  }
+
+  // If we're after today's end time or it's not a business day,
+  // find the next business day
+  if (
+    zonedNow > todayEnd ||
+    !businessHours.workDays.includes(zonedNow.getDay()) ||
+    businessHours.holidays.some((holiday) => isSameDay(zonedNow, holiday))
+  ) {
+    const nextBusinessDay = getNextBusinessDay(zonedNow, businessHours);
+    const nextStart = setHours(
+      setMinutes(nextBusinessDay, startMinute),
+      startHour
+    );
+    const nextEnd = setHours(setMinutes(nextBusinessDay, endMinute), endHour);
+    return { start: nextStart, end: nextEnd };
+  }
+
+  // We're within today's business hours
+  return { start: zonedNow, end: todayEnd };
 }

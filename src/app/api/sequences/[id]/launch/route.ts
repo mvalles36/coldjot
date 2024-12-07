@@ -1,6 +1,9 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { processSequences } from "@/lib/sequence/sequence-processor";
+import { sequenceProcessor } from "@/lib/sequence/sequence-processor";
+import { queueService } from "@/lib/queue/queue-service";
+import { JOB_PRIORITIES } from "@/lib/queue/queue-config";
+import type { ProcessingJob } from "@/lib/queue/types";
 import { NextResponse } from "next/server";
 
 export async function POST(
@@ -28,8 +31,24 @@ export async function POST(
       },
     });
 
-    // Trigger initial processing
-    await processSequences();
+    // Initialize queue service if not already initialized
+    await queueService.initialize();
+
+    // Create a processing job for the sequence
+    const processingJob: ProcessingJob = {
+      id: `sequence-${id}-${Date.now()}`,
+      priority: JOB_PRIORITIES.HIGH,
+      timestamp: new Date(),
+      userId: session.user.id,
+      type: "sequence",
+      data: {
+        sequenceId: id,
+        scheduleType: "business", // This will be updated based on sequence settings
+      },
+    };
+
+    // Add the job to the processing queue
+    await queueService.addProcessingJob(processingJob);
 
     return NextResponse.json({ success: true });
   } catch (error) {
