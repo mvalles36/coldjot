@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@mailjot/database";
 import { auth } from "@/auth";
 import type { BusinessHours } from "@/types/sequences";
 

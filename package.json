@@ -1,12 +1,13 @@
 {
-    "name": "zk-mail",
+    "name": "mailjot",
     "private": true,
     "packageManager": "npm@10.0.0",
     "scripts": {
         "dev": "turbo run dev",
         "build": "turbo run build",
         "lint": "turbo run lint",
-        "format": "prettier --write \"**/*.{ts,tsx,md}\""
+        "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+        "clean": "turbo run clean && rm -rf node_modules"
     },
     "engines": {
         "node": ">=20"

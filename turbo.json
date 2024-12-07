@@ -9,18 +9,18 @@
                 "^build"
             ],
             "outputs": [
+                "dist/**",
                 ".next/**",
-                "!.next/cache/**",
-                "dist/**"
+                "!.next/cache/**"
             ]
         },
         "lint": {},
         "dev": {
             "cache": false,
-            "persistent": true,
-            "inputs": [
-                "$TURBO_DEFAULT$"
-            ]
+            "persistent": true
+        },
+        "clean": {
+            "cache": false
         }
     }
 }

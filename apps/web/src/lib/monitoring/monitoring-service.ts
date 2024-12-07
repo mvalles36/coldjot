@@ -1,5 +1,5 @@
 import { queueService } from "@/lib/queue/queue-service";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@mailjot/database";
 import { logger } from "@/lib/logger";
 import { QUEUE_NAMES } from "@/lib/queue/queue-config";
 import type { QueueMetrics } from "@/lib/queue/types";

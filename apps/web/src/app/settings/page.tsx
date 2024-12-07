@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@mailjot/database";
 import { Separator } from "@/components/ui/separator";
 import ProfileSettings from "@/components/settings/profile-settings";
 import EmailSettings from "@/components/settings/email-settings";

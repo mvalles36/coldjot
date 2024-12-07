@@ -1,7 +1,7 @@
 import { queueService } from "@/lib/queue/queue-service";
 import { rateLimiter } from "@/lib/queue/rate-limiter";
 import { calculateNextSendTime } from "@/lib/sequence/timing-service";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@mailjot/database";
 import { logger } from "@/lib/logger";
 import { JOB_PRIORITIES, JOB_TYPES } from "@/lib/queue/queue-config";
 import type { ProcessingJob, EmailJob } from "@/lib/queue/types";

@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@mailjot/database";
 import { sequenceProcessor } from "@/lib/sequence/sequence-processor";
 import { queueService } from "@/lib/queue/queue-service";
 import { JOB_PRIORITIES } from "@/lib/queue/queue-config";

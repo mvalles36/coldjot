@@ -1,5 +1,5 @@
 import { encode as base64Encode } from "js-base64";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@mailjot/database";
 import { generateMessageId, normalizeSubject } from "@/utils";
 import type { EmailResult, ThreadHeaders } from "@/types";
 import { sendEmail } from "@/lib/email/email-service";

@@ -1,5 +1,5 @@
 {
-  "name": "my-app",
+  "name": "mailjot",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -7,14 +7,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "worker": "tsx -r dotenv/config src/worker.ts"
+    "clean": "rimraf .turbo node_modules .next"
   },
   "dependencies": {
     "@auth/core": "^0.37.3",
     "@auth/prisma-adapter": "^2.7.3",
     "@hello-pangea/dnd": "^17.0.0",
     "@hookform/resolvers": "^3.9.1",
-    "@prisma/client": "^5.22.0",
+    "@mailjot/database": "*",
     "@radix-ui/react-alert-dialog": "^1.1.2",
     "@radix-ui/react-avatar": "^1.1.1",
     "@radix-ui/react-checkbox": "^1.1.2",
@@ -60,7 +60,6 @@
     "nodemailer": "^6.9.16",
     "pino": "^8.17.0",
     "pino-pretty": "^10.3.0",
-    "prisma": "^5.22.0",
     "quoted-printable": "^1.0.1",
     "react": "19.0.0-rc-66855b96-20241106",
     "react-dom": "19.0.0-rc-66855b96-20241106",

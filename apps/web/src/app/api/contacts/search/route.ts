@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@mailjot/database";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);

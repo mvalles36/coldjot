@@ -1,6 +1,6 @@
 import { EmailTrackingMetadata, EmailTracking } from "@/types/sequences";
 import { nanoid } from "nanoid";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@mailjot/database";
 import { getBaseUrl } from "@/utils";
 import { updateSequenceStats } from "@/lib/stats/sequence-stats-service";
 import type { Prisma } from "@prisma/client";

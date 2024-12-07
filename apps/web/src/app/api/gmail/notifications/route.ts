@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@mailjot/database";
 import { trackEmailEvent } from "@/lib/tracking/tracking-service";
 import { verifyPubSubJwt } from "@/lib/auth/pubsub";
 import { refreshAccessToken, oauth2Client } from "@/lib/google/google-account";

@@ -7,7 +7,7 @@ export const queueConfig: Bull.QueueOptions = {
     port: parseInt(env.REDIS_PORT || "6379"),
     password: env.REDIS_PASSWORD,
   },
-  prefix: "zk-mail",
+  prefix: "mailjot",
   defaultJobOptions: {
     attempts: 3,
     backoff: {

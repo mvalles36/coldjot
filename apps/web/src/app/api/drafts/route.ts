@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@mailjot/database";
 import { createGmailDraft } from "@/lib/google/gmail";
 import { refreshAccessToken } from "@/lib/google/google-account";
 import { NextResponse } from "next/server";

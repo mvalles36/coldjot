@@ -1,7 +1,7 @@
 import { createTransport } from "nodemailer";
 import type { TransportOptions } from "nodemailer";
 import { generateMessageId } from "@/utils";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@mailjot/database";
 import { createGmailTransport } from "./nodemailer";
 import { google } from "googleapis";
 import {

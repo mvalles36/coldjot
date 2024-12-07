@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@mailjot/database";
 import { sleep } from "@/utils";
 import { google } from "googleapis";
 

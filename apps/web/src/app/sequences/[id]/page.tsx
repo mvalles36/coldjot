@@ -1,4 +1,5 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@mailjot/database";
+// import { prisma } from "@mailjot/database";
 import { notFound } from "next/navigation";
 import SequencePageClient from "./sequence-page-client";
 import type {
@@ -81,7 +82,7 @@ export default async function SequencePage({
           holidays: sequence.businessHours.holidays,
         } as BusinessHours)
       : undefined,
-    steps: sequence.steps.map((step) => ({
+    steps: sequence.steps.map((step: any) => ({
       id: step.id,
       sequenceId: step.sequenceId,
       stepType: step.stepType as StepType,
@@ -102,7 +103,7 @@ export default async function SequencePage({
       updatedAt: step.updatedAt,
       templateId: step.templateId ?? undefined,
     })),
-    contacts: sequence.contacts.map((contact) => ({
+    contacts: sequence.contacts.map((contact: any) => ({
       ...contact,
       status: contact.status as StepStatus,
       contact: {
@@ -120,7 +121,7 @@ export default async function SequencePage({
   const typedStats = stats as SequenceStats | null;
 
   // Cast the contacts to match the expected type
-  const typedContacts = sequence.contacts.map((contact) => ({
+  const typedContacts = sequence.contacts.map((contact: any) => ({
     ...contact,
     status: contact.status as StepStatus,
     contact: {

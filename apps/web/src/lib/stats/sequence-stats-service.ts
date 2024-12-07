@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@mailjot/database";
 import { EmailEventType } from "@/types";
 import type { Prisma } from "@prisma/client";
 

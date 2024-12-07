@@ -1,0 +1,36 @@
+{
+    "name": "@mailjot/database",
+    "version": "0.1.0",
+    "private": true,
+    "main": "./dist/index.js",
+    "module": "./dist/index.mjs",
+    "types": "./dist/index.d.ts",
+    "files": [
+        "dist/**"
+    ],
+    "exports": {
+        ".": "./src/index.ts"
+    },
+    "scripts": {
+        "dev": "npm run db:generate && tsup --watch",
+        "build": "npm run db:generate && tsup",
+        "clean": "rimraf .turbo node_modules dist",
+        "db:generate": "prisma generate",
+        "db:push": "prisma db push --skip-generate",
+        "format": "prisma format",
+        "lint": "eslint \"src/**/*.ts\"",
+        "prebuild": "npm run db:generate",
+        "predev": "npm run db:generate",
+        "postinstall": "npm run db:generate"
+    },
+    "dependencies": {
+        "@prisma/client": "^5.7.0"
+    },
+    "devDependencies": {
+        "@types/node": "^20.10.4",
+        "prisma": "^5.7.0",
+        "rimraf": "^5.0.5",
+        "tsup": "^8.0.1",
+        "typescript": "^5.3.3"
+    }
+}
