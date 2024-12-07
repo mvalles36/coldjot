@@ -19,6 +19,16 @@ export interface DevSettings {
   testEmails: string[];
 }
 
+export interface BusinessHours {
+  timezone: string;
+  workDays: number[];
+  workHours: {
+    start: string;
+    end: string;
+  };
+  holidays: Date[];
+}
+
 export interface Sequence {
   id: string;
   name: string;
@@ -35,6 +45,7 @@ export interface Sequence {
   };
   testMode: boolean;
   emailListId?: string | null;
+  businessHours?: BusinessHours;
 }
 
 export interface SequenceStep {

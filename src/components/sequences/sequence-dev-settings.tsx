@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Trash2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { DevSettings } from "@/types/sequence";
+import { DevSettings } from "@/types";
 import { Separator } from "@/components/ui/separator";
 import { useDevSettings } from "@/hooks/use-dev-settings";
 import { useRouter } from "next/navigation";

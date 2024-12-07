@@ -21,13 +21,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Loader2, Mail } from "lucide-react";
 import { useForm, Controller } from "react-hook-form";
+import { calculateNextSendTime } from "@/lib/sequence/timing-service";
+import { format } from "date-fns";
+
+type DelayUnit = "minutes" | "hours" | "days";
 
 interface StepFormData {
   type: string;
-  timing: string;
-  priority: string;
+  timing: "immediate" | "delay";
+  priority: "high" | "medium" | "low";
   delayAmount?: number;
-  delayUnit?: string;
+  delayUnit?: DelayUnit;
   note?: string;
 }
 
@@ -56,6 +60,8 @@ export function SequenceStepEditor({
   });
 
   const timing = watch("timing");
+  const delayAmount = watch("delayAmount");
+  const delayUnit = watch("delayUnit");
 
   const onSubmit = async (data: StepFormData) => {
     setIsSubmitting(true);
@@ -111,7 +117,7 @@ export function SequenceStepEditor({
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="immediate" id="immediate" />
                       <Label htmlFor="immediate">
-                        Immediately after the contact is added to sequence
+                        Immediately after the previous step is completed
                       </Label>
                     </div>
                     <div className="flex items-center space-x-2">
@@ -121,7 +127,10 @@ export function SequenceStepEditor({
                           <Input
                             type="number"
                             className="w-20"
-                            {...register("delayAmount")}
+                            {...register("delayAmount", {
+                              valueAsNumber: true,
+                              min: 1,
+                            })}
                             disabled={timing !== "delay"}
                           />
                           <Controller
@@ -130,7 +139,7 @@ export function SequenceStepEditor({
                             render={({ field }) => (
                               <Select
                                 onValueChange={field.onChange}
-                                defaultValue={field.value}
+                                defaultValue={field.value as DelayUnit}
                                 disabled={timing !== "delay"}
                               >
                                 <SelectTrigger className="w-[120px]">
@@ -146,13 +155,45 @@ export function SequenceStepEditor({
                               </Select>
                             )}
                           />
-                          <span>after the contact is added</span>
+                          <span>after the previous step</span>
                         </div>
                       </Label>
                     </div>
                   </RadioGroup>
                 )}
               />
+
+              {timing === "delay" && delayAmount && delayUnit && (
+                <div className="mt-4 p-4 bg-muted rounded-lg">
+                  <h4 className="text-sm font-medium mb-2">
+                    Estimated Next Send Time
+                  </h4>
+                  <div className="text-sm text-muted-foreground">
+                    {(() => {
+                      try {
+                        const nextTime = calculateNextSendTime(
+                          new Date(),
+                          { amount: delayAmount, unit: delayUnit as DelayUnit },
+                          {
+                            timezone:
+                              Intl.DateTimeFormat().resolvedOptions().timeZone,
+                            workDays: [1, 2, 3, 4, 5], // Default to Mon-Fri
+                            workHours: { start: "09:00", end: "17:00" },
+                            holidays: [],
+                          }
+                        );
+                        return format(nextTime, "PPpp");
+                      } catch (error) {
+                        return "Invalid timing configuration";
+                      }
+                    })()}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    * Actual send time may vary based on business hours and
+                    holidays
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="space-y-4">

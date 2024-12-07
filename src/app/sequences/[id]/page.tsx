@@ -10,6 +10,7 @@ import type {
   StepType,
   StepPriority,
   StepTiming,
+  BusinessHours,
 } from "@/types/sequences";
 
 export default async function SequencePage({
@@ -37,6 +38,7 @@ export default async function SequencePage({
           },
         },
       },
+      businessHours: true,
       _count: {
         select: {
           contacts: true,
@@ -71,6 +73,14 @@ export default async function SequencePage({
     status: sequence.status as SequenceStatus,
     accessLevel: sequence.accessLevel as "team" | "private",
     scheduleType: sequence.scheduleType as "business" | "custom",
+    businessHours: sequence.businessHours
+      ? ({
+          timezone: sequence.businessHours.timezone,
+          workDays: sequence.businessHours.workDays,
+          workHours: sequence.businessHours.workHours,
+          holidays: sequence.businessHours.holidays,
+        } as BusinessHours)
+      : undefined,
     steps: sequence.steps.map((step) => ({
       id: step.id,
       sequenceId: step.sequenceId,

@@ -12,6 +12,8 @@ import { generateTrackingMetadata } from "@/lib/tracking/helper";
 import { updateSequenceStats } from "@/lib/stats/sequence-stats-service";
 import type { Sequence, SequenceContact, SequenceStep } from "@prisma/client";
 import { addTrackingToEmail } from "@/lib/tracking/tracking-service";
+import { calculateNextSendTime, isWithinBusinessHours } from "./timing-service";
+import type { BusinessHours } from "@/types/sequences";
 
 // Types for better type safety
 type SequenceWithRelations = Sequence & {
@@ -20,6 +22,7 @@ type SequenceWithRelations = Sequence & {
   })[];
   steps: SequenceStep[];
   user: { id: string };
+  businessHours?: BusinessHours;
 };
 
 // Define DevSettings type based on what getDevSettings returns
@@ -44,7 +47,11 @@ async function fetchActiveSequences(): Promise<SequenceWithRelations[]> {
           },
         },
         include: {
-          contact: true,
+          contact: {
+            select: {
+              email: true,
+            },
+          },
         },
       },
       steps: {
@@ -52,12 +59,37 @@ async function fetchActiveSequences(): Promise<SequenceWithRelations[]> {
           order: "asc",
         },
       },
-      user: true,
+      user: {
+        select: {
+          id: true,
+        },
+      },
+      businessHours: {
+        select: {
+          timezone: true,
+          workDays: true,
+          workHours: true,
+          holidays: true,
+        },
+      },
     },
   });
 
-  console.log(`📋 Found ${sequences.length} active sequences to process`);
-  return sequences;
+  // Transform the business hours data to match the expected type
+  return sequences.map((sequence) => ({
+    ...sequence,
+    businessHours: sequence.businessHours
+      ? {
+          timezone: sequence.businessHours.timezone,
+          workDays: sequence.businessHours.workDays,
+          workHours: sequence.businessHours.workHours as {
+            start: string;
+            end: string;
+          },
+          holidays: sequence.businessHours.holidays,
+        }
+      : undefined,
+  }));
 }
 
 // Mark a sequence contact as completed
@@ -164,6 +196,40 @@ async function processSequenceContact(
     `📍 Step ${sequenceContact.currentStep + 1} of ${sequence.steps.length}`
   );
 
+  // Check if we should process this step now based on timing
+  if (
+    currentStep.timing === "delay" &&
+    currentStep.delayAmount &&
+    currentStep.delayUnit
+  ) {
+    const nextSendTime = calculateNextSendTime(
+      new Date(sequenceContact.lastProcessedAt || sequenceContact.startedAt),
+      {
+        amount: currentStep.delayAmount,
+        unit: currentStep.delayUnit as "minutes" | "hours" | "days",
+      },
+      sequence.businessHours || {
+        timezone: "UTC",
+        workDays: [1, 2, 3, 4, 5],
+        workHours: { start: "09:00", end: "17:00" },
+        holidays: [],
+      }
+    );
+
+    if (nextSendTime > new Date()) {
+      console.log(`⏳ Step scheduled for later: ${nextSendTime}`);
+      return;
+    }
+  }
+
+  // Check if we're within business hours for this sequence
+  if (sequence.scheduleType === "business" && sequence.businessHours) {
+    if (!isWithinBusinessHours(new Date(), sequence.businessHours)) {
+      console.log("⏰ Outside of business hours, skipping processing");
+      return;
+    }
+  }
+
   const { content, subject } = prepareEmailContent(
     sequence.testMode,
     sequenceContact.contact.email,
@@ -248,38 +314,27 @@ async function sendEmailAndUpdateStatus(
         threadId: newThreadId,
       },
       {
-        sequenceId: sequence.id,
-        contactId: sequenceContact.contactId,
         email: sequenceContact.contact.email,
-        userId: sequence.userId,
+        userId: sequence.user.id,
+        sequenceId: sequence.id,
         stepId: tracking.metadata.stepId,
+        contactId: sequenceContact.contactId,
       }
     );
 
+    // Update sequence contact with new thread ID and step progress
     await updateSequenceContact(
       sequenceContact.id,
       sequenceContact.currentStep,
       sequence.steps.length,
-      newThreadId || undefined,
-      sequenceContact.threadId || undefined
+      newThreadId,
+      emailOptions.threadId
     );
+
+    console.log(`✅ Email sent successfully`);
   } catch (error) {
-    console.error("Failed to send email:", error);
-    // Update sequence stats for bounced email
-    await trackEmailEvent(
-      tracking.id,
-      "bounced",
-      {
-        bounceReason: error instanceof Error ? error.message : "Unknown error",
-      },
-      {
-        sequenceId: sequence.id,
-        contactId: sequenceContact.contactId,
-        email: sequenceContact.contact.email,
-        userId: sequence.userId,
-        stepId: tracking.metadata.stepId,
-      }
-    );
+    console.error(`❌ Failed to send email:`, error);
+    throw error;
   }
 }
 
@@ -298,8 +353,6 @@ export async function processSequences() {
       console.error(
         `❌ No valid Google account found for user ${sequence.userId}`
       );
-
-      //TODOD : check if we need to skip to the next sequence if no Google account is found
       continue;
     }
 

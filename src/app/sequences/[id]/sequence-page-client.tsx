@@ -28,6 +28,8 @@ import { SequenceDevSettings } from "@/components/sequences/sequence-dev-setting
 import { Loader2 } from "lucide-react";
 import { SequenceStats } from "@/components/sequences/sequence-stats";
 import { SequenceTabs } from "@/components/sequences/sequence-tabs";
+import { BusinessHoursSettings } from "@/components/sequences/business-hours-settings";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 import type {
   Sequence,
@@ -301,69 +303,43 @@ export default function SequencePageClient({
         </TabsContent>
 
         <TabsContent value="settings" className="mt-6">
-          <div className="space-y-6">
-            <div className="grid gap-6 max-w-2xl">
-              <div className="space-y-2">
-                <h3 className="text-lg font-medium">Sequence Settings</h3>
-                <p className="text-sm text-muted-foreground">
-                  Configure your sequence settings and preferences.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <Label>Sequence Name</Label>
-                  <Input value={sequence.name} readOnly />
+          <div className="space-y-8">
+            <Card>
+              <CardHeader>
+                <CardTitle>General Settings</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <Label>Sequence Name</Label>
+                    <Input defaultValue={sequence.name} />
+                  </div>
+                  <div>
+                    <Label>Access Level</Label>
+                    <Select defaultValue={sequence.accessLevel}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="team">
+                          Team can view and use
+                        </SelectItem>
+                        <SelectItem value="private">Private</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-
-                <div>
-                  <Label>Status</Label>
-                  <Select defaultValue={sequence.status} disabled>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="draft">Draft</SelectItem>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="paused">Paused</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="flex justify-end">
+                  <Button>Save Changes</Button>
                 </div>
+              </CardContent>
+            </Card>
 
-                <div>
-                  <Label>Schedule Type</Label>
-                  <Select defaultValue={sequence.scheduleType}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="business">Business Hours</SelectItem>
-                      <SelectItem value="custom">Custom Schedule</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label>Access Level</Label>
-                  <Select defaultValue={sequence.accessLevel}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="team">
-                        Team can view and use
-                      </SelectItem>
-                      <SelectItem value="private">Private</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="flex justify-end">
-                <Button>Save Changes</Button>
-              </div>
-            </div>
+            <BusinessHoursSettings
+              sequenceId={sequence.id}
+              initialSettings={sequence.businessHours}
+              scheduleType={sequence.scheduleType as "business" | "custom"}
+            />
 
             {process.env.NODE_ENV === "development" && (
               <div className="pt-6">
