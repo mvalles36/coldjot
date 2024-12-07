@@ -23,7 +23,7 @@ import {
   Loader2,
   ArrowRight,
 } from "lucide-react";
-import { SearchResult, SearchResultType } from "@/types/search";
+import { SearchResult, SearchResultType } from "@mailjot/types";
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
 import { v4 as uuidv4 } from "uuid";
 export function GlobalSearch({ isCollapsed }: { isCollapsed?: boolean }) {
@@ -134,12 +134,15 @@ export function GlobalSearch({ isCollapsed }: { isCollapsed?: boolean }) {
   }, [results]);
 
   const groupedResults = useMemo(() => {
-    const grouped = results.reduce((acc, item) => {
-      const group = acc[item.type] || [];
-      group.push(item);
-      acc[item.type] = group;
-      return acc;
-    }, {} as Record<SearchResultType, SearchResult[]>);
+    const grouped = results.reduce(
+      (acc, item) => {
+        const group = acc[item.type] || [];
+        group.push(item);
+        acc[item.type] = group;
+        return acc;
+      },
+      {} as Record<SearchResultType, SearchResult[]>
+    );
     return grouped;
   }, [results]);
 

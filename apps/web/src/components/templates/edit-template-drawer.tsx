@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
-import { Template } from "@/types";
+import { Template } from "@mailjot/types";
 import {
   Sheet,
   SheetContent,

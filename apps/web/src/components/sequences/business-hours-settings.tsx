@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/select";
 import { Clock } from "lucide-react";
 import { toast } from "react-hot-toast";
-import type { BusinessHours } from "@/types/sequences";
+import type { BusinessHours } from "@mailjot/types";
 import { TimePicker } from "@/components/ui/time-picker";
 import { cn } from "@/lib/utils";
 

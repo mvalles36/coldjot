@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { RichTextEditor } from "@/components/editor/rich-text-editor";
-import { Template } from "@/types";
+import { Template } from "@mailjot/types";
 
 type FormData = {
   name: string;

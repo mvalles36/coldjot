@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
-import { DevSettings } from "@/types/sequence";
+import { DevSettings } from "@mailjot/types/sequence";
 
 const DEFAULT_SETTINGS: DevSettings = {
   disableSending: false,

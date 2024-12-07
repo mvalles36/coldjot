@@ -1,4 +1,8 @@
-import type { BusinessHours, SendEmailOptions, EmailTracking } from "@/types";
+import type {
+  BusinessHours,
+  SendEmailOptions,
+  EmailTracking,
+} from "@mailjot/types";
 import type { JOB_TYPES, JOB_PRIORITIES } from "./queue-config";
 import type Bull from "bull";
 

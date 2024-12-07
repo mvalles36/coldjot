@@ -1,4 +1,4 @@
-import { Template } from "@/types";
+import { Template } from "@mailjot/types";
 import {
   AlertDialog,
   AlertDialogAction,

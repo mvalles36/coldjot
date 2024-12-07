@@ -1,19 +1,91 @@
 import express from "express";
 import cors from "cors";
-import { queueService } from "./lib/queue-service";
-import { logger } from "./lib/logger";
 import { env } from "./config";
+import { prisma } from "@mailjot/database";
+import { QueueService } from "./lib/queue-service";
+import { SchedulingService } from "./lib/scheduling-service";
+import { logger } from "./lib/logger";
+import {
+  StepType,
+  StepPriority,
+  TimingType,
+  StepStatus,
+  BusinessHours,
+} from "@mailjot/types";
 
 const app = express();
+const port = process.env.PORT || 3001;
+
+// Initialize services
+const queueService = new QueueService();
+const schedulingService = new SchedulingService();
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// Health check endpoint
-app.get("/health", (req, res) => {
-  res.json({ status: "ok" });
-});
+// Helper function to get business hours
+async function getBusinessHours(
+  userId: string
+): Promise<BusinessHours | undefined> {
+  const settings = await prisma.businessHoursSettings.findFirst({
+    where: { userId },
+  });
+
+  if (!settings) {
+    return undefined;
+  }
+
+  return {
+    timezone: settings.timezone,
+    workDays: settings.workDays,
+    workHours: {
+      start: settings.workHoursStart,
+      end: settings.workHoursEnd,
+    },
+    holidays: settings.holidays,
+  };
+}
+
+// Helper function to get the first step of a sequence
+async function getFirstSequenceStep(sequenceId: string) {
+  const step = await prisma.sequenceStep.findFirst({
+    where: {
+      sequenceId,
+      previousStepId: null, // First step has no previous step
+    },
+    orderBy: {
+      order: "asc",
+    },
+  });
+
+  if (!step) return null;
+
+  return {
+    id: step.id,
+    sequenceId: step.sequenceId,
+    stepType: step.stepType as StepType,
+    status:
+      step.status.toUpperCase() === "NOT_SENT"
+        ? StepStatus.NOT_SENT
+        : (step.status as StepStatus),
+    priority: step.priority as StepPriority,
+    timing: step.timing as TimingType,
+    delayAmount: step.delayAmount,
+    delayUnit: step.delayUnit,
+    subject: step.subject,
+    content: step.content,
+    includeSignature: step.includeSignature || false,
+    note: step.note,
+    order: step.order,
+    previousStepId: step.previousStepId,
+    replyToThread: step.replyToThread || false,
+    threadId: step.threadId,
+    createdAt: step.createdAt,
+    updatedAt: step.updatedAt,
+    templateId: step.templateId,
+  };
+}
 
 // Add sequence to queue
 app.post("/api/sequences/:id/process", async (req, res) => {
@@ -21,69 +93,44 @@ app.post("/api/sequences/:id/process", async (req, res) => {
     const { id } = req.params;
     const { userId } = req.body;
 
-    if (!userId) {
-      return res.status(400).json({ error: "userId is required" });
+    // Get business hours settings
+    const businessHours = await getBusinessHours(userId);
+
+    // Get the first step of the sequence
+    const firstStep = await getFirstSequenceStep(id);
+    if (!firstStep) {
+      return res.status(400).json({ error: "No steps found in sequence" });
     }
 
+    // Create and schedule the job
     const job = await queueService.addSequenceJob({
-      sequenceId: id,
-      userId,
+      type: "sequence",
+      id,
       priority: 1,
+      data: {
+        sequenceId: id,
+        userId,
+        scheduleType: businessHours ? "business" : "custom",
+        businessHours,
+      },
     });
 
-    res.json({ jobId: job.id });
+    const nextRun = schedulingService.calculateNextRun(
+      new Date(),
+      firstStep,
+      businessHours
+    );
+
+    const scheduledJob = await queueService.scheduleJob(job, nextRun);
+
+    res.json({ jobId: scheduledJob.id });
   } catch (error) {
-    logger.error("Error adding sequence job:", error);
-    res.status(500).json({ error: "Internal server error" });
+    logger.error("Error processing sequence:", error);
+    res.status(500).json({ error: "Failed to process sequence" });
   }
 });
 
-// Add email to queue
-app.post("/api/emails/send", async (req, res) => {
-  try {
-    const { sequenceId, stepId, contactId, userId } = req.body;
-
-    if (!sequenceId || !stepId || !contactId || !userId) {
-      return res.status(400).json({ error: "Missing required fields" });
-    }
-
-    const job = await queueService.addEmailJob({
-      sequenceId,
-      stepId,
-      contactId,
-      userId,
-      priority: 2,
-    });
-
-    res.json({ jobId: job.id });
-  } catch (error) {
-    logger.error("Error adding email job:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-// Get job status
-app.get("/api/jobs/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { type } = req.query;
-
-    if (!type || typeof type !== "string") {
-      return res
-        .status(400)
-        .json({ error: "type query parameter is required" });
-    }
-
-    const status = await queueService.getJobStatus(id, type);
-    res.json(status);
-  } catch (error) {
-    logger.error("Error getting job status:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-const port = process.env.PORT || 3001;
-
+// Start server
 app.listen(port, () => {
-  logger.info(`Queue server listening on port ${port}`);
+  logger.info(`Queue service listening on port ${port}`);
 });

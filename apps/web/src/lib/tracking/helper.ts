@@ -1,4 +1,4 @@
-import type { EmailTrackingMetadata } from "@/types/sequences";
+import type { EmailTrackingMetadata } from "@mailjot/types";
 
 export function generateTrackingMetadata(
   email: string,

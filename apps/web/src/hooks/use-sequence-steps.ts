@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { toast } from "react-hot-toast";
-import type { SequenceStep } from "@/types/sequences";
+import type { SequenceStep } from "@mailjot/types";
 
 export function useSequenceSteps(sequenceId: string) {
   const [steps, setSteps] = useState<SequenceStep[]>([]);

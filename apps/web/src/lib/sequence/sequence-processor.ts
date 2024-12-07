@@ -5,7 +5,7 @@ import { prisma } from "@mailjot/database";
 import { logger } from "@/lib/logger";
 import { JOB_PRIORITIES, JOB_TYPES } from "@/lib/queue/queue-config";
 import type { ProcessingJob, EmailJob } from "@/lib/queue/types";
-import type { BusinessHours } from "@/types";
+import type { BusinessHours } from "@mailjot/types";
 
 class SequenceProcessor {
   async processSequence(sequenceId: string, userId: string): Promise<void> {

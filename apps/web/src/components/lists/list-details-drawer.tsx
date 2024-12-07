@@ -8,7 +8,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { EmailList } from "@/types";
+import { EmailList } from "@mailjot/types";
 import { User, Trash2, Mail } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";

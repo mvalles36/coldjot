@@ -1,10 +1,10 @@
-import { EmailTrackingMetadata, EmailTracking } from "@/types/sequences";
+import { EmailTrackingMetadata, EmailTracking } from "@mailjot/types";
 import { nanoid } from "nanoid";
 import { prisma } from "@mailjot/database";
 import { getBaseUrl } from "@/utils";
 import { updateSequenceStats } from "@/lib/stats/sequence-stats-service";
 import type { Prisma } from "@prisma/client";
-import { EmailEventType } from "@/types";
+import { EmailEventType } from "@mailjot/types";
 
 export async function createEmailTracking(
   metadata: EmailTrackingMetadata

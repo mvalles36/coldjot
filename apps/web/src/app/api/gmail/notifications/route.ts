@@ -17,7 +17,7 @@ import {
 } from "@/utils";
 
 // Types and Interfaces
-import type { MessagePartHeader, Gmail, Message } from "@/types/email";
+import type { MessagePartHeader, Gmail, Message } from "@mailjot/types";
 
 interface NotificationData {
   emailAddress: string;

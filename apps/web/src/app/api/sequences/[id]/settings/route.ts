@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { prisma } from "@mailjot/database";
 import { NextResponse } from "next/server";
-import type { BusinessHours } from "@/types/sequences";
+import type { BusinessHours } from "@mailjot/types";
 
 interface UpdateSettingsBody {
   name?: string;

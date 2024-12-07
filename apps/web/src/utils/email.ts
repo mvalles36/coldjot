@@ -1,4 +1,4 @@
-import type { MessagePartHeader } from "@/types/email";
+import type { MessagePartHeader } from "@mailjot/types";
 import { NextRequest } from "next/server";
 
 // Message ID generation

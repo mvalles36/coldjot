@@ -9,6 +9,6 @@ export default defineConfig({
   },
   entry: ["src/server.ts"],
   format: ["cjs"],
-  sourcemap: true,
+  sourcemap: false,
   target: "node16",
 });

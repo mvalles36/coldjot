@@ -5,9 +5,9 @@ import type {
   EmailResponse,
   SendDraftOptions,
   SendEmailOptions,
-} from "@/types";
+} from "@mailjot/types";
 
-import type { EmailTracking } from "@/types/sequences";
+import type { EmailTracking } from "@mailjot/types";
 import type { GoogleAccount } from "@/lib/google/google-account";
 
 import { encode as base64Encode } from "js-base64";

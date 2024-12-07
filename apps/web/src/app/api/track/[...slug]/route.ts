@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@mailjot/database";
 // import { prisma } from "@mailjot/database";
 import { trackEmailEvent } from "@/lib/tracking/tracking-service";
-import type { EmailEventType } from "@/types";
+import type { EmailEventType } from "@mailjot/types";
 import { getUserAgent } from "@/lib/user-agent";
 import { getIpLocation } from "@/lib/ip-location";
 import { updateSequenceStats } from "@/lib/stats/sequence-stats-service";

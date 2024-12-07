@@ -7,7 +7,7 @@ import { SequenceStepEditor } from "./sequence-step-editor";
 import { SequenceEmailEditor } from "../editor/sequence-email-editor";
 import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
-import type { SequenceStep, StepData, EmailData } from "@/types/sequences";
+import type { SequenceStep, StepData, EmailData } from "@mailjot/types";
 
 interface AddSequenceStepProps {
   sequenceId: string;

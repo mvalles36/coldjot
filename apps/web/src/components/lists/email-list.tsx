@@ -10,7 +10,7 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { EmailList } from "@/types";
+import { EmailList } from "@mailjot/types";
 import { CreateListModal } from "./create-list-modal";
 import { toast } from "react-hot-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";

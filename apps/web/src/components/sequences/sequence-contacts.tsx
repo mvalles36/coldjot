@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "react-hot-toast";
 import { Loader2, UserPlus, X } from "lucide-react";
 import { ListSelector } from "@/components/lists/list-selector";
-import type { SequenceContact } from "@/types/sequences";
+import type { SequenceContact } from "@mailjot/types";
 
 interface ContactWithCompany {
   id: string;

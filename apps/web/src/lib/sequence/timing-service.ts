@@ -10,7 +10,7 @@ import {
   isWeekend,
 } from "date-fns";
 import { formatInTimeZone, toZonedTime } from "date-fns-tz";
-import type { BusinessHours } from "@/types/sequences";
+import type { BusinessHours } from "@mailjot/types";
 
 interface DelayConfig {
   amount: number;

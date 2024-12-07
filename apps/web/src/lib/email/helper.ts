@@ -1,11 +1,11 @@
 import { encode as base64Encode } from "js-base64";
 import { prisma } from "@mailjot/database";
 import { generateMessageId, normalizeSubject } from "@/utils";
-import type { EmailResult, ThreadHeaders } from "@/types";
+import type { EmailResult, ThreadHeaders } from "@mailjot/types";
 import { sendEmail } from "@/lib/email/email-service";
 import { refreshAccessToken } from "@/lib/google/google-account";
-import type { SendEmailOptions } from "@/types";
-import type { EmailTracking } from "@/types/sequences";
+import type { SendEmailOptions } from "@mailjot/types";
+import type { EmailTracking } from "@mailjot/types";
 import { trackEmailEvent } from "@/lib/tracking/tracking-service";
 import type { GoogleAccount } from "@/lib/google/google-account";
 

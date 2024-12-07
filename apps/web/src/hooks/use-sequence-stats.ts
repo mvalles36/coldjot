@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { SequenceStats } from "@/types/sequences";
+import { SequenceStats } from "@mailjot/types";
 
 export function useSequenceStats(sequenceId: string) {
   const [stats, setStats] = useState<SequenceStats>({
