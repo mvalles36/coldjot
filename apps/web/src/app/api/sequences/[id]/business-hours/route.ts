@@ -35,7 +35,8 @@ export async function GET(
       ...(sequence.businessHours && {
         timezone: sequence.businessHours.timezone,
         workDays: sequence.businessHours.workDays,
-        workHours: sequence.businessHours.workHours,
+        workHoursStart: sequence.businessHours.workHoursStart,
+        workHoursEnd: sequence.businessHours.workHoursEnd,
         holidays: sequence.businessHours.holidays,
       }),
     });
@@ -57,7 +58,14 @@ export async function PUT(
     }
 
     const body = (await request.json()) as UpdateBusinessHoursBody;
-    const { timezone, workDays, workHours, holidays, scheduleType } = body;
+    const {
+      timezone,
+      workDays,
+      workHoursStart,
+      workHoursEnd,
+      holidays,
+      scheduleType,
+    } = body;
 
     // Validate the sequence belongs to the user
     const sequence = await prisma.sequence.findFirst({
@@ -84,22 +92,19 @@ export async function PUT(
         const businessHours = await tx.businessHours.upsert({
           where: { sequenceId: id },
           create: {
+            userId: session.user.id,
             sequenceId: id,
             timezone,
             workDays,
-            workHours: {
-              start: workHours.start,
-              end: workHours.end,
-            },
+            workHoursStart,
+            workHoursEnd,
             holidays: holidays.map((dateStr) => new Date(dateStr)),
           },
           update: {
             timezone,
             workDays,
-            workHours: {
-              start: workHours.start,
-              end: workHours.end,
-            },
+            workHoursStart,
+            workHoursEnd,
             holidays: holidays.map((dateStr) => new Date(dateStr)),
           },
         });
@@ -108,7 +113,8 @@ export async function PUT(
           scheduleType,
           timezone: businessHours.timezone,
           workDays: businessHours.workDays,
-          workHours: businessHours.workHours,
+          workHoursStart: businessHours.workHoursStart,
+          workHoursEnd: businessHours.workHoursEnd,
           holidays: businessHours.holidays,
         };
       } else {
@@ -121,7 +127,8 @@ export async function PUT(
           scheduleType,
           timezone,
           workDays,
-          workHours,
+          workHoursStart,
+          workHoursEnd,
           holidays,
         };
       }

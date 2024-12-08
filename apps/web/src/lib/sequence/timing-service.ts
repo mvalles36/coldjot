@@ -55,10 +55,10 @@ function addDelay(date: Date, delay: DelayConfig): Date {
 }
 
 function adjustToBusinessHours(date: Date, businessHours: BusinessHours): Date {
-  const [startHour, startMinute] = businessHours.workHours.start
+  const [startHour, startMinute] = businessHours.workHoursStart
     .split(":")
     .map(Number);
-  const [endHour, endMinute] = businessHours.workHours.end
+  const [endHour, endMinute] = businessHours.workHoursEnd
     .split(":")
     .map(Number);
 
@@ -122,10 +122,10 @@ export function isWithinBusinessHours(
   if (!isWorkDay) return false;
 
   // Check if it's within work hours
-  const [startHour, startMinute] = businessHours.workHours.start
+  const [startHour, startMinute] = businessHours.workHoursStart
     .split(":")
     .map(Number);
-  const [endHour, endMinute] = businessHours.workHours.end
+  const [endHour, endMinute] = businessHours.workHoursEnd
     .split(":")
     .map(Number);
 
@@ -159,10 +159,10 @@ export function calculateProcessingWindow(businessHours: BusinessHours): {
   const now = new Date();
   const zonedNow = toZonedTime(now, businessHours.timezone);
 
-  const [startHour, startMinute] = businessHours.workHours.start
+  const [startHour, startMinute] = businessHours.workHoursStart
     .split(":")
     .map(Number);
-  const [endHour, endMinute] = businessHours.workHours.end
+  const [endHour, endMinute] = businessHours.workHoursEnd
     .split(":")
     .map(Number);
 

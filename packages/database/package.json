@@ -2,14 +2,19 @@
     "name": "@mailjot/database",
     "version": "0.1.0",
     "private": true,
+    "type": "module",
     "main": "./dist/index.js",
-    "module": "./dist/index.mjs",
+    "module": "./dist/index.js",
     "types": "./dist/index.d.ts",
     "files": [
         "dist/**"
     ],
     "exports": {
-        ".": "./src/index.ts"
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js",
+            "require": "./dist/index.cjs"
+        }
     },
     "scripts": {
         "dev": "npm run db:generate && tsup --watch",

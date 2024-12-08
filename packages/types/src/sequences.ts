@@ -1,9 +1,9 @@
 export enum StepType {
-  MANUAL_EMAIL = "manual_email",
-  AUTOMATED_EMAIL = "automated_email",
-  WAIT = "wait",
-  CONDITION = "condition",
-  ACTION = "action",
+  MANUAL_EMAIL = "MANUAL_EMAIL",
+  AUTOMATED_EMAIL = "AUTOMATED_EMAIL",
+  WAIT = "WAIT",
+  CONDITION = "CONDITION",
+  ACTION = "ACTION",
 }
 
 export enum TimingType {
@@ -25,6 +25,11 @@ export enum StepStatus {
   PAUSED = "paused",
   COMPLETED = "completed",
   ERROR = "error",
+  PENDING = "pending",
+  SCHEDULED = "scheduled",
+  SENT = "sent",
+  FAILED = "failed",
+  BOUNCED = "bounced",
 }
 
 export enum SequenceStatus {
@@ -101,10 +106,8 @@ export interface SequenceContact {
 export interface BusinessHours {
   timezone: string;
   workDays: number[];
-  workHours: {
-    start: string;
-    end: string;
-  };
+  workHoursStart: string;
+  workHoursEnd: string;
   holidays: Date[];
 }
 
@@ -176,10 +179,8 @@ export interface DevSettings {
 export interface BusinessHours {
   timezone: string;
   workDays: number[];
-  workHours: {
-    start: string;
-    end: string;
-  };
+  workHoursStart: string;
+  workHoursEnd: string;
   holidays: Date[];
 }
 

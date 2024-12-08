@@ -92,7 +92,7 @@ export class SchedulingService implements ScheduleGenerator {
 
     // Parse work hours
     const startTime = parse(
-      businessHours.workHours.start,
+      businessHours.workHoursStart,
       "HH:mm",
       nextBusinessDay
     );
@@ -137,8 +137,8 @@ export class SchedulingService implements ScheduleGenerator {
     // Check work hours
     const timeString = format(date, "HH:mm");
     return (
-      timeString >= businessHours.workHours.start &&
-      timeString <= businessHours.workHours.end
+      timeString >= businessHours.workHoursStart &&
+      timeString <= businessHours.workHoursEnd
     );
   }
 

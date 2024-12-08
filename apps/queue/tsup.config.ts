@@ -8,7 +8,7 @@ export default defineConfig({
     },
   },
   entry: ["src/server.ts"],
-  format: ["cjs"],
-  sourcemap: false,
-  target: "node16",
+  format: ["esm"],
+  sourcemap: true,
+  target: "node20",
 });

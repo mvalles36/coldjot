@@ -6,12 +6,10 @@ import Bull from "bull";
 
 export class ErrorRecoveryService {
   private defaultRetryStrategy: RetryStrategy = {
-    maxAttempts: 3,
-    backoff: {
-      type: "exponential",
-      delay: 60 * 1000, // 1 minute
-      maxDelay: 24 * 60 * 60 * 1000, // 24 hours
-    },
+    maxRetries: 3,
+    backoffType: "exponential",
+    backoffDelay: 60 * 1000, // 1 minute
+    maxDelay: 24 * 60 * 60 * 1000, // 24 hours
     shouldRetry: (error: Error) => {
       // Don't retry on certain error types
       const nonRetryableErrors = [
@@ -21,27 +19,22 @@ export class ErrorRecoveryService {
       ];
       return !nonRetryableErrors.some((type) => error.name === type);
     },
-    onFinalFailure: async (job: Bull.Job) => {
-      await alertService.processAlert(
-        "job_failure",
-        `Job ${job.id} failed after ${job.attemptsMade} attempts`,
-        "error",
-        {
-          queueName: job.queue.name,
-          jobData: job.data,
-          error: job.failedReason,
-        }
-      );
-    },
   };
-
+  // Default error recovery configuration
   private defaultErrorRecovery: ErrorRecovery = {
-    type: "auto",
-    strategy: "retry",
-    notification: {
-      users: [],
-      message: "Automatic recovery attempt in progress",
-      action: "review",
+    jobId: "",
+    error: "",
+    retryCount: 0,
+    lastRetry: new Date(),
+    strategy: this.defaultRetryStrategy,
+    status: "pending",
+    metadata: {
+      type: "auto",
+      notification: {
+        users: [],
+        message: "Automatic recovery attempt in progress",
+        action: "review",
+      },
     },
   };
 
@@ -49,7 +42,11 @@ export class ErrorRecoveryService {
     job: Bull.Job,
     error: Error,
     retryStrategy: RetryStrategy = this.defaultRetryStrategy,
-    recoveryConfig: ErrorRecovery = this.defaultErrorRecovery
+    recoveryConfig: ErrorRecovery = {
+      ...this.defaultErrorRecovery,
+      jobId: job.id.toString(),
+      error: error.message,
+    }
   ) {
     try {
       // Log the error
@@ -69,8 +66,8 @@ export class ErrorRecoveryService {
 
       // Check if we should retry
       if (
-        job.attemptsMade < retryStrategy.maxAttempts &&
-        retryStrategy.shouldRetry(error)
+        job.attemptsMade < retryStrategy.maxRetries &&
+        retryStrategy.shouldRetry?.(error)
       ) {
         await this.handleRetry(job, error, retryStrategy);
       } else {
@@ -106,8 +103,11 @@ export class ErrorRecoveryService {
     // Add job back to queue with delay
     await job.queue.add(job.data, {
       delay,
-      attempts: retryStrategy.maxAttempts - job.attemptsMade,
-      backoff: retryStrategy.backoff,
+      attempts: retryStrategy.maxRetries - job.attemptsMade,
+      backoff: {
+        type: retryStrategy.backoffType,
+        delay: retryStrategy.backoffDelay,
+      },
     });
 
     // Remove the failed job
@@ -127,21 +127,16 @@ export class ErrorRecoveryService {
     retryStrategy: RetryStrategy,
     recoveryConfig: ErrorRecovery
   ) {
-    // Execute final failure callback
-    await retryStrategy.onFinalFailure(job);
-
     // Handle based on recovery config
-    if (recoveryConfig.type === "auto") {
-      switch (recoveryConfig.strategy) {
-        case "skip":
-          await job.moveToCompleted("Skipped after final failure", true);
-          break;
-        case "pause":
-          await job.queue.pause();
-          break;
-        default:
-          await job.moveToFailed(error, true);
-      }
+    switch (recoveryConfig.status) {
+      case "failed":
+        await job.moveToFailed(error, true);
+        break;
+      case "recovered":
+        await job.moveToCompleted("Recovered after failure", true);
+        break;
+      default:
+        await job.moveToFailed(error, true);
     }
 
     // Send notifications
@@ -152,17 +147,22 @@ export class ErrorRecoveryService {
     attemptsMade: number,
     retryStrategy: RetryStrategy
   ): number {
-    const { type, delay, maxDelay } = retryStrategy.backoff;
+    const { backoffType, backoffDelay, maxDelay, customBackoff } =
+      retryStrategy;
 
-    let retryDelay: number;
-    if (type === "exponential") {
-      retryDelay = delay * Math.pow(2, attemptsMade);
-    } else {
-      retryDelay = delay;
+    if (customBackoff) {
+      return customBackoff(attemptsMade);
     }
 
-    // Cap at maxDelay
-    return Math.min(retryDelay, maxDelay);
+    let retryDelay: number;
+    if (backoffType === "exponential") {
+      retryDelay = backoffDelay * Math.pow(2, attemptsMade);
+    } else {
+      retryDelay = backoffDelay;
+    }
+
+    // Cap at maxDelay if specified
+    return maxDelay ? Math.min(retryDelay, maxDelay) : retryDelay;
   }
 
   private async notifyFailure(
@@ -170,22 +170,27 @@ export class ErrorRecoveryService {
     error: Error,
     recoveryConfig: ErrorRecovery
   ) {
-    const { users, message, action } = recoveryConfig.notification;
+    const notificationUsers = (recoveryConfig.metadata.notification?.users ||
+      []) as string[];
+    const notificationMessage =
+      recoveryConfig.metadata.notification?.message || "Job failed";
+    const notificationAction =
+      recoveryConfig.metadata.notification?.action || "review";
 
     // Create notification record
     await prisma.notification.create({
       data: {
         type: "error_recovery",
         title: `Job ${job.id} Failed`,
-        message: `${message}\nError: ${error.message}`,
+        message: `${notificationMessage}\nError: ${error.message}`,
         metadata: {
           jobId: job.id,
           queueName: job.queue.name,
           error: error.message,
-          action,
+          action: notificationAction,
         },
         users: {
-          connect: users.map((userId) => ({ id: userId })),
+          connect: notificationUsers.map((userId: string) => ({ id: userId })),
         },
       },
     });
@@ -193,13 +198,13 @@ export class ErrorRecoveryService {
     // Send alert
     await alertService.processAlert(
       "job_failure_notification",
-      message,
+      notificationMessage,
       "error",
       {
         jobId: job.id,
         queueName: job.queue.name,
         error: error.message,
-        action,
+        action: notificationAction,
       }
     );
   }

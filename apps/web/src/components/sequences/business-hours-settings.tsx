@@ -37,10 +37,8 @@ const DAYS_OF_WEEK = [
 const DEFAULT_BUSINESS_HOURS: BusinessHours = {
   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   workDays: [1, 2, 3, 4, 5], // Monday to Friday
-  workHours: {
-    start: "09:00",
-    end: "17:00",
-  },
+  workHoursStart: "09:00",
+  workHoursEnd: "17:00",
   holidays: [],
 };
 
@@ -67,11 +65,10 @@ BusinessHoursSettingsProps) {
   };
 
   const handleTimeChange = (type: "start" | "end", value: string) => {
-    const newWorkHours = {
-      ...settings.workHours,
-      [type]: value,
-    };
-    setSettings({ ...settings, workHours: newWorkHours });
+    setSettings({
+      ...settings,
+      [type === "start" ? "workHoursStart" : "workHoursEnd"]: value,
+    });
   };
 
   const handleTimezoneChange = (value: string) => {
@@ -202,7 +199,7 @@ BusinessHoursSettingsProps) {
             <div>
               <Label>Start Time</Label>
               <TimePicker
-                value={settings.workHours.start}
+                value={settings.workHoursStart}
                 onChange={(value) => handleTimeChange("start", value)}
                 disabled={isLoading || scheduleType === "business"}
               />
@@ -215,7 +212,7 @@ BusinessHoursSettingsProps) {
             <div>
               <Label>End Time</Label>
               <TimePicker
-                value={settings.workHours.end}
+                value={settings.workHoursEnd}
                 onChange={(value) => handleTimeChange("end", value)}
                 disabled={isLoading || scheduleType === "business"}
               />

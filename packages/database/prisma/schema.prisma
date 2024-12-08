@@ -40,24 +40,24 @@ model Session {
 }
 
 model User {
-    id                    String                  @id @default(cuid())
-    name                  String?
-    email                 String?                 @unique
-    emailVerified         DateTime?
-    image                 String?
-    accounts              Account[]
-    sessions              Session[]
-    templates             Template[]
-    contacts              Contact[]
-    drafts                Draft[]
-    TestData              TestData[]
-    EmailList             EmailList[]
-    Sequence              Sequence[]
-    devSettings           DevSettings?
-    EmailThread           EmailThread[]
-    Notification          Notification?           @relation(fields: [notificationId], references: [id])
-    notificationId        String?
-    businessHoursSettings BusinessHoursSettings[]
+    id             String          @id @default(cuid())
+    name           String?
+    email          String?         @unique
+    emailVerified  DateTime?
+    image          String?
+    accounts       Account[]
+    sessions       Session[]
+    templates      Template[]
+    contacts       Contact[]
+    drafts         Draft[]
+    TestData       TestData[]
+    EmailList      EmailList[]
+    Sequence       Sequence[]
+    devSettings    DevSettings?
+    EmailThread    EmailThread[]
+    Notification   Notification?   @relation(fields: [notificationId], references: [id])
+    notificationId String?
+    businessHours  BusinessHours[]
 }
 
 model Contact {
@@ -158,24 +158,25 @@ model EmailList {
 }
 
 model Sequence {
-    id            String            @id @default(cuid())
-    name          String
-    accessLevel   String            @default("team")
-    scheduleType  String            @default("business")
-    status        String            @default("draft")
-    testMode      Boolean           @default(false)
-    userId        String
-    createdAt     DateTime          @default(now())
-    updatedAt     DateTime          @updatedAt
-    steps         SequenceStep[]
-    user          User              @relation(fields: [userId], references: [id])
-    EmailList     EmailList?        @relation(fields: [emailListId], references: [id])
-    emailListId   String?
-    stats         SequenceStats[]
-    contacts      SequenceContact[] @relation("SequenceToContact")
-    EmailEvent    EmailEvent[]
-    EmailThread   EmailThread[]
-    businessHours BusinessHours?
+    id             String            @id @default(cuid())
+    name           String
+    accessLevel    String            @default("team")
+    scheduleType   String            @default("business")
+    status         String            @default("draft")
+    testMode       Boolean           @default(false)
+    userId         String
+    createdAt      DateTime          @default(now())
+    updatedAt      DateTime          @updatedAt
+    steps          SequenceStep[]
+    user           User              @relation(fields: [userId], references: [id])
+    EmailList      EmailList?        @relation(fields: [emailListId], references: [id])
+    emailListId    String?
+    stats          SequenceStats[]
+    contacts       SequenceContact[] @relation("SequenceToContact")
+    EmailEvent     EmailEvent[]
+    EmailThread    EmailThread[]
+    businessHours  BusinessHours?
+    SequenceHealth SequenceHealth?
 
     @@index([userId])
 }
@@ -370,15 +371,21 @@ model EmailThread {
 }
 
 model BusinessHours {
-    id         String     @id @default(cuid())
-    sequenceId String     @unique
-    sequence   Sequence   @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
-    timezone   String
-    workDays   Int[]
-    workHours  Json // { start: string, end: string }
-    holidays   DateTime[]
-    createdAt  DateTime   @default(now())
-    updatedAt  DateTime   @updatedAt
+    id             String     @id @default(cuid())
+    userId         String
+    sequenceId     String?    @unique
+    sequence       Sequence?  @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+    user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+    timezone       String     @default("UTC")
+    workDays       Int[]      @default([1, 2, 3, 4, 5])
+    workHoursStart String     @default("09:00")
+    workHoursEnd   String     @default("17:00")
+    holidays       DateTime[]
+    createdAt      DateTime   @default(now())
+    updatedAt      DateTime   @updatedAt
+
+    @@index([userId])
+    @@index([sequenceId])
 }
 
 // Queue metrics
@@ -478,17 +485,17 @@ model Notification {
     users User[]
 }
 
-model BusinessHoursSettings {
-    id             String     @id @default(cuid())
-    userId         String
-    timezone       String     @default("UTC")
-    workDays       Int[]      @default([1, 2, 3, 4, 5]) // 0 = Sunday, 1 = Monday, etc.
-    workHoursStart String     @default("09:00")
-    workHoursEnd   String     @default("17:00")
-    holidays       DateTime[]
-    createdAt      DateTime   @default(now())
-    updatedAt      DateTime   @updatedAt
+model SequenceHealth {
+    id         String   @id @default(cuid())
+    sequenceId String   @unique
+    sequence   Sequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+    status     String   @default("healthy")
+    errorCount Int      @default(0)
+    lastCheck  DateTime @default(now())
+    lastError  String?
+    metrics    Json
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
 
-    // Relations
-    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+    @@index([sequenceId])
 }

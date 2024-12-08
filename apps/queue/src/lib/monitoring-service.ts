@@ -1,60 +1,70 @@
 import { prisma } from "@mailjot/database";
-import { AlertConfig, SequenceHealth, SystemMetrics } from "../types/queue";
+import {
+  AlertConfig,
+  SequenceHealth,
+  SystemMetrics,
+  QueueMetrics,
+} from "../types/queue";
 import { logger } from "./logger";
-import { queueService } from "./queue-service";
+import { QueueService } from "./queue-service";
+import os from "os";
 
 export class MonitoringService {
   private defaultAlertConfig: AlertConfig = {
-    thresholds: {
-      bounceRate: 0.05, // 5%
-      errorRate: 0.1, // 10%
-      processingDelay: 15 * 60 * 1000, // 15 minutes
-      queueSize: 1000,
-    },
+    errorThreshold: 0.1, // 10% error rate
+    warningThreshold: 0.05, // 5% error rate
+    criticalThreshold: 0.2, // 20% error rate
+    checkInterval: 5 * 60 * 1000, // 5 minutes
+    retryInterval: 60 * 1000, // 1 minute
+    maxRetries: 3,
     channels: {
-      email: true,
-      slack: false,
-      dashboard: true,
+      email: [process.env.ALERT_EMAIL_TO || ""],
     },
-    rules: [
-      {
-        condition: "bounceRate > threshold",
-        severity: "error",
-        action: "pause",
-      },
-      {
-        condition: "errorRate > threshold",
-        severity: "warning",
-        action: "notify",
-      },
-      {
-        condition: "processingDelay > threshold",
-        severity: "warning",
-        action: "notify",
-      },
-      {
-        condition: "queueSize > threshold",
-        severity: "info",
-        action: "notify",
-      },
-    ],
   };
 
-  async checkSequenceHealth(sequenceId: string): Promise<SequenceHealth> {
+  private queueService: QueueService;
+  private checkIntervals: Map<string, NodeJS.Timeout> = new Map();
+
+  constructor(queueService: QueueService) {
+    this.queueService = queueService;
+  }
+
+  // Start monitoring a sequence
+  async startMonitoring(
+    sequenceId: string,
+    config?: Partial<AlertConfig>
+  ): Promise<void> {
+    const alertConfig = { ...this.defaultAlertConfig, ...config };
+
+    // Stop existing monitoring if any
+    this.stopMonitoring(sequenceId);
+
+    // Start health check interval
+    const interval = setInterval(
+      () => this.checkSequenceHealth(sequenceId, alertConfig),
+      alertConfig.checkInterval
+    );
+
+    this.checkIntervals.set(sequenceId, interval);
+    logger.info(`Started monitoring sequence ${sequenceId}`);
+  }
+
+  // Stop monitoring a sequence
+  stopMonitoring(sequenceId: string): void {
+    const interval = this.checkIntervals.get(sequenceId);
+    if (interval) {
+      clearInterval(interval);
+      this.checkIntervals.delete(sequenceId);
+      logger.info(`Stopped monitoring sequence ${sequenceId}`);
+    }
+  }
+
+  // Check sequence health
+  async checkSequenceHealth(
+    sequenceId: string,
+    config: AlertConfig
+  ): Promise<SequenceHealth> {
     try {
-      // Get sequence and its stats
-      const sequence = await prisma.sequence.findUnique({
-        where: { id: sequenceId },
-        include: {
-          stats: true,
-          steps: true,
-        },
-      });
-
-      if (!sequence) {
-        throw new Error("Sequence not found");
-      }
-
       // Get sequence stats
       const stats = await prisma.sequenceStats.findFirst({
         where: { sequenceId },
@@ -64,180 +74,111 @@ export class MonitoringService {
         throw new Error("Sequence stats not found");
       }
 
-      // Calculate metrics
-      const metrics = {
-        bounceRate: stats.bouncedEmails / stats.totalEmails || 0,
-        errorRate: stats.failedEmails / stats.totalEmails || 0,
-        deliveryRate: stats.sentEmails / stats.totalEmails || 0,
-        processingDelay: this.calculateProcessingDelay(sequence.steps),
-      };
+      // Get queue metrics for this sequence
+      const queueMetrics = await this.getQueueMetrics(sequenceId);
 
-      // Determine status based on metrics
-      const status = this.determineHealthStatus(metrics);
+      // Calculate health metrics
+      const deliveryRate =
+        stats.sentEmails > 0
+          ? (stats.sentEmails - stats.bouncedEmails) / stats.sentEmails
+          : 1;
+      const bounceRate =
+        stats.sentEmails > 0 ? stats.bouncedEmails / stats.sentEmails : 0;
+      const errorRate = queueMetrics.errorRate;
 
-      // Identify issues
-      const issues = this.identifyIssues(metrics);
+      // Determine health status
+      let status: SequenceHealth["status"] = "healthy";
+      if (errorRate >= config.criticalThreshold) {
+        status = "critical";
+      } else if (errorRate >= config.errorThreshold) {
+        status = "error";
+      } else if (errorRate >= config.warningThreshold) {
+        status = "warning";
+      }
 
-      return {
-        id: sequenceId,
+      const health: SequenceHealth = {
+        sequenceId,
         status,
-        metrics,
-        issues,
+        errorCount: stats.failedEmails,
+        lastCheck: new Date(),
+        metrics: {
+          deliveryRate,
+          bounceRate,
+          errorRate,
+          processingTime: queueMetrics.avgProcessingTime,
+        },
       };
+
+      // Store health check result
+      await this.storeHealthCheck(health);
+
+      return health;
     } catch (error) {
-      logger.error("Error checking sequence health:", error);
+      logger.error(`Health check failed for sequence ${sequenceId}:`, error);
       throw error;
     }
   }
 
-  private calculateProcessingDelay(steps: any[]): number {
-    // TODO: Implement processing delay calculation
-    return 0;
-  }
-
-  private determineHealthStatus(metrics: {
-    bounceRate: number;
-    errorRate: number;
-    deliveryRate: number;
-    processingDelay: number;
-  }): "healthy" | "warning" | "error" {
-    if (metrics.bounceRate > 0.1 || metrics.errorRate > 0.2) {
-      return "error";
-    }
-    if (metrics.bounceRate > 0.05 || metrics.errorRate > 0.1) {
-      return "warning";
-    }
-    return "healthy";
-  }
-
-  private identifyIssues(metrics: {
-    bounceRate: number;
-    errorRate: number;
-    deliveryRate: number;
-    processingDelay: number;
-  }): {
-    type: "error" | "rate_limit" | "bounce" | "delay";
-    severity: "low" | "medium" | "high";
-    message: string;
-  }[] {
-    const issues: {
-      type: "error" | "rate_limit" | "bounce" | "delay";
-      severity: "low" | "medium" | "high";
-      message: string;
-    }[] = [];
-
-    if (metrics.bounceRate > 0.1) {
-      issues.push({
-        type: "bounce",
-        severity: "high",
-        message: "High bounce rate detected",
-      });
-    } else if (metrics.bounceRate > 0.05) {
-      issues.push({
-        type: "bounce",
-        severity: "medium",
-        message: "Elevated bounce rate detected",
-      });
-    }
-
-    if (metrics.errorRate > 0.2) {
-      issues.push({
-        type: "error",
-        severity: "high",
-        message: "High error rate detected",
-      });
-    } else if (metrics.errorRate > 0.1) {
-      issues.push({
-        type: "error",
-        severity: "medium",
-        message: "Elevated error rate detected",
-      });
-    }
-
-    if (metrics.processingDelay > 15 * 60 * 1000) {
-      issues.push({
-        type: "delay",
-        severity: "high",
-        message: "Significant processing delay detected",
-      });
-    }
-
-    return issues;
-  }
-
+  // Get system metrics
   async getSystemMetrics(): Promise<SystemMetrics> {
-    return queueService.getSystemMetrics();
+    const queueCounts = await this.queueService.getJobCounts();
+    const queueMetrics = await this.getQueueMetrics();
+
+    return {
+      queueSize: queueCounts.waiting + queueCounts.active,
+      processingRate: queueMetrics.processingRate,
+      errorRate: queueMetrics.errorRate,
+      cpuUsage: os.loadavg()[0], // 1 minute load average
+      memoryUsage: process.memoryUsage().heapUsed / 1024 / 1024, // MB
+      activeWorkers: queueCounts.active,
+      jobsCompleted: queueCounts.completed,
+      jobsFailed: queueCounts.failed,
+    };
   }
 
-  async handleAlert(
-    type: string,
-    message: string,
-    severity: "info" | "warning" | "error"
-  ) {
-    // Log the alert
-    logger.info(`Alert [${severity}] ${type}: ${message}`);
+  // Get queue metrics for a specific sequence or overall
+  private async getQueueMetrics(sequenceId?: string): Promise<QueueMetrics> {
+    const jobs = await this.queueService.getCompletedJobs(sequenceId);
+    const totalJobs = jobs.length;
 
-    // Store the alert in the database
-    await prisma.queueAlert.create({
+    if (totalJobs === 0) {
+      return {
+        processingRate: 0,
+        errorRate: 0,
+        avgProcessingTime: 0,
+        throughput: 0,
+      };
+    }
+
+    const failedJobs = jobs.filter((job) => job.failedReason).length;
+    const processingTimes = jobs.map((job) => job.processedOn! - job.timestamp);
+    const avgProcessingTime =
+      processingTimes.reduce((a, b) => a + b, 0) / totalJobs;
+
+    // Calculate metrics for the last hour
+    const hourAgo = Date.now() - 60 * 60 * 1000;
+    const recentJobs = jobs.filter((job) => job.processedOn! > hourAgo);
+    const throughput = recentJobs.length;
+
+    return {
+      processingRate: totalJobs / (Date.now() - jobs[0].timestamp),
+      errorRate: failedJobs / totalJobs,
+      avgProcessingTime,
+      throughput,
+    };
+  }
+
+  // Store health check result
+  private async storeHealthCheck(health: SequenceHealth): Promise<void> {
+    await prisma.sequenceHealth.create({
       data: {
-        type,
-        queueName: "sequence",
-        value: message,
-        threshold: "N/A",
+        sequenceId: health.sequenceId,
+        status: health.status,
+        errorCount: health.errorCount,
+        lastCheck: health.lastCheck,
+        lastError: health.lastError,
+        metrics: health.metrics as any, // Prisma will handle JSON serialization
       },
     });
-
-    // TODO: Implement notification sending based on alert config
-  }
-
-  async checkSystemHealth() {
-    try {
-      const metrics = await this.getSystemMetrics();
-
-      // Check queue sizes
-      for (const queue of metrics.queues) {
-        if (queue.size > this.defaultAlertConfig.thresholds.queueSize) {
-          await this.handleAlert(
-            "queue_size",
-            `Queue ${queue.name} has exceeded size threshold: ${queue.size} jobs`,
-            "warning"
-          );
-        }
-
-        if (queue.failed > 0) {
-          await this.handleAlert(
-            "failed_jobs",
-            `Queue ${queue.name} has ${queue.failed} failed jobs`,
-            "error"
-          );
-        }
-      }
-
-      // Check error rate
-      if (
-        metrics.performance.errorRate >
-        this.defaultAlertConfig.thresholds.errorRate
-      ) {
-        await this.handleAlert(
-          "error_rate",
-          `System error rate has exceeded threshold: ${(
-            metrics.performance.errorRate * 100
-          ).toFixed(1)}%`,
-          "error"
-        );
-      }
-
-      // Store metrics
-      await prisma.queueMetrics.create({
-        data: {
-          metrics: metrics as any,
-        },
-      });
-    } catch (error) {
-      logger.error("Error checking system health:", error);
-    }
   }
 }
-
-// Export singleton instance
-export const monitoringService = new MonitoringService();

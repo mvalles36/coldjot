@@ -45,10 +45,8 @@ class SequenceProcessor {
               ? {
                   timezone: sequence.businessHours.timezone,
                   workDays: sequence.businessHours.workDays,
-                  workHours: sequence.businessHours.workHours as {
-                    start: string;
-                    end: string;
-                  },
+                  workHoursStart: sequence.businessHours.workHoursStart,
+                  workHoursEnd: sequence.businessHours.workHoursEnd,
                   holidays: sequence.businessHours.holidays,
                 }
               : null,
@@ -114,7 +112,8 @@ class SequenceProcessor {
         sequence.businessHours ?? {
           timezone: "UTC",
           workDays: [1, 2, 3, 4, 5],
-          workHours: { start: "09:00", end: "17:00" },
+          workHoursStart: "09:00",
+          workHoursEnd: "17:00",
           holidays: [],
         }
       );

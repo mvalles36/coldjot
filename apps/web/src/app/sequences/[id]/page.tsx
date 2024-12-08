@@ -61,10 +61,8 @@ export default async function SequencePage({
       ? ({
           timezone: sequence.businessHours.timezone,
           workDays: sequence.businessHours.workDays,
-          workHours: sequence.businessHours.workHours as {
-            start: string;
-            end: string;
-          },
+          workHoursStart: sequence.businessHours.workHoursStart,
+          workHoursEnd: sequence.businessHours.workHoursEnd,
           holidays: sequence.businessHours.holidays,
         } as BusinessHours)
       : undefined,

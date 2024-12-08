@@ -5,39 +5,18 @@ import nodemailer from "nodemailer";
 
 export class AlertService {
   private defaultAlertConfig: AlertConfig = {
-    thresholds: {
-      bounceRate: 0.05, // 5%
-      errorRate: 0.1, // 10%
-      processingDelay: 15 * 60 * 1000, // 15 minutes
-      queueSize: 1000,
-    },
+    errorThreshold: 0.1, // 10%
+    warningThreshold: 0.05, // 5%
+    criticalThreshold: 0.2, // 20%
+    checkInterval: 5 * 60 * 1000, // 5 minutes
+    retryInterval: 60 * 1000, // 1 minute
+    maxRetries: 3,
     channels: {
-      email: true,
-      slack: false,
-      dashboard: true,
+      email: [process.env.ALERT_EMAIL_TO || ""],
+      slack: process.env.SLACK_WEBHOOK_URL
+        ? [process.env.SLACK_WEBHOOK_URL]
+        : undefined,
     },
-    rules: [
-      {
-        condition: "bounceRate > threshold",
-        severity: "error",
-        action: "pause",
-      },
-      {
-        condition: "errorRate > threshold",
-        severity: "warning",
-        action: "notify",
-      },
-      {
-        condition: "processingDelay > threshold",
-        severity: "warning",
-        action: "notify",
-      },
-      {
-        condition: "queueSize > threshold",
-        severity: "info",
-        action: "notify",
-      },
-    ],
   };
 
   private emailTransporter = nodemailer.createTransport({
@@ -89,12 +68,12 @@ export class AlertService {
     const config = this.defaultAlertConfig;
 
     // Email notifications
-    if (config.channels.email) {
+    if (config.channels.email?.length) {
       await this.sendEmailAlert(alert, severity, metadata);
     }
 
     // Slack notifications
-    if (config.channels.slack) {
+    if (config.channels.slack?.length) {
       await this.sendSlackAlert(alert, severity, metadata);
     }
 
