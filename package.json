@@ -3,11 +3,20 @@
     "private": true,
     "packageManager": "npm@10.0.0",
     "scripts": {
-        "dev": "turbo run dev",
-        "build": "turbo run build",
+        "dev": "APP_ENV=development turbo run dev",
+        "dev:staging": "APP_ENV=staging turbo run dev",
+        "dev:prod": "APP_ENV=production turbo run dev",
+        "build:dev": "APP_ENV=development turbo run build",
+        "build:staging": "APP_ENV=staging turbo run build",
+        "build:prod": "APP_ENV=production turbo run build",
+        "start:dev": "APP_ENV=development turbo run start",
+        "start:staging": "APP_ENV=staging turbo run start",
+        "start:prod": "APP_ENV=production turbo run start",
         "lint": "turbo run lint",
         "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-        "clean": "turbo run clean && rm -rf node_modules"
+        "clean": "turbo run clean && rm -rf node_modules",
+        "debug:env": "APP_ENV=development turbo run dev --dry=json",
+        "check:env": "APP_ENV=development node -e \"console.log(process.env)\""
     },
     "engines": {
         "node": ">=20"

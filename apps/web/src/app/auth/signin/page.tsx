@@ -1,6 +1,11 @@
 import { auth, signIn } from "@/auth";
 import { redirect } from "next/navigation";
 
+async function signInWithGoogle() {
+  "use server";
+  return signIn("google", { redirectTo: "/" });
+}
+
 export default async function SignIn() {
   const session = await auth();
 
@@ -13,14 +18,12 @@ export default async function SignIn() {
     <div className="flex min-h-screen flex-col items-center justify-center py-2">
       <div className="flex flex-col items-center space-y-8">
         <h1 className="text-4xl font-bold">Sign In</h1>
-        <form
-          action={async () => {
-            "use server";
-            await signIn("google", { redirectTo: "/" });
-          }}
-        >
+        {/* <form action={signInWithGoogle}> */}
+        <form>
           <button
-            type="submit"
+            // onClick={() => signIn("google")}
+            onClick={signInWithGoogle}
+            // type="submit"
             className="flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-white hover:bg-blue-700"
           >
             <svg className="h-5 w-5" viewBox="0 0 24 24">

@@ -6,19 +6,19 @@ import type { Prisma } from "@prisma/client";
  * Calculate rates based on current stats
  */
 const calculateRates = (stats: {
-  sentEmails: number;
-  openedEmails: number;
-  uniqueOpens: number;
-  clickedEmails: number;
-  repliedEmails: number;
-  bouncedEmails: number;
+  sentEmails: number | null;
+  openedEmails: number | null;
+  uniqueOpens: number | null;
+  clickedEmails: number | null;
+  repliedEmails: number | null;
+  bouncedEmails: number | null;
 }) => {
-  const denominator = Math.max(stats.sentEmails, 1); // Prevent division by zero
+  const denominator = Math.max(stats.sentEmails ?? 0, 1); // Prevent division by zero
   return {
-    openRate: (stats.uniqueOpens / denominator) * 100, // Use unique opens for open rate
-    clickRate: (stats.clickedEmails / denominator) * 100,
-    replyRate: (stats.repliedEmails / denominator) * 100,
-    bounceRate: (stats.bouncedEmails / denominator) * 100,
+    openRate: ((stats.uniqueOpens ?? 0) / denominator) * 100, // Use unique opens for open rate
+    clickRate: ((stats.clickedEmails ?? 0) / denominator) * 100,
+    replyRate: ((stats.repliedEmails ?? 0) / denominator) * 100,
+    bounceRate: ((stats.bouncedEmails ?? 0) / denominator) * 100,
   };
 };
 
@@ -51,7 +51,7 @@ export const updateSequenceStats = async (
   // Start a transaction to ensure data consistency
   return prisma.$transaction(async (tx) => {
     // Get or create stats
-    let stats = await tx.sequenceStats.findUnique({
+    let stats = await tx.sequenceStats.findFirst({
       where: { sequenceId },
     });
 
@@ -68,6 +68,7 @@ export const updateSequenceStats = async (
           clickedEmails: 0,
           repliedEmails: 0,
           bouncedEmails: 0,
+          failedEmails: 0,
           unsubscribed: 0,
           interested: 0,
           peopleContacted: 0,
@@ -94,29 +95,36 @@ export const updateSequenceStats = async (
           });
 
           if (existingSends === 0) {
-            updates.peopleContacted = stats.peopleContacted + 1;
+            updates.peopleContacted = { increment: 1 };
           }
         }
 
-        updates.totalEmails = stats.totalEmails + 1;
-        updates.sentEmails = stats.sentEmails + 1;
+        updates.totalEmails = { increment: 1 };
+        updates.sentEmails = { increment: 1 };
 
         // Recalculate rates with new sent count
         const newRates = calculateRates({
           ...stats,
-          sentEmails: stats.sentEmails + 1,
+          sentEmails: (stats.sentEmails ?? 0) + 1,
+          openedEmails: stats.openedEmails ?? 0,
+          uniqueOpens: stats.uniqueOpens ?? 0,
+          clickedEmails: stats.clickedEmails ?? 0,
+          repliedEmails: stats.repliedEmails ?? 0,
+          bouncedEmails: stats.bouncedEmails ?? 0,
         });
-        Object.assign(updates, newRates);
+        Object.assign(updates, {
+          openRate: newRates.openRate,
+          clickRate: newRates.clickRate,
+          replyRate: newRates.replyRate,
+          bounceRate: newRates.bounceRate,
+        });
         break;
       }
 
       case "opened": {
-        // Always increment total opens
-        updates.openedEmails = stats.openedEmails + 1;
+        updates.openedEmails = { increment: 1 };
 
-        // Check for unique opens only if we have a contactId
         if (contactId) {
-          // Get all previous opens for this contact
           const existingOpens = await tx.emailEvent.findFirst({
             where: {
               sequenceId,
@@ -125,58 +133,69 @@ export const updateSequenceStats = async (
             },
           });
 
-          // If this is the first open by this contact
           if (!existingOpens) {
-            updates.uniqueOpens = stats.uniqueOpens + 1;
-
-            // Recalculate open rate based on unique opens
+            updates.uniqueOpens = { increment: 1 };
             const newRates = calculateRates({
               ...stats,
-              uniqueOpens: stats.uniqueOpens + 1,
+              sentEmails: stats.sentEmails ?? 0,
+              openedEmails: stats.openedEmails ?? 0,
+              uniqueOpens: (stats.uniqueOpens ?? 0) + 1,
+              clickedEmails: stats.clickedEmails ?? 0,
+              repliedEmails: stats.repliedEmails ?? 0,
+              bouncedEmails: stats.bouncedEmails ?? 0,
             });
             updates.openRate = newRates.openRate;
           }
-
-          // Log the open event for tracking
-          await tx.emailEvent.create({
-            data: {
-              type: "opened",
-              sequenceId,
-              contactId,
-              emailId: "", // You might want to pass this as a parameter
-              metadata: {
-                timestamp: new Date(),
-                isUnique: !existingOpens,
-              },
-            },
-          });
         }
         break;
       }
 
       case "clicked": {
-        updates.clickedEmails = stats.clickedEmails + 1;
-        updates.clickRate =
-          ((stats.clickedEmails + 1) / Math.max(stats.sentEmails, 1)) * 100;
+        updates.clickedEmails = { increment: 1 };
+        const newRates = calculateRates({
+          ...stats,
+          sentEmails: stats.sentEmails ?? 0,
+          openedEmails: stats.openedEmails ?? 0,
+          uniqueOpens: stats.uniqueOpens ?? 0,
+          clickedEmails: (stats.clickedEmails ?? 0) + 1,
+          repliedEmails: stats.repliedEmails ?? 0,
+          bouncedEmails: stats.bouncedEmails ?? 0,
+        });
+        updates.clickRate = newRates.clickRate;
         break;
       }
 
       case "replied": {
-        updates.repliedEmails = stats.repliedEmails + 1;
-        updates.replyRate =
-          ((stats.repliedEmails + 1) / Math.max(stats.sentEmails, 1)) * 100;
+        updates.repliedEmails = { increment: 1 };
+        const newRates = calculateRates({
+          ...stats,
+          sentEmails: stats.sentEmails ?? 0,
+          openedEmails: stats.openedEmails ?? 0,
+          uniqueOpens: stats.uniqueOpens ?? 0,
+          clickedEmails: stats.clickedEmails ?? 0,
+          repliedEmails: (stats.repliedEmails ?? 0) + 1,
+          bouncedEmails: stats.bouncedEmails ?? 0,
+        });
+        updates.replyRate = newRates.replyRate;
         break;
       }
 
       case "bounced": {
-        updates.bouncedEmails = stats.bouncedEmails + 1;
-        updates.bounceRate =
-          ((stats.bouncedEmails + 1) / Math.max(stats.sentEmails, 1)) * 100;
+        updates.bouncedEmails = { increment: 1 };
+        const newRates = calculateRates({
+          ...stats,
+          sentEmails: stats.sentEmails ?? 0,
+          openedEmails: stats.openedEmails ?? 0,
+          uniqueOpens: stats.uniqueOpens ?? 0,
+          clickedEmails: stats.clickedEmails ?? 0,
+          repliedEmails: stats.repliedEmails ?? 0,
+          bouncedEmails: (stats.bouncedEmails ?? 0) + 1,
+        });
+        updates.bounceRate = newRates.bounceRate;
         break;
       }
 
       case "unsubscribed": {
-        // Only count unique unsubscribes
         if (contactId) {
           const existingUnsubscribes = await getExistingEventCount({
             sequenceId,
@@ -185,14 +204,13 @@ export const updateSequenceStats = async (
           });
 
           if (existingUnsubscribes === 0) {
-            updates.unsubscribed = stats.unsubscribed + 1;
+            updates.unsubscribed = { increment: 1 };
           }
         }
         break;
       }
 
       case "interested": {
-        // Only count unique interests
         if (contactId) {
           const existingInterests = await getExistingEventCount({
             sequenceId,
@@ -201,7 +219,7 @@ export const updateSequenceStats = async (
           });
 
           if (existingInterests === 0) {
-            updates.interested = stats.interested + 1;
+            updates.interested = { increment: 1 };
           }
         }
         break;
@@ -220,12 +238,12 @@ export const updateSequenceStats = async (
  * Get sequence stats with default values
  */
 export const getSequenceStats = async (sequenceId: string) => {
-  const stats = await prisma.sequenceStats.findUnique({
+  const stats = await prisma.sequenceStats.findFirst({
     where: { sequenceId },
   });
 
   if (!stats) {
-    const defaultStats: Prisma.SequenceStatsGetPayload<{}> = {
+    return {
       id: "",
       sequenceId,
       contactId: null,
@@ -236,6 +254,7 @@ export const getSequenceStats = async (sequenceId: string) => {
       clickedEmails: 0,
       repliedEmails: 0,
       bouncedEmails: 0,
+      failedEmails: 0,
       unsubscribed: 0,
       interested: 0,
       peopleContacted: 0,
@@ -244,10 +263,12 @@ export const getSequenceStats = async (sequenceId: string) => {
       replyRate: 0,
       bounceRate: 0,
       avgResponseTime: null,
+      avgOpenTime: null,
+      avgClickTime: null,
+      avgReplyTime: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-    return defaultStats;
   }
 
   return stats;

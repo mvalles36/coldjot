@@ -155,11 +155,12 @@ async function handleLinkClick(hash: string, linkId: string | null) {
 
   // Always update stats for clicks as we want to track all clicks
   if (existingEvent.sequenceId && existingEvent.contactId) {
-    await updateSequenceStats(
-      existingEvent.sequenceId,
-      "clicked",
-      existingEvent.contactId
-    );
+    // TODO: fix this
+    // await updateSequenceStats(
+    //   existingEvent.sequenceId,
+    //   "clicked",
+    //   existingEvent.contactId
+    // );
   }
 
   console.log(`✅ Recorded link click for ${trackedLink.originalUrl}`);
@@ -170,7 +171,7 @@ async function handleLinkClick(hash: string, linkId: string | null) {
 // Main route handler
 export async function GET(
   request: NextRequest,
-  { params }: { params: { slug?: string[] } }
+  { params }: { params: Promise<{ slug?: string[] }> }
 ) {
   try {
     console.log(`\n🎯 New tracking request received`);
@@ -243,10 +244,13 @@ export async function GET(
             <div class="error-box">
               <p class="error-message">${
                 error instanceof Error ? error.message : "Unknown error"
+                // TODO: Add back in
+                // <p><strong>Hash:</strong> ${params.slug?.[0] || "N/A"}</p>
+                // <p><strong>Action:</strong> ${params.slug?.[1] || "N/A"}</p>
               }</p>
               <div class="error-details">
-                <p><strong>Hash:</strong> ${params.slug?.[0] || "N/A"}</p>
-                <p><strong>Action:</strong> ${params.slug?.[1] || "N/A"}</p>
+                <p><strong>Hash:</strong>"N/A"</p>
+                <p><strong>Action:</strong>"N/A"</p>
                 <p><strong>URL:</strong> ${request.url}</p>
               </div>
             </div>
@@ -267,11 +271,11 @@ export async function GET(
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { eventType: string } }
+  { params }: { params: Promise<{ eventType: string }> }
 ) {
   try {
     const { emailId } = await req.json();
-    const eventType = params.eventType.toUpperCase();
+    const eventType = (await params).eventType.toUpperCase();
 
     if (!emailId) {
       return NextResponse.json(

@@ -13,7 +13,7 @@ interface UpdateSettingsBody {
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -63,21 +63,18 @@ export async function PATCH(
           where: { sequenceId: id },
           create: {
             sequenceId: id,
+            userId: session.user.id,
             timezone: body.businessHours.timezone,
             workDays: body.businessHours.workDays,
-            workHours: {
-              start: body.businessHours.workHours.start,
-              end: body.businessHours.workHours.end,
-            },
+            workHoursStart: body.businessHours.workHoursStart,
+            workHoursEnd: body.businessHours.workHoursEnd,
             holidays: body.businessHours.holidays.map((h) => new Date(h)),
           },
           update: {
             timezone: body.businessHours.timezone,
             workDays: body.businessHours.workDays,
-            workHours: {
-              start: body.businessHours.workHours.start,
-              end: body.businessHours.workHours.end,
-            },
+            workHoursStart: body.businessHours.workHoursStart,
+            workHoursEnd: body.businessHours.workHoursEnd,
             holidays: body.businessHours.holidays.map((h) => new Date(h)),
           },
         });

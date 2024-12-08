@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -39,7 +39,7 @@ export async function GET(
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -47,12 +47,13 @@ export async function PATCH(
   }
 
   try {
+    const { id } = await params;
     const json = await request.json();
     const { name, description, contacts, tags } = json;
 
     const list = await prisma.emailList.update({
       where: {
-        id: params.id,
+        id: id,
         userId: session.user.id,
       },
       data: {
@@ -80,7 +81,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -88,9 +89,10 @@ export async function DELETE(
   }
 
   try {
+    const { id } = await params;
     await prisma.emailList.delete({
       where: {
-        id: params.id,
+        id: id,
         userId: session.user.id,
       },
     });

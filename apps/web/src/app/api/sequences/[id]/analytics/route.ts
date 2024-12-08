@@ -3,16 +3,16 @@ import { prisma } from "@mailjot/database";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { sequenceId: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { sequenceId } = params;
+    const { id } = await params;
 
     // Get all email events for the sequence
     const events = await prisma.emailEvent.groupBy({
       by: ["type"],
       where: {
-        sequenceId,
+        sequenceId: id,
       },
       _count: true,
     });

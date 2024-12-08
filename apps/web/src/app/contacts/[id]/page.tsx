@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Separator } from "@/components/ui/separator";
 import { User, Building2, Globe, Linkedin, Mail, Calendar } from "lucide-react";
@@ -19,9 +19,13 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-export default function ContactPage({ params }: PageProps) {
+export default async function ContactPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const [contact, setContact] = useState<ContactWithCompany | null>(null);
-  const resolvedParams = use(params);
+  const resolvedParams = await params;
   const contactId = resolvedParams.id;
 
   useEffect(() => {

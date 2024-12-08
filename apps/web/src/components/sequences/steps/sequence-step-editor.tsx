@@ -178,7 +178,8 @@ export function SequenceStepEditor({
                             timezone:
                               Intl.DateTimeFormat().resolvedOptions().timeZone,
                             workDays: [1, 2, 3, 4, 5], // Default to Mon-Fri
-                            workHours: { start: "09:00", end: "17:00" },
+                            workHoursStart: "09:00",
+                            workHoursEnd: "17:00",
                             holidays: [],
                           }
                         );

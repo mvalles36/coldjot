@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -59,10 +59,10 @@ export async function POST(
           clickedEmails: 0,
           repliedEmails: 0,
           bouncedEmails: 0,
-          openRate: 0,
-          clickRate: 0,
-          replyRate: 0,
-          bounceRate: 0,
+          // openRate: 0,
+          // clickRate: 0,
+          // replyRate: 0,
+          // bounceRate: 0,
           uniqueOpens: 0,
         },
       }),

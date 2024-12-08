@@ -183,18 +183,25 @@ model Sequence {
 
 model SequenceStats {
     id              String   @id @default(cuid())
-    sequenceId      String
+    sequenceId      String   @unique
     createdAt       DateTime @default(now())
     updatedAt       DateTime @updatedAt
     contactId       String?
-    totalEmails     Int      @default(0)
-    sentEmails      Int      @default(0)
-    openedEmails    Int      @default(0)
-    uniqueOpens     Int      @default(0)
-    clickedEmails   Int      @default(0)
-    repliedEmails   Int      @default(0)
-    bouncedEmails   Int      @default(0)
-    failedEmails    Int      @default(0)
+    totalEmails     Int?     @default(0)
+    sentEmails      Int?     @default(0)
+    openedEmails    Int?     @default(0)
+    uniqueOpens     Int?     @default(0)
+    clickedEmails   Int?     @default(0)
+    repliedEmails   Int?     @default(0)
+    bouncedEmails   Int?     @default(0)
+    failedEmails    Int?     @default(0)
+    unsubscribed    Int?     @default(0)
+    interested      Int?     @default(0)
+    peopleContacted Int?     @default(0)
+    openRate        Float?   @default(0)
+    clickRate       Float?   @default(0)
+    replyRate       Float?   @default(0)
+    bounceRate      Float?   @default(0)
     avgOpenTime     Float?
     avgClickTime    Float?
     avgReplyTime    Float?
@@ -203,6 +210,8 @@ model SequenceStats {
     // Relations
     sequence Sequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
     contact  Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+    @@index([sequenceId])
 }
 
 model SequenceStep {

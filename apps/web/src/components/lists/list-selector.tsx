@@ -102,7 +102,6 @@ export function ListSelector({
                     <div className="flex flex-col">
                       <span className="font-medium">{list.name}</span>
                       <span className="text-sm text-muted-foreground">
-                        <>{console.log(list)}</>
                         {list.contacts.length} contacts
                       </span>
                     </div>

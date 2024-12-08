@@ -48,3 +48,8 @@ next-env.d.ts
 
 .turbo
 .next
+
+# Environment variables
+.env
+env/**/.env.*
+!env/**/.env.*.example

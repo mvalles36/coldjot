@@ -16,7 +16,7 @@ import type {
 export default async function SequencePage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
   const sequence = await prisma.sequence.findUnique({
@@ -125,21 +125,21 @@ export default async function SequencePage({
     ? ({
         id: stats.id,
         sequenceId: stats.sequenceId,
-        totalEmails: stats.totalEmails,
-        sentEmails: stats.sentEmails,
-        openedEmails: stats.openedEmails,
-        uniqueOpens: stats.uniqueOpens,
-        clickedEmails: stats.clickedEmails,
-        repliedEmails: stats.repliedEmails,
-        bouncedEmails: stats.bouncedEmails,
+        totalEmails: stats.totalEmails!,
+        sentEmails: stats.sentEmails!,
+        openedEmails: stats.openedEmails!,
+        uniqueOpens: stats.uniqueOpens!,
+        clickedEmails: stats.clickedEmails!,
+        repliedEmails: stats.repliedEmails!,
+        bouncedEmails: stats.bouncedEmails!,
         failedEmails: stats.failedEmails ?? 0,
         unsubscribed: 0, // These fields are not in the database schema
         interested: 0, // but are required by the type
-        peopleContacted: stats.totalEmails,
-        openRate: stats.openedEmails / stats.sentEmails || 0,
-        clickRate: stats.clickedEmails / stats.sentEmails || 0,
-        replyRate: stats.repliedEmails / stats.sentEmails || 0,
-        bounceRate: stats.bouncedEmails / stats.sentEmails || 0,
+        peopleContacted: stats.totalEmails!,
+        openRate: stats.openedEmails! / stats.sentEmails!,
+        clickRate: stats.clickedEmails! / stats.sentEmails!,
+        replyRate: stats.repliedEmails! / stats.sentEmails!,
+        bounceRate: stats.bouncedEmails! / stats.sentEmails!,
         avgResponseTime: stats.avgResponseTime,
         avgOpenTime: stats.avgOpenTime ?? null,
         avgClickTime: stats.avgClickTime ?? null,

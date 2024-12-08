@@ -336,11 +336,12 @@ const processBounceEvent = async (
     }
   );
 
-  await updateSequenceStats(
-    emailThread.sequenceId,
-    "bounced",
-    emailThread.contactId
-  );
+  // TODO: fix this
+  // await updateSequenceStats(
+  //   emailThread.sequenceId,
+  //   "bounced",
+  //   emailThread.contactId
+  // );
 
   await updateSequenceContactStatus(
     emailThread.sequenceId,
@@ -506,11 +507,12 @@ const processReplyEvent = async (
     }
   );
 
-  await updateSequenceStats(
-    emailThread.sequenceId,
-    "replied",
-    emailThread.contactId
-  );
+  // TODO: fix this
+  // await updateSequenceStats(
+  //   emailThread.sequenceId,
+  //   "replied",
+  //   emailThread.contactId
+  // );
 
   await updateSequenceContactStatus(
     emailThread.sequenceId,

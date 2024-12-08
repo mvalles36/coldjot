@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 export async function PUT(
   req: Request,
-  { params }: { params: { sequenceId: string; stepId: string } }
+  { params }: { params: Promise<{ sequenceId: string; stepId: string }> }
 ) {
   try {
     const session = await auth();
@@ -40,7 +40,7 @@ export async function PUT(
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string; stepId: string } }
+  { params }: { params: Promise<{ id: string; stepId: string }> }
 ) {
   try {
     const session = await auth();

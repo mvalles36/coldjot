@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -13,7 +13,7 @@ export async function POST(
     }
 
     const { steps } = await req.json();
-    const { id } = params;
+    const { id } = await params;
 
     // Verify sequence ownership
     const sequence = await prisma.sequence.findUnique({
