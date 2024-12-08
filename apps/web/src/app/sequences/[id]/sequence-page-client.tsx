@@ -36,7 +36,7 @@ import type {
   SequenceStats as SequenceStatsType,
   SequenceStep,
   SequenceContact,
-} from "@/types/sequences";
+} from "@mailjot/types";
 
 interface SequencePageClientProps {
   sequence: Sequence;

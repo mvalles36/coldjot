@@ -42,6 +42,9 @@ next-env.d.ts
 /json
 /json/*
 /screenshots/*
+**/dist
+**/dist/*
+**/*.map
 
 .turbo
 .next

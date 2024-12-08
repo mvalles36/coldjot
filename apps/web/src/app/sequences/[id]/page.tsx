@@ -1,5 +1,4 @@
 import { prisma } from "@mailjot/database";
-// import { prisma } from "@mailjot/database";
 import { notFound } from "next/navigation";
 import SequencePageClient from "./sequence-page-client";
 import type {
@@ -12,7 +11,7 @@ import type {
   StepPriority,
   StepTiming,
   BusinessHours,
-} from "@/types/sequences";
+} from "@mailjot/types";
 
 export default async function SequencePage({
   params,
@@ -52,22 +51,6 @@ export default async function SequencePage({
     notFound();
   }
 
-  const { id: sequenceId } = await params;
-  const stats = await prisma.sequenceStats.findUnique({
-    where: {
-      sequenceId: sequenceId,
-    },
-    include: {
-      Contact: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-        },
-      },
-    },
-  });
-
   // Cast the sequence to match the expected type
   const typedSequence = {
     ...sequence,
@@ -78,7 +61,10 @@ export default async function SequencePage({
       ? ({
           timezone: sequence.businessHours.timezone,
           workDays: sequence.businessHours.workDays,
-          workHours: sequence.businessHours.workHours,
+          workHours: sequence.businessHours.workHours as {
+            start: string;
+            end: string;
+          },
           holidays: sequence.businessHours.holidays,
         } as BusinessHours)
       : undefined,
@@ -117,8 +103,55 @@ export default async function SequencePage({
     })),
   } satisfies Sequence;
 
+  // Get sequence stats
+  const stats = await prisma.sequenceStats.findFirst({
+    where: {
+      AND: [
+        { sequenceId: id },
+        { contactId: null }, // Get the overall sequence stats, not contact-specific stats
+      ],
+    },
+    include: {
+      contact: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    },
+  });
+
   // Cast the stats to match the expected type
-  const typedStats = stats as SequenceStats | null;
+  const typedStats = stats
+    ? ({
+        id: stats.id,
+        sequenceId: stats.sequenceId,
+        totalEmails: stats.totalEmails,
+        sentEmails: stats.sentEmails,
+        openedEmails: stats.openedEmails,
+        uniqueOpens: stats.uniqueOpens,
+        clickedEmails: stats.clickedEmails,
+        repliedEmails: stats.repliedEmails,
+        bouncedEmails: stats.bouncedEmails,
+        failedEmails: stats.failedEmails ?? 0,
+        unsubscribed: 0, // These fields are not in the database schema
+        interested: 0, // but are required by the type
+        peopleContacted: stats.totalEmails,
+        openRate: stats.openedEmails / stats.sentEmails || 0,
+        clickRate: stats.clickedEmails / stats.sentEmails || 0,
+        replyRate: stats.repliedEmails / stats.sentEmails || 0,
+        bounceRate: stats.bouncedEmails / stats.sentEmails || 0,
+        avgResponseTime: stats.avgResponseTime,
+        avgOpenTime: stats.avgOpenTime ?? null,
+        avgClickTime: stats.avgClickTime ?? null,
+        avgReplyTime: stats.avgReplyTime ?? null,
+        createdAt: stats.createdAt,
+        updatedAt: stats.updatedAt,
+        contactId: stats.contactId,
+        Contact: stats.contact,
+      } satisfies SequenceStats)
+    : null;
 
   // Cast the contacts to match the expected type
   const typedContacts = sequence.contacts.map((contact: any) => ({
