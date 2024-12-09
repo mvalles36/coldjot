@@ -26,10 +26,12 @@
         "lint": "eslint \"src/**/*.ts\"",
         "prebuild": "npm run db:generate",
         "predev": "npm run db:generate",
-        "postinstall": "npm run db:generate"
+        "postinstall": "npm run db:generate",
+        "postbuild": "dotenv -e env/.env -- npx prisma migrate deploy"
     },
     "dependencies": {
-        "@prisma/client": "^5.7.0"
+        "@prisma/client": "^5.7.0",
+        "dotenv": "^16.4.7"
     },
     "devDependencies": {
         "@types/node": "^20.10.4",

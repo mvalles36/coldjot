@@ -141,7 +141,7 @@ export class SchedulingService implements ScheduleGenerator {
       timeString <= businessHours.workHoursEnd
     );
   }
-
+  //
   private getNextBusinessDay(date: Date, businessHours: BusinessHours): Date {
     let nextDay = date;
     let attempts = 0;

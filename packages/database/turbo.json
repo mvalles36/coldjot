@@ -9,6 +9,9 @@
             ],
             "outputs": [
                 "dist/**"
+            ],
+            "inputs": [
+                "$TURBO_DEFAULT$"
             ]
         },
         "dev": {
