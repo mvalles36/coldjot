@@ -79,11 +79,13 @@ export class MonitoringService {
 
       // Calculate health metrics
       const deliveryRate =
-        stats.sentEmails > 0
-          ? (stats.sentEmails - stats.bouncedEmails) / stats.sentEmails
+        stats.sentEmails && stats.sentEmails > 0
+          ? (stats.sentEmails! - stats.bouncedEmails!) / stats.sentEmails
           : 1;
       const bounceRate =
-        stats.sentEmails > 0 ? stats.bouncedEmails / stats.sentEmails : 0;
+        stats.sentEmails && stats.sentEmails > 0
+          ? stats.bouncedEmails! / stats.sentEmails
+          : 0;
       const errorRate = queueMetrics.errorRate;
 
       // Determine health status
@@ -99,7 +101,7 @@ export class MonitoringService {
       const health: SequenceHealth = {
         sequenceId,
         status,
-        errorCount: stats.failedEmails,
+        errorCount: stats.failedEmails ?? 0,
         lastCheck: new Date(),
         metrics: {
           deliveryRate,

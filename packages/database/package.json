@@ -1,41 +1,34 @@
 {
     "name": "@mailjot/database",
-    "version": "0.1.0",
+    "version": "0.0.0",
     "private": true,
-    "type": "module",
     "main": "./dist/index.js",
-    "module": "./dist/index.js",
+    "module": "./dist/index.mjs",
     "types": "./dist/index.d.ts",
     "files": [
         "dist/**"
     ],
-    "exports": {
-        ".": {
-            "types": "./dist/index.d.ts",
-            "import": "./dist/index.js",
-            "require": "./dist/index.cjs"
-        }
-    },
     "scripts": {
-        "dev": "npm run db:generate && tsup --watch",
-        "build": "npm run db:generate && tsup",
-        "clean": "rimraf .turbo node_modules dist",
+        "build": "tsup",
+        "clean": "rm -rf .turbo node_modules dist",
         "db:generate": "prisma generate",
-        "db:push": "prisma db push --skip-generate",
-        "format": "prisma format",
-        "lint": "eslint \"src/**/*.ts\"",
-        "prebuild": "npm run db:generate",
-        "predev": "npm run db:generate",
-        "postinstall": "npm run db:generate",
-        "postbuild": "dotenv -e env/.env -- npx prisma migrate deploy"
+        "db:push": "node -r ts-node/register ./prisma.config.ts && prisma db push --skip-generate",
+        "db:migrate": "node -r ts-node/register ./prisma.config.ts && prisma migrate dev",
+        "db:deploy": "node -r ts-node/register ./prisma.config.ts && prisma migrate deploy",
+        "db:reset": "node -r ts-node/register ./prisma.config.ts && prisma migrate reset --force",
+        "db:seed": "node -r ts-node/register ./prisma.config.ts && prisma db seed",
+        "dev": "tsup --watch",
+        "lint": "eslint .",
+        "type-check": "tsc --noEmit"
     },
     "dependencies": {
-        "@prisma/client": "^5.7.0",
-        "dotenv": "^16.4.7"
+        "@prisma/client": "^5.7.0"
     },
     "devDependencies": {
         "@types/node": "^20.10.4",
+        "dotenv": "^16.4.7",
         "prisma": "^5.7.0",
+        "ts-node": "^10.9.1",
         "rimraf": "^5.0.5",
         "tsup": "^8.0.1",
         "typescript": "^5.3.3"

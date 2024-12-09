@@ -4,17 +4,16 @@ import path from "path";
 
 const APP_ENV = process.env.APP_ENV || "development";
 
-// Load environment variables from the root .env directory
-config({
-  path: path.resolve(process.cwd(), `../../.env/${APP_ENV}/.env.base`),
-});
-config({
-  path: path.resolve(process.cwd(), `../../.env/${APP_ENV}/.env.queue`),
-});
+// Load environment variables from env directory
+config({ path: path.resolve(process.cwd(), "env/.env") });
+config({ path: path.resolve(process.cwd(), `env/.env.${APP_ENV}`) });
+config({ path: path.resolve(process.cwd(), "env/.env.local") });
+config({ path: path.resolve(process.cwd(), `env/.env.${APP_ENV}.local`) });
 
+// Schema for environment variables
 const envSchema = z.object({
   // Database
-  DATABASE_URL: z.string(),
+  DATABASE_URL: z.string().min(1, "Database URL is required"),
 
   // Redis
   REDIS_HOST: z.string().default("localhost"),
@@ -38,5 +37,14 @@ const envSchema = z.object({
   LOG_LEVEL: z.string().default("info"),
   NODE_ENV: z.string().default("development"),
 });
+
+// Validate and export environment variables
+try {
+  const env = envSchema.parse(process.env);
+  console.log("✅ Valid environment variables:", env);
+} catch (error) {
+  console.error("❌ Invalid environment variables:", error);
+  throw error;
+}
 
 export const env = envSchema.parse(process.env);

@@ -50,6 +50,15 @@ next-env.d.ts
 .next
 
 # Environment variables
-.env
-env/**/.env.*
-!env/**/.env.*.example
+.env.local
+.env.*.local
+.env.production
+**/env/.env.*
+!**/env/.env.*.example
+
+# Keep env examples
+!.env.example
+!apps/*/.env.example
+!packages/*/.env.example
+!apps/*/.env.development
+!packages/*/.env.development
