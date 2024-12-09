@@ -1,7 +1,8 @@
 import { defineConfig } from "tsup";
 
+// https://github.com/vercel/turborepo/discussions/1347
 export default defineConfig({
-  clean: true,
+  clean: false,
   dts: {
     compilerOptions: {
       incremental: false,

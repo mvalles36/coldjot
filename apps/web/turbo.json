@@ -1,0 +1,51 @@
+{
+    "extends": [
+        "//"
+    ],
+    "tasks": {
+        "build": {
+            "env": [
+                "MY_API_URL",
+                "MY_API_KEY"
+            ],
+            "inputs": [
+                "$TURBO_DEFAULT$",
+                ".env.production.local",
+                ".env.local",
+                ".env.production",
+                ".env"
+            ]
+        },
+        "dev": {
+            "cache": false,
+            "persistent": true,
+            "inputs": [
+                "$TURBO_DEFAULT$",
+                ".env.production.local",
+                ".env.local",
+                ".env.production",
+                "**/.env.*",
+                "**/.env",
+                ".env"
+            ],
+            "env": [
+                "USE_SMTP_DUAL_DELIVERY",
+                "NEXTAUTH_SECRET",
+                "PUBSUB_VERIFICATION_TOKEN",
+                "APOLLO_API_KEY",
+                "DATABASE_URL",
+                "REDIS_HOST",
+                "REDIS_PORT",
+                "REDIS_PASSWORD",
+                "GOOGLE_*",
+                "NEXTAUTH_URL",
+                "NEXT_PUBLIC_*",
+                "QUEUE_API_URL",
+                "NGROK_URL",
+                "PUBSUB_*",
+                "CRON_SECRET",
+                "GMAIL_*"
+            ]
+        }
+    }
+}

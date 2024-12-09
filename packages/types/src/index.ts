@@ -1,3 +1,8 @@
+export * from "./events";
+export * from "./search";
+export * from "./sequences";
+export * from "./email";
+
 export interface User {
   id: string;
   name: string;
@@ -5,6 +10,7 @@ export interface User {
   image?: string;
 }
 
+//
 export interface Contact {
   id: string;
   userId: string;
@@ -38,8 +44,3 @@ export interface EmailList {
   updatedAt: Date;
   contacts: Contact[];
 }
-
-export * from "./events";
-export * from "./search";
-export * from "./sequences";
-export * from "./email";
