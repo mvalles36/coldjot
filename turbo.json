@@ -1,8 +1,16 @@
 {
     "$schema": "https://turbo.build/schema.json",
-    "globalDependencies": [],
-    "globalPassThroughEnv": [],
-    "globalEnv": [],
+    "globalDependencies": [
+        ".env*"
+    ],
+    "globalPassThroughEnv": [
+        "NODE_ENV",
+        "APP_ENV"
+    ],
+    "globalEnv": [
+        "DATABASE_URL",
+        "SHADOW_DATABASE_URL"
+    ],
     "tasks": {
         "build": {
             "dependsOn": [
@@ -20,7 +28,12 @@
             "cache": false,
             "persistent": true
         },
-        "lint": {},
+        "lint": {
+            "outputs": []
+        },
+        "type-check": {
+            "cache": false
+        },
         "clean": {
             "cache": false
         }

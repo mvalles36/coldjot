@@ -28,7 +28,7 @@ export default function RootLayout({
               <div className="hidden w-64 shrink-0 md:block">
                 <Sidebar />
               </div>
-              <>{console.log(process.env)}</>
+              {/* <>{console.log(process.env)}</> */}
               <main className="flex-1 overflow-y-auto">{children}</main>
             </div>
             {/* <Toaster position="bottom-right" /> */}

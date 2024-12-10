@@ -3,20 +3,76 @@
         "//"
     ],
     "tasks": {
-        "build": {
-            "dependsOn": [
-                "^build"
-            ],
-            "outputs": [
-                "dist/**"
-            ],
-            "inputs": [
-                "$TURBO_DEFAULT$"
+        "db:generate": {
+            "cache": false
+        },
+        "db:migrate": {
+            "cache": false,
+            "env": [
+                "DATABASE_URL",
+                "SHADOW_DATABASE_URL"
             ]
         },
-        "dev": {
+        "db:migrate:create": {
             "cache": false,
-            "persistent": true
+            "env": [
+                "DATABASE_URL"
+            ]
+        },
+        "db:deploy": {
+            "cache": false,
+            "env": [
+                "DATABASE_URL"
+            ]
+        },
+        "db:push": {
+            "cache": false,
+            "env": [
+                "DATABASE_URL"
+            ]
+        },
+        "db:seed": {
+            "cache": false,
+            "env": [
+                "DATABASE_URL"
+            ]
+        },
+        "db:reset": {
+            "cache": false,
+            "env": [
+                "DATABASE_URL",
+                "SHADOW_DATABASE_URL"
+            ]
+        },
+        "db:studio": {
+            "cache": false,
+            "env": [
+                "DATABASE_URL"
+            ]
+        },
+        "db:deploy:staging": {
+            "cache": false,
+            "env": [
+                "DATABASE_URL"
+            ]
+        },
+        "db:seed:staging": {
+            "cache": false,
+            "env": [
+                "DATABASE_URL"
+            ]
+        },
+        "db:deploy:prod": {
+            "cache": false,
+            "env": [
+                "DATABASE_URL"
+            ]
+        },
+        "db:seed:prod": {
+            "cache": false,
+            "env": [
+                "DATABASE_URL"
+            ]
         }
     }
 }
