@@ -1,5 +1,5 @@
 import { addMinutes, addHours, addDays, isWithinInterval } from "date-fns";
-import { toZonedTime, fromZonedTime } from "date-fns-tz";
+import { utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
 import type { BusinessHours } from "@mailjot/types";
 
 export async function calculateNextSendTime(
@@ -30,7 +30,7 @@ export async function calculateNextSendTime(
     }
 
     // Convert to business hours timezone
-    const zonedTime = toZonedTime(nextTime, businessHours.timezone);
+    const zonedTime = utcToZonedTime(nextTime, businessHours.timezone);
 
     // Check if time falls within business hours
     const workStart = new Date(zonedTime);
@@ -117,7 +117,7 @@ export async function calculateNextSendTime(
     }
 
     // Convert back to UTC
-    return fromZonedTime(zonedTime, businessHours.timezone);
+    return zonedTimeToUtc(zonedTime, businessHours.timezone);
   } catch (error) {
     console.error("Error calculating next send time:", error);
     return null;

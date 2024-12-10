@@ -7,8 +7,15 @@ import {
   BusinessHours,
 } from "@mailjot/types";
 import { logger } from "./logger";
-import { addDays, addHours, addMinutes, format, parse } from "date-fns";
-import { toZonedTime, formatInTimeZone } from "date-fns-tz";
+import {
+  addDays,
+  addHours,
+  addMinutes,
+  format,
+  parse,
+  isWeekend,
+} from "date-fns";
+import { formatInTimeZone, utcToZonedTime } from "date-fns-tz";
 
 export interface ScheduleGenerator {
   calculateNextRun(
@@ -80,7 +87,7 @@ export class SchedulingService implements ScheduleGenerator {
     businessHours: BusinessHours,
     rateLimits: RateLimits
   ): Date {
-    const zonedDate = toZonedTime(currentTime, businessHours.timezone);
+    const zonedDate = utcToZonedTime(currentTime, businessHours.timezone);
 
     // If date is already within business hours, return it
     if (this.isWithinBusinessHours(zonedDate, businessHours)) {
