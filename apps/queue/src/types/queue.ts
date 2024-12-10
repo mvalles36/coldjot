@@ -31,6 +31,8 @@ export interface EmailJob {
     sequenceId: string;
     contactId: string;
     stepId: string;
+    userId: string;
+    messageId?: string;
     emailOptions: SendEmailOptions;
     tracking: EmailTracking;
     account: GoogleAccount;

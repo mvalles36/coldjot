@@ -12,6 +12,8 @@ import {
 import { SchedulingService } from "./scheduling-service";
 import { StepStatus, StepType, TimingType, SequenceStep } from "@mailjot/types";
 import { calculateNextSendTime } from "./timing-service";
+import { rateLimiter } from "./rate-limiter";
+import { emailProcessor } from "./email-processor";
 
 export class QueueService {
   private sequenceQueue: Bull.Queue;
@@ -52,6 +54,17 @@ export class QueueService {
       });
 
       try {
+        // Check rate limits first
+        const { allowed, info } = await rateLimiter.checkRateLimit(
+          data.userId,
+          data.sequenceId
+        );
+
+        if (!allowed) {
+          logger.warn("Rate limit exceeded:", info);
+          return { success: false, error: "Rate limit exceeded" };
+        }
+
         // Get sequence and its steps
         const sequence = await prisma.sequence.findUnique({
           where: { id: data.sequenceId },
@@ -81,6 +94,18 @@ export class QueueService {
         });
 
         for (const contact of contacts) {
+          // Check contact rate limit
+          const contactRateLimit = await rateLimiter.checkRateLimit(
+            data.userId,
+            data.sequenceId,
+            contact.contact.id
+          );
+
+          if (!contactRateLimit.allowed) {
+            logger.warn("Contact rate limit exceeded:", contactRateLimit.info);
+            continue;
+          }
+
           // Get contact's progress
           const progress = await prisma.sequenceProgress.findFirst({
             where: {
@@ -181,6 +206,7 @@ export class QueueService {
               sequenceId: sequence.id,
               contactId: contact.contact.id,
               stepId: currentStep.id,
+              userId: data.userId,
               emailOptions: {
                 to: data.testMode
                   ? process.env.TEST_EMAIL || googleAccount.email
@@ -226,6 +252,13 @@ export class QueueService {
             },
           });
 
+          // Increment rate limit counters
+          await rateLimiter.incrementCounters(
+            data.userId,
+            sequence.id,
+            contact.contact.id
+          );
+
           // Add rate limiting delay between contacts
           await new Promise((resolve) => setTimeout(resolve, 1000));
         }
@@ -246,13 +279,22 @@ export class QueueService {
       });
 
       try {
-        // TODO: Implement email sending logic
-        // This will involve:
-        // 1. Getting the email template
-        // 2. Personalizing the content
-        // 3. Adding tracking pixels/links
-        // 4. Sending via Gmail API
-        // 5. Updating stats and status
+        const emailJob: EmailJob = {
+          type: data.type,
+          priority: job.opts.priority || 1,
+          data: job.data,
+        };
+
+        switch (data.type) {
+          case "send":
+            await emailProcessor.processEmail(emailJob);
+            break;
+          case "bounce_check":
+            await emailProcessor.checkBounce(emailJob);
+            break;
+          default:
+            throw new Error(`Unknown email job type: ${data.type}`);
+        }
 
         return { success: true };
       } catch (error) {
