@@ -20,6 +20,7 @@ export interface ProcessingJob {
     userId: string;
     scheduleType: "business" | "custom";
     businessHours?: BusinessHours;
+    testMode?: boolean;
   };
 }
 

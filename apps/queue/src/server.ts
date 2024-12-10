@@ -13,9 +13,9 @@ import {
   StepStatus,
   BusinessHours,
 } from "@mailjot/types";
+import type { ProcessingJob } from "./types/queue";
 
 const app = express();
-// const port = process.env.PORT || 3001;
 const port = 3001;
 
 // Initialize services
@@ -52,35 +52,92 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
-// Add sequence to queue
-app.post("/api/sequences/:id/process", async (req, res) => {
+// Launch sequence
+app.post("/api/sequences/:id/launch", async (req, res) => {
   try {
     const { id } = req.params;
-    const { userId } = req.body;
+    const { userId, testMode = false } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
+
+    // Get sequence and validate
+    const sequence = await prisma.sequence.findUnique({
+      where: {
+        id,
+        userId,
+      },
+      include: {
+        steps: {
+          orderBy: { order: "asc" },
+        },
+        contacts: {
+          where: {
+            status: {
+              notIn: ["completed", "opted_out"],
+            },
+          },
+          include: {
+            contact: true,
+          },
+        },
+      },
+    });
+
+    if (!sequence) {
+      return res.status(404).json({ error: "Sequence not found" });
+    }
+
+    if (sequence.steps.length === 0) {
+      return res.status(400).json({ error: "Sequence has no steps" });
+    }
+
+    if (sequence.contacts.length === 0) {
+      return res.status(400).json({ error: "Sequence has no active contacts" });
+    }
 
     // Get business hours settings
     const businessHours = await getBusinessHours(userId);
 
+    // Update sequence status
+    await prisma.sequence.update({
+      where: { id },
+      data: {
+        status: "active",
+        testMode,
+      },
+    });
+
     // Create and schedule the job
-    const job = await queueService.addSequenceJob({
+    const processingJob: ProcessingJob = {
       type: "sequence",
-      id,
+      id: `sequence-${id}-${Date.now()}`,
       priority: 1,
       data: {
         sequenceId: id,
         userId,
         scheduleType: businessHours ? "business" : "custom",
         businessHours,
+        testMode,
       },
-    });
+    };
+
+    // Add the job to the queue
+    const job = await queueService.addSequenceJob(processingJob);
 
     // Start monitoring the sequence
     await monitoringService.startMonitoring(id);
 
-    res.json({ jobId: job.id });
+    res.json({
+      success: true,
+      jobId: job.id,
+      contactCount: sequence.contacts.length,
+      stepCount: sequence.steps.length,
+    });
   } catch (error) {
-    logger.error("Error processing sequence:", error);
-    res.status(500).json({ error: "Failed to process sequence" });
+    logger.error("Error launching sequence:", error);
+    res.status(500).json({ error: "Failed to launch sequence" });
   }
 });
 
@@ -144,12 +201,32 @@ app.get("/api/metrics", async (req, res) => {
 app.post("/api/sequences/:id/pause", async (req, res) => {
   try {
     const { id } = req.params;
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
+
+    // Validate sequence ownership
+    const sequence = await prisma.sequence.findUnique({
+      where: {
+        id,
+        userId,
+      },
+    });
+
+    if (!sequence) {
+      return res.status(404).json({ error: "Sequence not found" });
+    }
 
     // Update sequence status
     await prisma.sequence.update({
       where: { id },
       data: { status: "paused" },
     });
+
+    // Stop monitoring
+    await monitoringService.stopMonitoring(id);
 
     res.json({ success: true });
   } catch (error) {
@@ -162,12 +239,32 @@ app.post("/api/sequences/:id/pause", async (req, res) => {
 app.post("/api/sequences/:id/resume", async (req, res) => {
   try {
     const { id } = req.params;
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
+
+    // Validate sequence ownership
+    const sequence = await prisma.sequence.findUnique({
+      where: {
+        id,
+        userId,
+      },
+    });
+
+    if (!sequence) {
+      return res.status(404).json({ error: "Sequence not found" });
+    }
 
     // Update sequence status
     await prisma.sequence.update({
       where: { id },
       data: { status: "active" },
     });
+
+    // Resume monitoring
+    await monitoringService.startMonitoring(id);
 
     res.json({ success: true });
   } catch (error) {

@@ -6,9 +6,12 @@ import {
   EmailJob,
   JobCounts,
   ProcessingResult,
+  EmailTracking,
+  GoogleAccount,
 } from "../types/queue";
 import { SchedulingService } from "./scheduling-service";
 import { StepStatus, StepType, TimingType, SequenceStep } from "@mailjot/types";
+import { calculateNextSendTime } from "./timing-service";
 
 export class QueueService {
   private sequenceQueue: Bull.Queue;
@@ -78,20 +81,97 @@ export class QueueService {
         });
 
         for (const contact of contacts) {
-          // Get the current step for this contact
-          const currentStep = sequence.steps[contact.currentStep];
-          if (!currentStep) continue;
+          // Get contact's progress
+          const progress = await prisma.sequenceProgress.findFirst({
+            where: {
+              sequenceId: data.sequenceId,
+              contactId: contact.contact.id,
+            },
+          });
 
-          // Calculate next run time based on business hours and step timing
-          const nextRun = this.schedulingService.calculateNextRun(
-            new Date(),
+          // Get the current step for this contact
+          const currentStepIndex = progress?.currentStepIndex || 0;
+          const currentStep = sequence.steps[currentStepIndex];
+
+          if (!currentStep) {
+            // Sequence completed for this contact
+            await prisma.sequenceContact.update({
+              where: { id: contact.id },
+              data: {
+                status: "completed",
+                completedAt: new Date(),
+              },
+            });
+            continue;
+          }
+
+          // Calculate next send time based on business hours and step timing
+          const nextSendTime = await calculateNextSendTime(
+            currentStep.timing as "immediate" | "delay",
             {
-              ...currentStep,
-              stepType: currentStep.stepType as StepType,
-              timing: currentStep.timing as TimingType,
-            } as SequenceStep,
-            sequence.businessHours || undefined
+              amount: currentStep.delayAmount || 0,
+              unit:
+                (currentStep.delayUnit as "minutes" | "hours" | "days") ||
+                "minutes",
+            },
+            sequence.businessHours || {
+              timezone: "UTC",
+              workDays: [1, 2, 3, 4, 5],
+              workHoursStart: "09:00",
+              workHoursEnd: "17:00",
+              holidays: [],
+            }
           );
+
+          if (!nextSendTime) {
+            logger.warn(
+              `Could not calculate next send time for step ${currentStep.id}`
+            );
+            continue;
+          }
+
+          // Get user's email account
+          const account = await prisma.user.findUnique({
+            where: { id: data.userId },
+            select: {
+              email: true,
+              accounts: {
+                where: {
+                  provider: "google",
+                },
+                select: {
+                  access_token: true,
+                  refresh_token: true,
+                  expires_at: true,
+                },
+                take: 1,
+              },
+            },
+          });
+
+          if (
+            !account?.email ||
+            !account.accounts[0]?.access_token ||
+            !account.accounts[0]?.refresh_token
+          ) {
+            throw new Error(
+              `No valid email account found for user ${data.userId}`
+            );
+          }
+
+          const googleAccount: GoogleAccount = {
+            email: account.email,
+            accessToken: account.accounts[0].access_token,
+            refreshToken: account.accounts[0].refresh_token,
+            expiryDate: account.accounts[0].expires_at || 0,
+          };
+
+          const tracking: EmailTracking = {
+            enabled: true,
+            openTracking: true,
+            clickTracking: true,
+            unsubscribeTracking: true,
+          };
 
           // Add email job to the queue
           await this.addEmailJob({
@@ -99,27 +179,41 @@ export class QueueService {
             priority: 1,
             data: {
               sequenceId: sequence.id,
-              contactId: contact.id,
+              contactId: contact.contact.id,
               stepId: currentStep.id,
               emailOptions: {
-                to: contact.contact.email,
+                to: data.testMode
+                  ? process.env.TEST_EMAIL || googleAccount.email
+                  : contact.contact.email,
                 subject: currentStep.subject || "",
                 html: currentStep.content || "",
-                replyTo: undefined, // TODO: Get from settings
+                replyTo: googleAccount.email,
                 threadId: contact.threadId || undefined,
               },
-              tracking: {
-                enabled: true,
-                openTracking: true,
-                clickTracking: true,
-                unsubscribeTracking: true,
+              tracking,
+              account: googleAccount,
+            },
+          });
+
+          // Update progress
+          await prisma.sequenceProgress.upsert({
+            where: {
+              sequenceId_contactId: {
+                sequenceId: sequence.id,
+                contactId: contact.contact.id,
               },
-              account: {
-                email: "", // TODO: Get from settings
-                accessToken: "", // TODO: Get from settings
-                refreshToken: "", // TODO: Get from settings
-                expiryDate: 0, // TODO: Get from settings
-              },
+            },
+            update: {
+              currentStepIndex: currentStepIndex + 1,
+              lastProcessedAt: new Date(),
+              nextScheduledAt: nextSendTime,
+            },
+            create: {
+              sequenceId: sequence.id,
+              contactId: contact.contact.id,
+              currentStepIndex: 1,
+              lastProcessedAt: new Date(),
+              nextScheduledAt: nextSendTime,
             },
           });
 
@@ -131,6 +225,9 @@ export class QueueService {
               lastProcessedAt: new Date(),
             },
           });
+
+          // Add rate limiting delay between contacts
+          await new Promise((resolve) => setTimeout(resolve, 1000));
         }
 
         return { success: true };
