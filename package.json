@@ -16,7 +16,11 @@
         "format": "prettier --write \"**/*.{ts,tsx,md}\"",
         "clean": "turbo run clean && rm -rf node_modules",
         "debug:env": "APP_ENV=development turbo run dev --dry=json",
-        "check:env": "APP_ENV=development node -e \"console.log(process.env)\""
+        "check:env": "APP_ENV=development node -e \"console.log(process.env)\"",
+        "redis:up": "docker-compose up -d redis",
+        "redis:down": "docker-compose down",
+        "redis:logs": "docker-compose logs -f redis",
+        "dev:with-redis": "npm run redis:up && npm run dev"
     },
     "engines": {
         "node": ">=20"
@@ -26,6 +30,7 @@
         "packages/*"
     ],
     "devDependencies": {
+        "dotenv-cli": "^7.4.4",
         "i": "^0.3.7",
         "npm": "^10.9.2",
         "prettier": "^3.1.0",
