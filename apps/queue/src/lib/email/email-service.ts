@@ -1,8 +1,8 @@
 import { google } from "googleapis";
 import { prisma } from "@mailjot/database";
 import { randomUUID } from "crypto";
-import { logger } from "../logger";
-import { addTrackingToEmail } from "../tracking/tracking-service";
+import { logger } from "../log/logger";
+import { addTrackingToEmail } from "../track/tracking-service";
 import type { EmailJob, GoogleAccount } from "../../types/queue";
 import type { EmailTracking, EmailTrackingMetadata } from "@mailjot/types";
 

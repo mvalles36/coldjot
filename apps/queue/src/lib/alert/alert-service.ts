@@ -1,6 +1,6 @@
 import { prisma } from "@mailjot/database";
-import { AlertConfig } from "../types/queue";
-import { logger } from "./logger";
+import { AlertConfig } from "@/types/queue";
+import { logger } from "@/lib/log/logger";
 import nodemailer from "nodemailer";
 
 export class AlertService {

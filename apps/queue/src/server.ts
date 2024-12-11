@@ -1,11 +1,13 @@
 import express from "express";
 import cors from "cors";
-import { env } from "./config";
+
 import { prisma } from "@mailjot/database";
-import { queueService } from "./lib/queue/queue-service";
-import { SchedulingService } from "./lib/scheduling-service";
-import { MonitoringService } from "./lib/monitoring-service";
-import { logger } from "./lib/logger";
+import { QueueService } from "./lib/queue/queue-service";
+import { SchedulingService } from "@/lib/schedule/scheduling-service";
+import { MonitoringService } from "@/lib/monitor/monitoring-service";
+import { sequenceProcessor } from "@/lib/sequence/sequence-processor";
+import { emailProcessor } from "@/lib/email/email-processor";
+import { logger } from "@/lib/log/logger";
 import pinoHttp, { HttpLogger, Options } from "pino-http";
 import { IncomingMessage, ServerResponse } from "http";
 import {
@@ -20,7 +22,10 @@ import type { ProcessingJob } from "./types/queue";
 const app = express();
 const port = 3001;
 
-// Initialize services
+// Initialize services in the correct order
+const queueService = QueueService.getInstance();
+queueService.setProcessors(sequenceProcessor, emailProcessor);
+
 const schedulingService = new SchedulingService();
 const monitoringService = new MonitoringService(queueService);
 

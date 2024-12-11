@@ -1,9 +1,9 @@
 import { ProcessingJob, EmailJob, EmailTracking } from "../../types/queue";
-import { logger } from "../logger";
-import { rateLimiter } from "../rate-limiter";
-import { calculateNextSendTime } from "../timing-service";
+import { logger } from "@/lib/log/logger";
+import { rateLimiter } from "@/lib/rate-limit/rate-limiter";
+import { calculateNextSendTime } from "@/lib/time/timing-service";
 import { StepStatus } from "@mailjot/types";
-import { queueService } from "../queue/queue-service";
+import { QueueService } from "@/lib/queue/queue-service";
 import {
   getUserGoogleAccount,
   getDefaultBusinessHours,
@@ -15,6 +15,12 @@ import {
 } from "./helper";
 
 export class SequenceProcessor {
+  private queueService: QueueService;
+
+  constructor() {
+    this.queueService = QueueService.getInstance();
+  }
+
   /**
    * Process a sequence job
    */
@@ -135,7 +141,7 @@ export class SequenceProcessor {
         };
 
         // Add email job to queue
-        await queueService.addEmailJob(emailJob);
+        await this.queueService.addEmailJob(emailJob);
 
         // Update progress
         await updateSequenceProgress(

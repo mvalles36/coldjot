@@ -6,7 +6,7 @@ import {
   TimingType,
   BusinessHours,
 } from "@mailjot/types";
-import { logger } from "./logger";
+import { logger } from "@/lib/log/logger";
 import {
   addDays,
   addHours,

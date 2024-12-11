@@ -1,8 +1,8 @@
 import { google } from "googleapis";
 import { prisma } from "@mailjot/database";
-import { logger } from "./logger";
-import { rateLimiter } from "./rate-limiter";
-import type { EmailJob } from "../types/queue";
+import { logger } from "@/lib/log/logger";
+import { rateLimiter } from "@/lib/rate-limit/rate-limiter";
+import type { EmailJob } from "@/types/queue";
 import { randomUUID } from "crypto";
 
 export class EmailProcessor {

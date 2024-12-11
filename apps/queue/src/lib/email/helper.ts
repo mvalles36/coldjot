@@ -6,7 +6,7 @@ import { sendEmail } from "@/lib/email/email-service";
 import { refreshAccessToken } from "@/lib/google/google-account";
 import type { SendEmailOptions } from "@mailjot/types";
 import type { EmailTracking } from "@mailjot/types";
-import { trackEmailEvent } from "@/lib/tracking/tracking-service";
+import { trackEmailEvent } from "@/lib/track/tracking-service";
 import type { GoogleAccount } from "@/lib/google/google-account";
 
 interface SenderInfo {

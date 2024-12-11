@@ -5,9 +5,9 @@ import {
   SystemMetrics,
   QueueMetrics,
   JobCounts,
-} from "../types/queue";
-import { logger } from "./logger";
-import { QueueService } from "./queue/queue-service";
+} from "@/types/queue";
+import { logger } from "@/lib/log/logger";
+import { QueueService } from "@/lib/queue/queue-service";
 import os from "os";
 import Bull from "bull";
 
@@ -51,6 +51,9 @@ export class MonitoringService {
     // Stop existing monitoring if any
     this.stopMonitoring(sequenceId);
 
+    // Initialize sequence stats if they don't exist
+    await this.initializeSequenceStats(sequenceId);
+
     // Start health check interval
     const interval = setInterval(
       () => this.checkSequenceHealth(sequenceId, alertConfig),
@@ -59,6 +62,37 @@ export class MonitoringService {
 
     this.checkIntervals.set(sequenceId, interval);
     logger.info(`Started monitoring sequence ${sequenceId}`);
+  }
+
+  // Initialize sequence stats
+  private async initializeSequenceStats(sequenceId: string): Promise<void> {
+    const existingStats = await prisma.sequenceStats.findFirst({
+      where: { sequenceId },
+    });
+
+    if (!existingStats) {
+      await prisma.sequenceStats.create({
+        data: {
+          sequenceId,
+          totalEmails: 0,
+          sentEmails: 0,
+          openedEmails: 0,
+          uniqueOpens: 0,
+          clickedEmails: 0,
+          repliedEmails: 0,
+          bouncedEmails: 0,
+          failedEmails: 0,
+          unsubscribed: 0,
+          interested: 0,
+          peopleContacted: 0,
+          openRate: 0,
+          clickRate: 0,
+          replyRate: 0,
+          bounceRate: 0,
+        },
+      });
+      logger.info(`Initialized stats for sequence ${sequenceId}`);
+    }
   }
 
   // Stop monitoring a sequence
@@ -83,21 +117,35 @@ export class MonitoringService {
       });
 
       if (!stats) {
-        throw new Error("Sequence stats not found");
+        // Try to initialize stats if they don't exist
+        await this.initializeSequenceStats(sequenceId);
+
+        // Return default health status
+        return {
+          sequenceId,
+          status: "healthy",
+          errorCount: 0,
+          lastCheck: new Date(),
+          metrics: {
+            deliveryRate: 1,
+            bounceRate: 0,
+            errorRate: 0,
+            processingTime: 0,
+          },
+        };
       }
 
       // Get queue metrics for this sequence
       const queueMetrics = await this.getQueueMetrics(sequenceId);
 
-      // Calculate health metrics
+      // Calculate health metrics with null checks
+      const sentEmails = stats.sentEmails || 0;
+      const bouncedEmails = stats.bouncedEmails || 0;
+      const failedEmails = stats.failedEmails || 0;
+
       const deliveryRate =
-        stats.sentEmails && stats.sentEmails > 0
-          ? (stats.sentEmails! - stats.bouncedEmails!) / stats.sentEmails
-          : 1;
-      const bounceRate =
-        stats.sentEmails && stats.sentEmails > 0
-          ? stats.bouncedEmails! / stats.sentEmails
-          : 0;
+        sentEmails > 0 ? (sentEmails - bouncedEmails) / sentEmails : 1;
+      const bounceRate = sentEmails > 0 ? bouncedEmails / sentEmails : 0;
       const errorRate = queueMetrics.errorRate;
 
       // Determine health status
@@ -113,7 +161,7 @@ export class MonitoringService {
       const health: SequenceHealth = {
         sequenceId,
         status,
-        errorCount: stats.failedEmails ?? 0,
+        errorCount: failedEmails,
         lastCheck: new Date(),
         metrics: {
           deliveryRate,

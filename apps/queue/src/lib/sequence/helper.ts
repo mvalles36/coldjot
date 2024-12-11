@@ -1,7 +1,7 @@
 import { prisma } from "@mailjot/database";
 import { BusinessHours, StepStatus } from "@mailjot/types";
 import { GoogleAccount } from "@/types/queue";
-import { logger } from "../logger";
+import { logger } from "../log/logger";
 
 /**
  * Get user's Google account details

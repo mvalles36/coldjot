@@ -1,5 +1,5 @@
 import Redis from "ioredis";
-import { logger } from "./logger";
+import { logger } from "@/lib/log/logger";
 
 // Rate limit constants
 export const RATE_LIMITS = {

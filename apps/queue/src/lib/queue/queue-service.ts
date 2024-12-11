@@ -1,13 +1,15 @@
 import Bull from "bull";
-import { logger } from "../logger";
-import { ProcessingJob, EmailJob, JobCounts } from "../../types/queue";
-import { sequenceProcessor } from "../sequence/sequence-processor";
-import { emailProcessor } from "../email/email-processor";
+import { logger } from "@/lib/log/logger";
+import { ProcessingJob, EmailJob, JobCounts } from "@/types/queue";
+import type { SequenceProcessor } from "@/lib/sequence/sequence-processor";
+import type { EmailProcessor } from "@/lib/email/email-processor";
 
 export class QueueService {
   private sequenceQueue: Bull.Queue;
   private emailQueue: Bull.Queue;
-  private static instance: QueueService;
+  private static instance: QueueService | null = null;
+  private sequenceProcessor?: SequenceProcessor;
+  private emailProcessor?: EmailProcessor;
 
   private constructor() {
     this.sequenceQueue = new Bull("sequence-processing", {
@@ -46,8 +48,8 @@ export class QueueService {
       },
     });
 
-    // Set up queue processors
-    this.setupProcessors();
+    // Set up queue event listeners
+    this.setupEventListeners();
   }
 
   public static getInstance(): QueueService {
@@ -57,7 +59,16 @@ export class QueueService {
     return QueueService.instance;
   }
 
-  private setupProcessors() {
+  public setProcessors(
+    sequenceProcessor: SequenceProcessor,
+    emailProcessor: EmailProcessor
+  ) {
+    this.sequenceProcessor = sequenceProcessor;
+    this.emailProcessor = emailProcessor;
+    this.setupProcessors();
+  }
+
+  private setupEventListeners() {
     // Add event listeners for job lifecycle
     this.sequenceQueue.on("completed", (job) => {
       logger.info(`Sequence job ${job.id} completed successfully`);
@@ -82,6 +93,12 @@ export class QueueService {
     this.emailQueue.on("stalled", (job) => {
       logger.warn(`Email job ${job.id} is stalled`);
     });
+  }
+
+  private setupProcessors() {
+    if (!this.sequenceProcessor || !this.emailProcessor) {
+      throw new Error("Processors not initialized");
+    }
 
     // Process sequence jobs
     this.sequenceQueue.process(async (job) => {
@@ -97,7 +114,7 @@ export class QueueService {
           testMode: job.data.testMode || false,
         },
       };
-      return sequenceProcessor.processSequenceJob(processingJob);
+      return this.sequenceProcessor!.processSequenceJob(processingJob);
     });
 
     // Process email jobs
@@ -126,9 +143,9 @@ export class QueueService {
 
         switch (emailJob.type) {
           case "send":
-            return emailProcessor.processEmail(emailJob);
+            return this.emailProcessor!.processEmail(emailJob);
           case "bounce_check":
-            return emailProcessor.checkBounce(emailJob);
+            return this.emailProcessor!.checkBounce(emailJob);
           default:
             throw new Error(`Unknown email job type: ${emailJob.type}`);
         }
@@ -227,6 +244,3 @@ export class QueueService {
     ]);
   }
 }
-
-// Export singleton instance
-export const queueService = QueueService.getInstance();
