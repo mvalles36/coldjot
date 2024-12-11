@@ -232,14 +232,24 @@ export class MonitoringService {
 
   // Store health check result
   private async storeHealthCheck(health: SequenceHealth): Promise<void> {
-    await prisma.sequenceHealth.create({
-      data: {
+    await prisma.sequenceHealth.upsert({
+      where: {
+        sequenceId: health.sequenceId,
+      },
+      create: {
         sequenceId: health.sequenceId,
         status: health.status,
         errorCount: health.errorCount,
         lastCheck: health.lastCheck,
         lastError: health.lastError,
         metrics: health.metrics as any, // Prisma will handle JSON serialization
+      },
+      update: {
+        status: health.status,
+        errorCount: health.errorCount,
+        lastCheck: health.lastCheck,
+        lastError: health.lastError,
+        metrics: health.metrics as any,
       },
     });
   }
