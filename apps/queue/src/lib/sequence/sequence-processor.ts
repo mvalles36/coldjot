@@ -28,8 +28,9 @@ export class SequenceProcessor {
     job: ProcessingJob
   ): Promise<{ success: boolean; error?: string }> {
     const { data } = job;
-    logger.info(`Processing sequence job: ${job.id}`, {
-      sequenceId: data.sequenceId,
+    logger.info(`🚀 Starting sequence: ${data.sequenceId}`, {
+      jobId: job.id,
+      testMode: data.testMode ? "✨ Test Mode" : "🔥 Production Mode",
     });
 
     try {
@@ -40,7 +41,7 @@ export class SequenceProcessor {
       );
 
       if (!allowed) {
-        logger.warn("Rate limit exceeded:", info);
+        logger.warn("⚠️ Rate limit exceeded:", info);
         return { success: false, error: "Rate limit exceeded" };
       }
 
@@ -50,8 +51,17 @@ export class SequenceProcessor {
         throw new Error("Sequence not found");
       }
 
+      logger.info(`📋 Sequence details for ${sequence.name}:`, {
+        steps: sequence.steps.length,
+        businessHours: sequence.businessHours ? "✓" : "✗",
+      });
+
       // Get active contacts
       const contacts = await getActiveSequenceContacts(data.sequenceId);
+      logger.info(`👥 Processing contacts:`, {
+        total: contacts.length,
+        sequence: sequence.name,
+      });
 
       // Get user's Google account
       const googleAccount = await getUserGoogleAccount(data.userId);
@@ -61,6 +71,10 @@ export class SequenceProcessor {
 
       // Process each contact
       for (const contact of contacts) {
+        logger.info(`👤 Processing contact: ${contact.contact.email}`, {
+          sequence: sequence.name,
+        });
+
         // Check contact rate limit
         const contactRateLimit = await rateLimiter.checkRateLimit(
           data.userId,
@@ -69,7 +83,7 @@ export class SequenceProcessor {
         );
 
         if (!contactRateLimit.allowed) {
-          logger.warn("Contact rate limit exceeded:", contactRateLimit.info);
+          logger.warn("⚠️ Contact rate limit exceeded:", contactRateLimit.info);
           continue;
         }
 
@@ -82,7 +96,9 @@ export class SequenceProcessor {
         const currentStep = sequence.steps[currentStepIndex];
 
         if (!currentStep) {
-          // Sequence completed for this contact
+          logger.info(
+            `✅ Sequence completed for contact: ${contact.contact.email}`
+          );
           await updateSequenceContactStatus(
             contact.id,
             StepStatus.COMPLETED,
@@ -105,10 +121,20 @@ export class SequenceProcessor {
 
         if (!nextSendTime) {
           logger.warn(
-            `Could not calculate next send time for step ${currentStep.id}`
+            `⚠️ Could not calculate next send time for step ${currentStep.id}`
           );
           continue;
         }
+
+        logger.info(
+          `📅 Scheduled email for contact: ${contact.contact.email}`,
+          {
+            step: currentStepIndex + 1,
+            totalSteps: sequence.steps.length,
+            sendTime: nextSendTime.toISOString(),
+            subject: currentStep.subject,
+          }
+        );
 
         const tracking: EmailTracking = {
           enabled: true,
@@ -142,6 +168,11 @@ export class SequenceProcessor {
 
         // Add email job to queue
         await this.queueService.addEmailJob(emailJob);
+        logger.info(`📧 Email queued for sending`, {
+          to: emailJob.data.emailOptions.to,
+          subject: emailJob.data.emailOptions.subject,
+          sendTime: nextSendTime.toISOString(),
+        });
 
         // Update progress
         await updateSequenceProgress(
@@ -165,9 +196,14 @@ export class SequenceProcessor {
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
 
+      logger.info(`✨ Sequence processing completed: ${sequence.name}`, {
+        totalContacts: contacts.length,
+        totalSteps: sequence.steps.length,
+      });
+
       return { success: true };
     } catch (error) {
-      logger.error(`Error processing sequence job: ${job.id}`, error);
+      logger.error(`❌ Error processing sequence job: ${job.id}`, error);
       throw error;
     }
   }

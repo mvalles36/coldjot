@@ -20,9 +20,10 @@ export class EmailProcessor {
     job: EmailJob
   ): Promise<{ success: boolean; error?: string }> {
     const { data } = job;
-    logger.info(`Processing email job: ${data.sequenceId}`, {
-      contactId: data.contactId,
-      stepId: data.stepId,
+    logger.info(`📨 Processing email for sequence: ${data.sequenceId}`, {
+      to: data.emailOptions.to,
+      subject: data.emailOptions.subject,
+      step: data.stepId,
     });
 
     try {
@@ -34,9 +35,17 @@ export class EmailProcessor {
       );
 
       if (!allowed) {
-        logger.warn("Rate limit exceeded:", info);
+        logger.warn("⚠️ Rate limit exceeded:", info);
         return { success: false, error: "Rate limit exceeded" };
       }
+
+      logger.info(`🔄 Sending email to: ${data.emailOptions.to}`, {
+        tracking: {
+          opens: data.tracking.openTracking ? "✓" : "✗",
+          clicks: data.tracking.clickTracking ? "✓" : "✗",
+          unsubscribe: data.tracking.unsubscribeTracking ? "✓" : "✗",
+        },
+      });
 
       // Send email
       const result = await emailService.sendEmail({
@@ -55,6 +64,13 @@ export class EmailProcessor {
       });
 
       if (result.success) {
+        logger.info(`✅ Email sent successfully`, {
+          to: data.emailOptions.to,
+          messageId: result.messageId,
+          threadId: result.threadId,
+          sentAt: new Date().toISOString(),
+        });
+
         // Update step status
         await prisma.stepStatus.update({
           where: {
@@ -82,12 +98,20 @@ export class EmailProcessor {
               messageId: result.messageId,
             },
           });
+          logger.info(`🔍 Scheduled bounce check`, {
+            messageId: result.messageId,
+            checkTime: new Date(Date.now() + 15 * 60 * 1000).toISOString(), // 15 minutes from now
+          });
         }
       }
 
       return { success: true };
     } catch (error) {
-      logger.error(`Error processing email: ${error}`);
+      logger.error(`❌ Error sending email: ${error}`, {
+        to: data.emailOptions.to,
+        subject: data.emailOptions.subject,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
 
       // Add error cooldown
       await rateLimiter.addCooldown(
@@ -122,7 +146,10 @@ export class EmailProcessor {
     job: EmailJob
   ): Promise<{ success: boolean; bounced?: boolean }> {
     const { data } = job;
-    logger.info(`Checking bounce for email: ${data.messageId}`);
+    logger.info(`🔍 Checking bounce status for email: ${data.messageId}`, {
+      to: data.emailOptions.to,
+      // sentAt: data.emailOptions.sentAt,
+    });
 
     try {
       const bounceStatus = await emailService.checkBounceStatus(
@@ -130,6 +157,12 @@ export class EmailProcessor {
       );
 
       if (bounceStatus.bounced) {
+        logger.warn(`⚠️ Email bounced`, {
+          messageId: data.messageId,
+          to: data.emailOptions.to,
+          reason: bounceStatus.details,
+        });
+
         // Update step status
         await prisma.stepStatus.update({
           where: {
@@ -151,11 +184,19 @@ export class EmailProcessor {
           "bounce",
           24 * 60 * 60 * 1000 // 24 hours
         );
+      } else {
+        logger.info(`✅ Email delivered successfully`, {
+          messageId: data.messageId,
+          to: data.emailOptions.to,
+        });
       }
 
       return { success: true, ...bounceStatus };
     } catch (error) {
-      logger.error(`Error checking bounce status: ${error}`);
+      logger.error(`❌ Error checking bounce status: ${error}`, {
+        messageId: data.messageId,
+        to: data.emailOptions.to,
+      });
       throw error;
     }
   }
