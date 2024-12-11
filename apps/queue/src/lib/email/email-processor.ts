@@ -3,11 +3,11 @@ import { logger } from "../logger";
 import { rateLimiter } from "../rate-limiter";
 import { emailService } from "./email-service";
 import { JOB_PRIORITIES } from "../queue/queue-config";
-import { QueueService } from "../queue/queue-service";
+import { queueService } from "../queue/queue-service";
 import { prisma } from "@mailjot/database";
 
 export class EmailProcessor {
-  constructor(private queueService: QueueService) {}
+  constructor() {}
 
   /**
    * Process an email job
@@ -70,7 +70,7 @@ export class EmailProcessor {
 
         // Schedule bounce check
         if (result.messageId) {
-          await this.queueService.addEmailJob({
+          await queueService.addEmailJob({
             type: "bounce_check",
             priority: JOB_PRIORITIES.LOW,
             data: {
@@ -158,4 +158,4 @@ export class EmailProcessor {
 }
 
 // Export singleton instance
-export const emailProcessor = new EmailProcessor(new QueueService());
+export const emailProcessor = new EmailProcessor();

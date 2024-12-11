@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import { env } from "./config";
 import { prisma } from "@mailjot/database";
-import { QueueService } from "./lib/queue/queue-service";
+import { queueService } from "./lib/queue/queue-service";
 import { SchedulingService } from "./lib/scheduling-service";
 import { MonitoringService } from "./lib/monitoring-service";
 import { logger } from "./lib/logger";
@@ -21,7 +21,6 @@ const app = express();
 const port = 3001;
 
 // Initialize services
-const queueService = new QueueService();
 const schedulingService = new SchedulingService();
 const monitoringService = new MonitoringService(queueService);
 

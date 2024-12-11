@@ -7,8 +7,9 @@ import { emailProcessor } from "../email/email-processor";
 export class QueueService {
   private sequenceQueue: Bull.Queue;
   private emailQueue: Bull.Queue;
+  private static instance: QueueService;
 
-  constructor() {
+  private constructor() {
     this.sequenceQueue = new Bull("sequence-processing", {
       redis: {
         host: process.env.REDIS_HOST || "localhost",
@@ -45,11 +46,15 @@ export class QueueService {
       },
     });
 
-    // Initialize sequence processor with email queue
-    (sequenceProcessor as any).emailQueue = this.emailQueue;
-
     // Set up queue processors
     this.setupProcessors();
+  }
+
+  public static getInstance(): QueueService {
+    if (!QueueService.instance) {
+      QueueService.instance = new QueueService();
+    }
+    return QueueService.instance;
   }
 
   private setupProcessors() {
@@ -154,7 +159,6 @@ export class QueueService {
       completed: sequenceCounts.completed + emailCounts.completed,
       failed: sequenceCounts.failed + emailCounts.failed,
       delayed: sequenceCounts.delayed + emailCounts.delayed,
-      // paused: sequenceCounts.paused + emailCounts.paused,
     };
   }
 
@@ -184,3 +188,6 @@ export class QueueService {
     ]);
   }
 }
+
+// Export singleton instance
+export const queueService = QueueService.getInstance();
