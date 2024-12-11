@@ -1,4 +1,4 @@
-import { ProcessingJob, StepType } from "../types/queue";
+import { ProcessingJob, StepType } from "@/types/queue";
 import {
   ProcessingWindow,
   RateLimits,

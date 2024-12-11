@@ -2,10 +2,12 @@ import express from "express";
 import cors from "cors";
 import { env } from "./config";
 import { prisma } from "@mailjot/database";
-import { QueueService } from "./lib/queue-service";
+import { QueueService } from "./lib/queue/queue-service";
 import { SchedulingService } from "./lib/scheduling-service";
 import { MonitoringService } from "./lib/monitoring-service";
 import { logger } from "./lib/logger";
+import pinoHttp, { HttpLogger, Options } from "pino-http";
+import { IncomingMessage, ServerResponse } from "http";
 import {
   StepType,
   StepPriority,
@@ -26,6 +28,38 @@ const monitoringService = new MonitoringService(queueService);
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Add request logging
+const httpLogger = pinoHttp({
+  logger,
+  customLogLevel: function (req, res, error) {
+    if (error) return "error";
+    if (res.statusCode >= 400 && res.statusCode < 500) return "warn";
+    if (res.statusCode >= 500) return "error";
+    return "info";
+  },
+  customSuccessMessage: function (req, res) {
+    return `request completed with status ${res.statusCode}`;
+  },
+  customErrorMessage: function (req, res, error) {
+    return `request failed with status ${res.statusCode}: ${error.message}`;
+  },
+});
+
+// app.use(httpLogger);
+
+// Error handling middleware
+app.use(
+  (
+    err: Error,
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction
+  ) => {
+    logger.error(err, "Unhandled error");
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+);
 
 // Helper function to get business hours
 async function getBusinessHours(
@@ -49,6 +83,7 @@ async function getBusinessHours(
 }
 
 app.get("/api/health", (req, res) => {
+  console.log("health check");
   res.json({ status: "ok" });
 });
 
@@ -273,7 +308,60 @@ app.post("/api/sequences/:id/resume", async (req, res) => {
   }
 });
 
-// Start server
-app.listen(port, () => {
+// Add queue status endpoint
+app.get("/api/queue/status", async (req, res) => {
+  try {
+    const [detailedStatus, jobCounts] = await Promise.all([
+      queueService.getDetailedQueueStatus(),
+      queueService.getJobCounts(),
+    ]);
+
+    const status = {
+      sequence: detailedStatus.sequence,
+      email: detailedStatus.email,
+      total: jobCounts,
+    };
+
+    res.json(status);
+  } catch (error) {
+    logger.error("Error getting queue status:", error);
+    res.status(500).json({ error: "Failed to get queue status" });
+  }
+});
+
+// Graceful shutdown handling
+process.on("SIGTERM", async () => {
+  logger.info("SIGTERM received. Starting graceful shutdown...");
+  await handleShutdown();
+});
+
+process.on("SIGINT", async () => {
+  logger.info("SIGINT received. Starting graceful shutdown...");
+  await handleShutdown();
+});
+
+async function handleShutdown() {
+  try {
+    // Stop accepting new requests
+    server.close(() => {
+      logger.info("HTTP server closed");
+    });
+
+    // Shutdown queue service
+    // await queueService.shutdown();b
+
+    // Close database connections
+    await prisma.$disconnect();
+
+    logger.info("Graceful shutdown completed");
+    process.exit(0);
+  } catch (error) {
+    logger.error("Error during shutdown:", error);
+    process.exit(1);
+  }
+}
+
+// Start the server
+const server = app.listen(port, () => {
   logger.info(`Queue service listening on port ${port}`);
 });

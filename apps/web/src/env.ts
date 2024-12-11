@@ -16,6 +16,4 @@ const envSchema = z.object({
   QUEUE_API_URL: z.string().optional().default("http://localhost:3001/api"),
 });
 
-console.log(process.env);
-
 export const env = envSchema.parse(process.env);

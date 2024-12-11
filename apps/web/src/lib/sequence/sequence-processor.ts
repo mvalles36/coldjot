@@ -21,17 +21,19 @@ class SequenceProcessor {
         },
       });
 
+      console.log("sequence", sequence);
+
       if (!sequence) {
         throw new Error(`Sequence ${sequenceId} not found or unauthorized`);
       }
 
-      if (sequence.steps.length === 0) {
-        throw new Error("Sequence has no steps");
-      }
+      // if (sequence.steps.length === 0) {
+      //   throw new Error("Sequence has no steps");
+      // }
 
-      if (sequence.contacts.length === 0) {
-        throw new Error("Sequence has no contacts");
-      }
+      // if (sequence.contacts.length === 0) {
+      //   throw new Error("Sequence has no contacts");
+      // }
 
       // Launch sequence via queue API
       const result = await queueApi.launchSequence(

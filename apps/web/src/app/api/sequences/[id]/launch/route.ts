@@ -1,9 +1,6 @@
 import { auth } from "@/auth";
-// import { prisma } from "@mailjot/database";
-// import { sequenceProcessor } from "@/lib/sequence/sequence-processor";
-// import { queueService } from "@/lib/queue/queue-service";
-// import { JOB_PRIORITIES } from "@/lib/queue/queue-config";
-// import type { ProcessingJob } from "@/lib/queue/types";
+import { prisma } from "@mailjot/database";
+import { queueApi } from "@/lib/queue/queue-api-client";
 import { NextResponse } from "next/server";
 
 export async function POST(
@@ -16,41 +13,64 @@ export async function POST(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    // const { testMode } = await req.json();
-    // const { id } = await params;
+    const { testMode = false } = await req.json();
+    const { id } = await params;
 
-    // Update sequence status and test mode
-    // await prisma.sequence.update({
-    //   where: {
-    //     id: id,
-    //     userId: session.user.id,
-    //   },
-    //   data: {
-    //     status: "active",
-    //     testMode: testMode,
-    //   },
-    // });
+    // Get sequence and validate
+    const sequence = await prisma.sequence.findUnique({
+      where: {
+        id,
+        userId: session.user.id,
+      },
+      include: {
+        steps: {
+          orderBy: { order: "asc" },
+        },
+        contacts: {
+          where: {
+            status: {
+              notIn: ["completed", "opted_out"],
+            },
+          },
+          include: {
+            contact: true,
+          },
+        },
+      },
+    });
 
-    // Initialize queue service if not already initialized
-    // await queueService.initialize();
+    if (!sequence) {
+      return new NextResponse("Sequence not found", { status: 404 });
+    }
 
-    // Create a processing job for the sequence
-    // const processingJob: ProcessingJob = {
-    //   id: `sequence-${id}-${Date.now()}`,
-    //   priority: JOB_PRIORITIES.HIGH,
-    //   timestamp: new Date(),
-    //   userId: session.user.id,
-    //   type: "sequence",
-    //   data: {
-    //     sequenceId: id,
-    //     scheduleType: "business", // This will be updated based on sequence settings
-    //   },
-    // };
+    if (sequence.steps.length === 0) {
+      return new NextResponse("Sequence has no steps", { status: 400 });
+    }
 
-    // Add the job to the processing queue
-    // await queueService.addProcessingJob(processingJob);
+    if (sequence.contacts.length === 0) {
+      return new NextResponse("Sequence has no active contacts", {
+        status: 400,
+      });
+    }
 
-    return NextResponse.json({ success: true });
+    // Update sequence status
+    await prisma.sequence.update({
+      where: { id },
+      data: {
+        status: "active",
+        testMode,
+      },
+    });
+
+    // Launch the sequence using queue API
+    const result = await queueApi.launchSequence(id, session.user.id, testMode);
+
+    return NextResponse.json({
+      success: true,
+      jobId: result.jobId,
+      contactCount: sequence.contacts.length,
+      stepCount: sequence.steps.length,
+    });
   } catch (error) {
     console.error("[SEQUENCE_LAUNCH]", error);
     return new NextResponse("Internal Error", { status: 500 });

@@ -17,7 +17,22 @@
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true,
         "noEmit": false,
-        "incremental": false
+        "incremental": false,
+        "baseUrl": ".",
+        "paths": {
+            "@/*": [
+                "./src/*"
+            ],
+            "@/lib/*": [
+                "./src/lib/*"
+            ],
+            "@/types/*": [
+                "./src/types/*"
+            ],
+            "@/env": [
+                "./src/env.ts"
+            ]
+        }
     },
     "include": [
         "src/**/*"

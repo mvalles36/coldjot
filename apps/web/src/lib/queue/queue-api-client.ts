@@ -24,6 +24,7 @@ export class QueueApiClient {
   }
 
   async launchSequence(sequenceId: string, userId: string, testMode = false) {
+    console.log("launchSequence", sequenceId, userId, testMode);
     return this.fetchApi(`/sequences/${sequenceId}/launch`, {
       method: "POST",
       body: JSON.stringify({ userId, testMode }),
