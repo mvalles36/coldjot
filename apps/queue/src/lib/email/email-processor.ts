@@ -1,10 +1,11 @@
-import { EmailJob } from "../../types/queue";
+import { EmailJob } from "@/types/queue";
 import { logger } from "../log/logger";
 import { rateLimiter } from "../rate-limit/rate-limiter";
 import { emailService } from "./email-service";
 import { JOB_PRIORITIES } from "../queue/queue-config";
 import { QueueService } from "../queue/queue-service";
 import { prisma } from "@mailjot/database";
+import { randomUUID } from "crypto";
 
 export class EmailProcessor {
   private queueService: QueueService;
@@ -24,6 +25,7 @@ export class EmailProcessor {
       to: data.emailOptions.to,
       subject: data.emailOptions.subject,
       step: data.stepId,
+      jobId: job.id,
     });
 
     try {
@@ -39,12 +41,38 @@ export class EmailProcessor {
         return { success: false, error: "Rate limit exceeded" };
       }
 
+      // Get sequence step details
+      const step = await prisma.sequenceStep.findUnique({
+        where: { id: data.stepId },
+        include: {
+          sequence: {
+            select: {
+              name: true,
+              status: true,
+            },
+          },
+        },
+      });
+
+      if (!step) {
+        throw new Error(`Step ${data.stepId} not found`);
+      }
+
+      if (step.sequence.status !== "active") {
+        logger.info(
+          `⏸️ Sequence ${step.sequence.name} is not active, skipping email`
+        );
+        return { success: true };
+      }
+
       logger.info(`🔄 Sending email to: ${data.emailOptions.to}`, {
         tracking: {
           opens: data.tracking.openTracking ? "✓" : "✗",
           clicks: data.tracking.clickTracking ? "✓" : "✗",
           unsubscribe: data.tracking.unsubscribeTracking ? "✓" : "✗",
         },
+        sequence: step.sequence.name,
+        step: step.order + 1,
       });
 
       // Send email
@@ -69,6 +97,8 @@ export class EmailProcessor {
           messageId: result.messageId,
           threadId: result.threadId,
           sentAt: new Date().toISOString(),
+          sequence: step.sequence.name,
+          step: step.order + 1,
         });
 
         // Update step status
@@ -91,6 +121,7 @@ export class EmailProcessor {
         // Schedule bounce check
         if (result.messageId) {
           await this.queueService.addEmailJob({
+            id: randomUUID(),
             type: "bounce_check",
             priority: JOB_PRIORITIES.LOW,
             data: {
@@ -101,6 +132,7 @@ export class EmailProcessor {
           logger.info(`🔍 Scheduled bounce check`, {
             messageId: result.messageId,
             checkTime: new Date(Date.now() + 15 * 60 * 1000).toISOString(), // 15 minutes from now
+            sequence: step.sequence.name,
           });
         }
       }
@@ -111,6 +143,7 @@ export class EmailProcessor {
         to: data.emailOptions.to,
         subject: data.emailOptions.subject,
         error: error instanceof Error ? error.message : "Unknown error",
+        jobId: job.id,
       });
 
       // Add error cooldown

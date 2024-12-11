@@ -14,8 +14,8 @@ export const logger = pino({
     },
   },
   base: {
-    env: env.NODE_ENV,
-    service: "queue",
+    // env: env.NODE_ENV,
+    // service: "queue",
   },
   timestamp: () => `,"time":"${new Date(Date.now()).toISOString()}"`,
   formatters: {

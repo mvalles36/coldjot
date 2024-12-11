@@ -1,14 +1,15 @@
 import express from "express";
 import cors from "cors";
-
+import { env } from "./config";
 import { prisma } from "@mailjot/database";
 import { QueueService } from "./lib/queue/queue-service";
-import { SchedulingService } from "@/lib/schedule/scheduling-service";
-import { MonitoringService } from "@/lib/monitor/monitoring-service";
-import { sequenceProcessor } from "@/lib/sequence/sequence-processor";
-import { emailProcessor } from "@/lib/email/email-processor";
-import { logger } from "@/lib/log/logger";
-import pinoHttp, { HttpLogger, Options } from "pino-http";
+import { SchedulingService } from "./lib/schedule/scheduling-service";
+import { MonitoringService } from "./lib/monitor/monitoring-service";
+import { sequenceProcessor } from "./lib/sequence/sequence-processor";
+import { emailProcessor } from "./lib/email/email-processor";
+import { logger } from "./lib/log/logger";
+import pinoHttp from "pino-http";
+import Redis from "ioredis";
 import { IncomingMessage, ServerResponse } from "http";
 import {
   StepType,
@@ -22,12 +23,36 @@ import type { ProcessingJob } from "./types/queue";
 const app = express();
 const port = 3001;
 
-// Initialize services in the correct order
-const queueService = QueueService.getInstance();
-queueService.setProcessors(sequenceProcessor, emailProcessor);
+// Initialize Redis client
+const redis = new Redis({
+  host: process.env.REDIS_HOST || "localhost",
+  port: parseInt(process.env.REDIS_PORT || "6379"),
+  password: process.env.REDIS_PASSWORD,
+});
 
+redis.on("error", (error) => {
+  logger.error("❌ Redis connection error:", error);
+});
+
+redis.on("connect", () => {
+  logger.info("✓ Redis connected successfully");
+});
+
+// Initialize services in the correct order
+logger.info("🚀 Initializing services...");
+
+// Initialize queue service first
+const queueService = QueueService.getInstance();
+logger.info("✓ Queue service initialized");
+
+// Set up processors
+queueService.setProcessors(sequenceProcessor, emailProcessor);
+logger.info("✓ Queue processors configured");
+
+// Initialize other services
 const schedulingService = new SchedulingService();
 const monitoringService = new MonitoringService(queueService);
+logger.info("✓ All services initialized");
 
 // Middleware
 app.use(cors());
@@ -86,9 +111,59 @@ async function getBusinessHours(
   };
 }
 
-app.get("/api/health", (req, res) => {
-  console.log("health check");
-  res.json({ status: "ok" });
+// Health check endpoints
+app.get("/api/health", async (req, res) => {
+  try {
+    // Check Redis connection
+    const redisStatus = await redis.ping();
+
+    // Check queue status
+    const queueStatus = await queueService.getDetailedQueueStatus();
+
+    // Get queue metrics
+    const metrics = await monitoringService.getSystemMetrics();
+
+    res.json({
+      status: "ok",
+      redis: redisStatus === "PONG" ? "connected" : "error",
+      queues: {
+        sequence: queueStatus.sequence,
+        email: queueStatus.email,
+      },
+      metrics,
+    });
+  } catch (error) {
+    logger.error("Health check failed:", error);
+    res.status(500).json({
+      status: "error",
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+});
+
+// Queue status endpoint
+app.get("/api/queues/status", async (req, res) => {
+  try {
+    const [detailedStatus, jobCounts] = await Promise.all([
+      queueService.getDetailedQueueStatus(),
+      queueService.getJobCounts(),
+    ]);
+
+    res.json({
+      sequence: {
+        ...detailedStatus.sequence,
+        isProcessing: detailedStatus.sequence.active > 0,
+      },
+      email: {
+        ...detailedStatus.email,
+        isProcessing: detailedStatus.email.active > 0,
+      },
+      total: jobCounts,
+    });
+  } catch (error) {
+    logger.error("Error getting queue status:", error);
+    res.status(500).json({ error: "Failed to get queue status" });
+  }
 });
 
 // Launch sequence
@@ -309,27 +384,6 @@ app.post("/api/sequences/:id/resume", async (req, res) => {
   } catch (error) {
     logger.error("Error resuming sequence:", error);
     res.status(500).json({ error: "Failed to resume sequence" });
-  }
-});
-
-// Add queue status endpoint
-app.get("/api/queue/status", async (req, res) => {
-  try {
-    const [detailedStatus, jobCounts] = await Promise.all([
-      queueService.getDetailedQueueStatus(),
-      queueService.getJobCounts(),
-    ]);
-
-    const status = {
-      sequence: detailedStatus.sequence,
-      email: detailedStatus.email,
-      total: jobCounts,
-    };
-
-    res.json(status);
-  } catch (error) {
-    logger.error("Error getting queue status:", error);
-    res.status(500).json({ error: "Failed to get queue status" });
   }
 });
 

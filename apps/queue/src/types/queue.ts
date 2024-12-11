@@ -26,6 +26,7 @@ export interface ProcessingJob {
 
 export interface EmailJob {
   type: "send" | "retry" | "bounce_check";
+  id: string;
   priority: number;
   data: {
     sequenceId: string;

@@ -3,6 +3,7 @@ import { logger } from "@/lib/log/logger";
 import { ProcessingJob, EmailJob, JobCounts } from "@/types/queue";
 import type { SequenceProcessor } from "@/lib/sequence/sequence-processor";
 import type { EmailProcessor } from "@/lib/email/email-processor";
+import { randomUUID } from "crypto";
 
 export class QueueService {
   private sequenceQueue: Bull.Queue;
@@ -12,6 +13,8 @@ export class QueueService {
   private emailProcessor?: EmailProcessor;
 
   private constructor() {
+    logger.info("🔄 Initializing queue service...");
+
     this.sequenceQueue = new Bull("sequence-processing", {
       redis: {
         host: process.env.REDIS_HOST || "localhost",
@@ -50,6 +53,7 @@ export class QueueService {
 
     // Set up queue event listeners
     this.setupEventListeners();
+    logger.info("✓ Queue service initialized");
   }
 
   public static getInstance(): QueueService {
@@ -63,35 +67,50 @@ export class QueueService {
     sequenceProcessor: SequenceProcessor,
     emailProcessor: EmailProcessor
   ) {
+    logger.info("🔄 Setting up queue processors...");
     this.sequenceProcessor = sequenceProcessor;
     this.emailProcessor = emailProcessor;
     this.setupProcessors();
+    logger.info("✓ Queue processors configured");
   }
 
   private setupEventListeners() {
     // Add event listeners for job lifecycle
     this.sequenceQueue.on("completed", (job) => {
-      logger.info(`Sequence job ${job.id} completed successfully`);
+      logger.info(`✅ Sequence job ${job.id} completed successfully`);
     });
 
     this.sequenceQueue.on("failed", (job, error) => {
-      logger.error(`Sequence job ${job.id} failed:`, error);
+      logger.error(`❌ Sequence job ${job.id} failed:`, error);
     });
 
     this.sequenceQueue.on("stalled", (job) => {
-      logger.warn(`Sequence job ${job.id} is stalled`);
+      logger.warn(`⚠️ Sequence job ${job.id} is stalled`);
     });
 
     this.emailQueue.on("completed", (job) => {
-      logger.info(`Email job ${job.id} completed successfully`);
+      logger.info(`✅ Email job ${job.id} completed successfully`);
     });
 
     this.emailQueue.on("failed", (job, error) => {
-      logger.error(`Email job ${job.id} failed:`, error);
+      logger.error(`❌ Email job ${job.id} failed:`, error);
     });
 
     this.emailQueue.on("stalled", (job) => {
-      logger.warn(`Email job ${job.id} is stalled`);
+      logger.warn(`⚠️ Email job ${job.id} is stalled`);
+    });
+
+    // Add more detailed event listeners for email queue
+    this.emailQueue.on("waiting", (jobId) => {
+      logger.info(`📥 Email job ${jobId} waiting to be processed`);
+    });
+
+    this.emailQueue.on("active", (job) => {
+      logger.info(`⚡ Email job ${job.id} has started processing`);
+    });
+
+    this.emailQueue.on("progress", (job, progress) => {
+      logger.info(`📊 Email job ${job.id} progress:`, progress);
     });
   }
 
@@ -100,6 +119,7 @@ export class QueueService {
       throw new Error("Processors not initialized");
     }
 
+    logger.info("🔄 Setting up sequence queue processor...");
     // Process sequence jobs
     this.sequenceQueue.process(async (job) => {
       const processingJob: ProcessingJob = {
@@ -117,16 +137,19 @@ export class QueueService {
       return this.sequenceProcessor!.processSequenceJob(processingJob);
     });
 
+    logger.info("🔄 Setting up email queue processor...");
     // Process email jobs
     this.emailQueue.process(async (job) => {
       const { data } = job;
-      logger.info(`Processing email job: ${job.id}`, {
+      logger.info(`📨 Processing email job from queue: ${job.id}`, {
+        type: data.type,
         sequenceId: data.sequenceId,
         contactId: data.contactId,
       });
 
       try {
         const emailJob: EmailJob = {
+          id: job.id.toString(),
           type: data.type || "send",
           priority: job.opts.priority || 1,
           data: {
@@ -141,6 +164,12 @@ export class QueueService {
           },
         };
 
+        logger.info(`📧 Processing email job: ${emailJob.id}`, {
+          type: emailJob.type,
+          to: emailJob.data.emailOptions.to,
+          subject: emailJob.data.emailOptions.subject,
+        });
+
         switch (emailJob.type) {
           case "send":
             return this.emailProcessor!.processEmail(emailJob);
@@ -150,15 +179,21 @@ export class QueueService {
             throw new Error(`Unknown email job type: ${emailJob.type}`);
         }
       } catch (error) {
-        logger.error(`Error processing email job: ${job.id}`, error);
+        logger.error(`❌ Error processing email job: ${job.id}`, error);
         throw error;
       }
     });
+    logger.info("✓ Queue processors setup complete");
   }
 
   // Add a sequence processing job
   async addSequenceJob(job: ProcessingJob): Promise<Bull.Job> {
-    return this.sequenceQueue.add(
+    logger.info(`📥 Adding sequence job to queue`, {
+      sequenceId: job.data.sequenceId,
+      userId: job.data.userId,
+    });
+
+    const queuedJob = await this.sequenceQueue.add(
       {
         sequenceId: job.data.sequenceId,
         userId: job.data.userId,
@@ -175,11 +210,20 @@ export class QueueService {
         },
       }
     );
+
+    logger.info(`✓ Sequence job added to queue: ${queuedJob.id}`);
+    return queuedJob;
   }
 
   // Add an email sending job
   async addEmailJob(job: EmailJob): Promise<Bull.Job> {
-    return this.emailQueue.add(
+    logger.info(`📥 Adding email job to queue`, {
+      type: job.type,
+      to: job.data.emailOptions.to,
+      subject: job.data.emailOptions.subject,
+    });
+
+    const queuedJob = await this.emailQueue.add(
       {
         type: job.type,
         sequenceId: job.data.sequenceId,
@@ -200,6 +244,12 @@ export class QueueService {
         },
       }
     );
+
+    logger.info(`✓ Email job added to queue: ${queuedJob.id}`, {
+      type: job.type,
+      to: job.data.emailOptions.to,
+    });
+    return queuedJob;
   }
 
   // Get job counts for monitoring

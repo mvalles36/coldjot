@@ -4,6 +4,7 @@ import { rateLimiter } from "@/lib/rate-limit/rate-limiter";
 import { calculateNextSendTime } from "@/lib/time/timing-service";
 import { StepStatus } from "@mailjot/types";
 import { QueueService } from "@/lib/queue/queue-service";
+import { randomUUID } from "crypto";
 import {
   getUserGoogleAccount,
   getDefaultBusinessHours,
@@ -92,10 +93,18 @@ export class SequenceProcessor {
           data.sequenceId,
           contact.contact.id
         );
-        const currentStepIndex = progress?.currentStepIndex || 0;
-        const currentStep = sequence.steps[currentStepIndex];
+        const currentStepIndex = progress?.currentStepIndex ?? 0;
 
-        if (!currentStep) {
+        // Log progress status
+        logger.info(`📊 Contact progress:`, {
+          contact: contact.contact.email,
+          currentStep: currentStepIndex + 1,
+          totalSteps: sequence.steps.length,
+          hasExistingProgress: !!progress,
+        });
+
+        // Check if sequence is completed
+        if (currentStepIndex >= sequence.steps.length) {
           logger.info(
             `✅ Sequence completed for contact: ${contact.contact.email}`
           );
@@ -106,6 +115,23 @@ export class SequenceProcessor {
           );
           continue;
         }
+
+        // Get current step
+        const currentStep = sequence.steps[currentStepIndex];
+        if (!currentStep) {
+          logger.error(
+            `❌ Step not found at index ${currentStepIndex} for sequence ${sequence.name}`
+          );
+          continue;
+        }
+
+        // Log step details
+        logger.info(`📝 Processing step ${currentStepIndex + 1}:`, {
+          step: currentStepIndex + 1,
+          totalSteps: sequence.steps.length,
+          // type: currentStep.type,
+          timing: currentStep.timing,
+        });
 
         // Calculate next send time
         const nextSendTime = await calculateNextSendTime(
@@ -127,7 +153,7 @@ export class SequenceProcessor {
         }
 
         logger.info(
-          `📅 Scheduled email for contact: ${contact.contact.email}`,
+          `📅 Scheduling email for contact: ${contact.contact.email}`,
           {
             step: currentStepIndex + 1,
             totalSteps: sequence.steps.length,
@@ -145,6 +171,7 @@ export class SequenceProcessor {
 
         // Create email job
         const emailJob: EmailJob = {
+          id: randomUUID(),
           type: "send",
           priority: 1,
           data: {
@@ -167,8 +194,19 @@ export class SequenceProcessor {
         };
 
         // Add email job to queue
-        await this.queueService.addEmailJob(emailJob);
-        logger.info(`📧 Email queued for sending`, {
+        logger.info(`📬 Creating email job`, {
+          jobId: emailJob.id,
+          to: emailJob.data.emailOptions.to,
+          subject: emailJob.data.emailOptions.subject,
+          step: currentStepIndex + 1,
+          totalSteps: sequence.steps.length,
+        });
+
+        const queuedJob = await this.queueService.addEmailJob(emailJob);
+
+        logger.info(`📧 Email job queued successfully`, {
+          jobId: emailJob.id,
+          queueJobId: queuedJob.id,
           to: emailJob.data.emailOptions.to,
           subject: emailJob.data.emailOptions.subject,
           sendTime: nextSendTime.toISOString(),

@@ -1,7 +1,6 @@
 import { auth } from "@/auth";
 import { prisma } from "@mailjot/database";
 import { NextResponse } from "next/server";
-import { sequenceProcessor } from "@/lib/sequence/sequence-processor";
 
 export async function POST(req: Request) {
   try {
@@ -11,7 +10,7 @@ export async function POST(req: Request) {
     }
 
     const json = await req.json();
-    const { name, permissions, schedule, autoLaunch = false } = json;
+    const { name, permissions, schedule } = json;
 
     const sequence = await prisma.sequence.create({
       data: {
@@ -26,23 +25,6 @@ export async function POST(req: Request) {
         contacts: true,
       },
     });
-
-    // If autoLaunch is true and sequence has steps and contacts, launch it
-    await sequenceProcessor.launchSequence(sequence.id, session.user.id);
-
-    if (
-      autoLaunch &&
-      sequence.steps.length > 0 &&
-      sequence.contacts.length > 0
-    ) {
-      try {
-        console.log("Launching sequence", sequence.id);
-        await sequenceProcessor.launchSequence(sequence.id, session.user.id);
-      } catch (error) {
-        console.error("[SEQUENCE_LAUNCH_ERROR]", error);
-        // Don't throw here, just log the error as the sequence was created successfully
-      }
-    }
 
     return NextResponse.json(sequence);
   } catch (error) {
