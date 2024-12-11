@@ -85,7 +85,19 @@ export class QueueService {
 
     // Process sequence jobs
     this.sequenceQueue.process(async (job) => {
-      return sequenceProcessor.processSequenceJob(job.data as ProcessingJob);
+      const processingJob: ProcessingJob = {
+        type: "sequence",
+        id: job.id.toString(),
+        priority: job.opts.priority || 1,
+        data: {
+          sequenceId: job.data.sequenceId,
+          userId: job.data.userId,
+          scheduleType: job.data.scheduleType || "custom",
+          businessHours: job.data.businessHours,
+          testMode: job.data.testMode || false,
+        },
+      };
+      return sequenceProcessor.processSequenceJob(processingJob);
     });
 
     // Process email jobs
@@ -98,23 +110,28 @@ export class QueueService {
 
       try {
         const emailJob: EmailJob = {
-          type: data.type,
+          type: data.type || "send",
           priority: job.opts.priority || 1,
-          data: job.data,
+          data: {
+            sequenceId: data.sequenceId,
+            contactId: data.contactId,
+            stepId: data.stepId,
+            userId: data.userId,
+            messageId: data.messageId,
+            emailOptions: data.emailOptions,
+            tracking: data.tracking,
+            account: data.account,
+          },
         };
 
-        switch (data.type) {
+        switch (emailJob.type) {
           case "send":
-            await emailProcessor.processEmail(emailJob);
-            break;
+            return emailProcessor.processEmail(emailJob);
           case "bounce_check":
-            await emailProcessor.checkBounce(emailJob);
-            break;
+            return emailProcessor.checkBounce(emailJob);
           default:
-            throw new Error(`Unknown email job type: ${data.type}`);
+            throw new Error(`Unknown email job type: ${emailJob.type}`);
         }
-
-        return { success: true };
       } catch (error) {
         logger.error(`Error processing email job: ${job.id}`, error);
         throw error;
@@ -124,26 +141,48 @@ export class QueueService {
 
   // Add a sequence processing job
   async addSequenceJob(job: ProcessingJob): Promise<Bull.Job> {
-    return this.sequenceQueue.add(job.data, {
-      priority: job.priority,
-      attempts: 3,
-      backoff: {
-        type: "exponential",
-        delay: 1000,
+    return this.sequenceQueue.add(
+      {
+        sequenceId: job.data.sequenceId,
+        userId: job.data.userId,
+        scheduleType: job.data.scheduleType,
+        businessHours: job.data.businessHours,
+        testMode: job.data.testMode,
       },
-    });
+      {
+        priority: job.priority,
+        attempts: 3,
+        backoff: {
+          type: "exponential",
+          delay: 1000,
+        },
+      }
+    );
   }
 
   // Add an email sending job
   async addEmailJob(job: EmailJob): Promise<Bull.Job> {
-    return this.emailQueue.add(job.data, {
-      priority: job.priority,
-      attempts: 2,
-      backoff: {
-        type: "exponential",
-        delay: 1000,
+    return this.emailQueue.add(
+      {
+        type: job.type,
+        sequenceId: job.data.sequenceId,
+        contactId: job.data.contactId,
+        stepId: job.data.stepId,
+        userId: job.data.userId,
+        messageId: job.data.messageId,
+        emailOptions: job.data.emailOptions,
+        tracking: job.data.tracking,
+        account: job.data.account,
       },
-    });
+      {
+        priority: job.priority,
+        attempts: 2,
+        backoff: {
+          type: "exponential",
+          delay: 1000,
+        },
+      }
+    );
   }
 
   // Get job counts for monitoring

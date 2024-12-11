@@ -3,6 +3,7 @@ import { logger } from "../logger";
 import { rateLimiter } from "../rate-limiter";
 import { calculateNextSendTime } from "../timing-service";
 import { StepStatus } from "@mailjot/types";
+import { queueService } from "../queue/queue-service";
 import {
   getUserGoogleAccount,
   getDefaultBusinessHours,
@@ -14,8 +15,6 @@ import {
 } from "./helper";
 
 export class SequenceProcessor {
-  constructor(private emailQueue: any) {}
-
   /**
    * Process a sequence job
    */
@@ -136,14 +135,7 @@ export class SequenceProcessor {
         };
 
         // Add email job to queue
-        await this.emailQueue.add(emailJob.data, {
-          priority: emailJob.priority,
-          attempts: 2,
-          backoff: {
-            type: "exponential",
-            delay: 1000,
-          },
-        });
+        await queueService.addEmailJob(emailJob);
 
         // Update progress
         await updateSequenceProgress(
@@ -176,4 +168,4 @@ export class SequenceProcessor {
 }
 
 // Export singleton instance
-export const sequenceProcessor = new SequenceProcessor(null); // Will be initialized with emailQueue
+export const sequenceProcessor = new SequenceProcessor();
