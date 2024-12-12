@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
 import { prisma } from "@mailjot/database";
-import { trackEmailEvent } from "@/lib/tracking/tracking-service";
+// import { trackEmailEvent } from "@/lib/tracking/tracking-service";
 import { verifyPubSubJwt } from "@/lib/auth/pubsub";
 import { refreshAccessToken, oauth2Client } from "@/lib/google/google-account";
-import { updateSequenceStats } from "@/lib/stats/sequence-stats-service";
+// import { updateSequenceStats } from "@/lib/stats/sequence-stats-service";
 import type { gmail_v1 } from "googleapis";
 import { GaxiosResponse } from "gaxios";
 import {
@@ -117,21 +117,22 @@ async function processMessageForOpens(
     });
 
     if (trackingEvent) {
-      await trackEmailEvent(
-        trackingEvent.hash,
-        "opened",
-        {
-          messageId,
-          threadId: messageDetails.data.threadId!,
-        },
-        {
-          email: trackingEvent.email,
-          userId: trackingEvent.userId,
-          sequenceId: trackingEvent.sequenceId,
-          stepId: trackingEvent.stepId,
-          contactId: trackingEvent.contactId,
-        }
-      );
+      // TODO: fix this
+      // await trackEmailEvent(
+      //   trackingEvent.hash,
+      //   "opened",
+      //   {
+      //     messageId,
+      //     threadId: messageDetails.data.threadId!,
+      //   },
+      //   {
+      //     email: trackingEvent.email,
+      //     userId: trackingEvent.userId,
+      //     sequenceId: trackingEvent.sequenceId,
+      //     stepId: trackingEvent.stepId,
+      //     contactId: trackingEvent.contactId,
+      //   }
+      // );
       console.log(`✅ Tracked open event for email: ${trackingEvent.hash}`);
     }
   } catch (error) {
@@ -319,22 +320,23 @@ const processBounceEvent = async (
     (h) => h.name === "X-Failed-Recipients"
   )?.value;
 
-  await trackEmailEvent(
-    trackingEvent.hash,
-    "bounced",
-    {
-      bounceReason: failedRecipient!,
-      messageId,
-      threadId: emailThread.gmailThreadId,
-    },
-    {
-      email: emailThread.contact.email,
-      userId: emailThread.userId,
-      sequenceId: emailThread.sequenceId,
-      stepId: trackingEvent.stepId,
-      contactId: emailThread.contactId,
-    }
-  );
+  // TODO: fix this
+  // await trackEmailEvent(
+  //   trackingEvent.hash,
+  //   "bounced",
+  //   {
+  //     bounceReason: failedRecipient!,
+  //     messageId,
+  //     threadId: emailThread.gmailThreadId,
+  //   },
+  //   {
+  //     email: emailThread.contact.email,
+  //     userId: emailThread.userId,
+  //     sequenceId: emailThread.sequenceId,
+  //     stepId: trackingEvent.stepId,
+  //     contactId: emailThread.contactId,
+  //   }
+  // );
 
   // TODO: fix this
   // await updateSequenceStats(
@@ -488,24 +490,25 @@ const processReplyEvent = async (
 ) => {
   const snippet = messageDetails.data.snippet || undefined;
 
-  await trackEmailEvent(
-    trackingEvent.hash,
-    "replied",
-    {
-      replyMessageId: messageId,
-      threadId,
-      from: fromHeader,
-      ...(snippet && { snippet }),
-      timestamp: new Date().toISOString(),
-    },
-    {
-      email: emailThread.contact.email,
-      userId: emailThread.userId,
-      sequenceId: emailThread.sequenceId,
-      stepId: trackingEvent.stepId,
-      contactId: emailThread.contactId,
-    }
-  );
+  // TODO: fix this
+  // await trackEmailEvent(
+  //   trackingEvent.hash,
+  //   "replied",
+  //   {
+  //     replyMessageId: messageId,
+  //     threadId,
+  //     from: fromHeader,
+  //     ...(snippet && { snippet }),
+  //     timestamp: new Date().toISOString(),
+  //   },
+  //   {
+  //     email: emailThread.contact.email,
+  //     userId: emailThread.userId,
+  //     sequenceId: emailThread.sequenceId,
+  //     stepId: trackingEvent.stepId,
+  //     contactId: emailThread.contactId,
+  //   }
+  // );
 
   // TODO: fix this
   // await updateSequenceStats(
@@ -536,24 +539,25 @@ const trackReplyEvent = async (
 ) => {
   const snippet = messageDetails.data.snippet || undefined;
 
-  await trackEmailEvent(
-    trackingEvent.hash,
-    "replied",
-    {
-      replyMessageId: messageId,
-      threadId,
-      from: fromHeader,
-      ...(snippet && { snippet }),
-      timestamp: new Date().toISOString(),
-    },
-    {
-      email: trackingEvent.email,
-      userId: trackingEvent.userId,
-      sequenceId: trackingEvent.sequenceId,
-      stepId: trackingEvent.stepId,
-      contactId: trackingEvent.contactId,
-    }
-  );
+  // TODO: fix this
+  // await trackEmailEvent(
+  //   trackingEvent.hash,
+  //   "replied",
+  //   {
+  //     replyMessageId: messageId,
+  //     threadId,
+  //     from: fromHeader,
+  //     ...(snippet && { snippet }),
+  //     timestamp: new Date().toISOString(),
+  //   },
+  //   {
+  //     email: trackingEvent.email,
+  //     userId: trackingEvent.userId,
+  //     sequenceId: trackingEvent.sequenceId,
+  //     stepId: trackingEvent.stepId,
+  //     contactId: trackingEvent.contactId,
+  //   }
+  // );
 
   console.log("✅ Tracked reply event through references");
 };

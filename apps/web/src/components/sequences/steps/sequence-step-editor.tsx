@@ -21,7 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Loader2, Mail } from "lucide-react";
 import { useForm, Controller } from "react-hook-form";
-import { calculateNextSendTime } from "@/lib/sequence/timing-service";
+// import { calculateNextSendTime } from "@/lib/sequence/timing-service";
 import { format } from "date-fns";
 
 type DelayUnit = "minutes" | "hours" | "days";
@@ -169,7 +169,8 @@ export function SequenceStepEditor({
                     Estimated Next Send Time
                   </h4>
                   <div className="text-sm text-muted-foreground">
-                    {(() => {
+                    {/* TODO : check again the timing service */}
+                    {/* {(() => {
                       try {
                         const nextTime = calculateNextSendTime(
                           new Date(),
@@ -187,7 +188,7 @@ export function SequenceStepEditor({
                       } catch (error) {
                         return "Invalid timing configuration";
                       }
-                    })()}
+                    })()} */}
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">
                     * Actual send time may vary based on business hours and

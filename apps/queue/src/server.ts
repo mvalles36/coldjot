@@ -209,6 +209,7 @@ app.post("/api/sequences/:id/launch", async (req, res) => {
       return res.status(400).json({ error: "Sequence has no steps" });
     }
 
+    // TODOD : check if contacts exist. No need to get them
     if (sequence.contacts.length === 0) {
       return res.status(400).json({ error: "Sequence has no active contacts" });
     }
@@ -217,6 +218,7 @@ app.post("/api/sequences/:id/launch", async (req, res) => {
     const businessHours = await getBusinessHours(userId);
 
     // Update sequence status
+    // TODO : check if sequence is already active and make it active if fully processed
     await prisma.sequence.update({
       where: { id },
       data: {

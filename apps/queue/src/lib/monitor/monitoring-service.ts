@@ -34,6 +34,7 @@ export class MonitoringService {
     },
   };
 
+  // TODO : check if this is needed and improve it for memory usage
   private queueService: QueueService;
   private checkIntervals: Map<string, NodeJS.Timeout> = new Map();
 

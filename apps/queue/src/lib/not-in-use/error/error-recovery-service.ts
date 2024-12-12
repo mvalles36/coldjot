@@ -1,7 +1,10 @@
 import { prisma } from "@mailjot/database";
 import { ErrorRecovery, RetryStrategy } from "@/types/queue";
 import { logger } from "@/lib/log/logger";
-import { alertService } from "@/lib/alert/alert-service";
+import {
+  alertService,
+  AlertService,
+} from "@/lib/not-in-use/alert/alert-service";
 import Bull from "bull";
 
 export class ErrorRecoveryService {

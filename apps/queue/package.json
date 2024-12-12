@@ -4,11 +4,12 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "build": "tsup",
+        "build": "NODE_OPTIONS='--max-old-space-size=4096' tsup",
         "dev": "NODE_OPTIONS='--max-old-space-size=4096' tsup --watch",
         "start": "NODE_OPTIONS='--max-old-space-size=4096' node dist/server.js",
+        "dev:debug": "NODE_OPTIONS='--max-old-space-size=4096 --inspect' tsup --watch",
         "lint": "eslint \"src/**/*.ts\"",
-        "clean": "rimraf .turbo node_modules dist",
+        "clean": "rimraf .turbo node_modules dist .tsbuildinfo",
         "test": "jest",
         "typecheck": "tsc --noEmit"
     },

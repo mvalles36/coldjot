@@ -238,7 +238,7 @@ export class EmailService {
       logger.info("📝 Preparing untracked copy for sender");
       const untrackedEmail = [
         `To: ${options.account.email}`,
-        `Subject: ${options.subject} (Sent)`,
+        `Subject: ${options.subject}`,
         "Content-Type: text/html; charset=utf-8",
         "",
         options.html,

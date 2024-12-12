@@ -91,6 +91,19 @@ export class EmailProcessor {
           step: step.order + 1,
         });
 
+        const stepStatusData = {
+          sequenceId: data.sequenceId,
+          stepId: data.stepId,
+          contactId: data.contactId,
+          status: "sent",
+          sentAt: new Date(),
+          messageId: result.messageId,
+          threadId: result.threadId,
+          bounceInfo: null,
+        };
+
+        logger.info(stepStatusData, "🔄 Step Status Data");
+
         // Update step status
         await prisma.stepStatus.update({
           where: {
@@ -100,12 +113,7 @@ export class EmailProcessor {
               contactId: data.contactId,
             },
           },
-          data: {
-            status: "sent",
-            sentAt: new Date(),
-            messageId: result.messageId,
-            threadId: result.threadId,
-          },
+          data: stepStatusData,
         });
 
         // Schedule bounce check
