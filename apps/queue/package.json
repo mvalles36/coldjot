@@ -4,10 +4,10 @@
     "private": true,
     "type": "module",
     "scripts": {
+        "dev": "nodemon --watch src -e ts,json --exec \"npm run build && npm run start\"",
         "build": "NODE_OPTIONS='--max-old-space-size=4096' tsup",
-        "dev": "NODE_OPTIONS='--max-old-space-size=4096' tsup --watch",
-        "start": "NODE_OPTIONS='--max-old-space-size=4096' node dist/server.js",
-        "dev:debug": "NODE_OPTIONS='--max-old-space-size=4096 --inspect' tsup --watch",
+        "start": "node --expose-gc dist/server.js",
+        "dev:debug": "NODE_OPTIONS='--max-old-space-size=4096 --inspect' nodemon --watch src -e ts,json --exec \"npm run build && npm run start\"",
         "lint": "eslint \"src/**/*.ts\"",
         "clean": "rimraf .turbo node_modules dist .tsbuildinfo",
         "test": "jest",

@@ -99,13 +99,12 @@ export class EmailProcessor {
           sentAt: new Date(),
           messageId: result.messageId,
           threadId: result.threadId,
-          bounceInfo: null,
         };
 
         logger.info(stepStatusData, "🔄 Step Status Data");
 
-        // Update step status
-        await prisma.stepStatus.update({
+        // Upsert step status
+        await prisma.stepStatus.upsert({
           where: {
             sequenceId_stepId_contactId: {
               sequenceId: data.sequenceId,
@@ -113,7 +112,13 @@ export class EmailProcessor {
               contactId: data.contactId,
             },
           },
-          data: stepStatusData,
+          update: stepStatusData,
+          create: {
+            ...stepStatusData,
+            sequenceId: data.sequenceId,
+            stepId: data.stepId,
+            contactId: data.contactId,
+          },
         });
 
         // Schedule bounce check
@@ -155,7 +160,7 @@ export class EmailProcessor {
       );
 
       // Update step status
-      await prisma.stepStatus.update({
+      await prisma.stepStatus.upsert({
         where: {
           sequenceId_stepId_contactId: {
             sequenceId: data.sequenceId,
@@ -163,7 +168,14 @@ export class EmailProcessor {
             contactId: data.contactId,
           },
         },
-        data: {
+        update: {
+          status: "failed",
+          error: error instanceof Error ? error.message : "Unknown error",
+        },
+        create: {
+          sequenceId: data.sequenceId,
+          stepId: data.stepId,
+          contactId: data.contactId,
           status: "failed",
           error: error instanceof Error ? error.message : "Unknown error",
         },
@@ -198,7 +210,7 @@ export class EmailProcessor {
         });
 
         // Update step status
-        await prisma.stepStatus.update({
+        await prisma.stepStatus.upsert({
           where: {
             sequenceId_stepId_contactId: {
               sequenceId: data.sequenceId,
@@ -206,7 +218,14 @@ export class EmailProcessor {
               contactId: data.contactId,
             },
           },
-          data: {
+          update: {
+            status: "bounced",
+            bounceInfo: bounceStatus.details,
+          },
+          create: {
+            sequenceId: data.sequenceId,
+            stepId: data.stepId,
+            contactId: data.contactId,
             status: "bounced",
             bounceInfo: bounceStatus.details,
           },

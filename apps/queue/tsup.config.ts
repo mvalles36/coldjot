@@ -12,4 +12,10 @@ export default defineConfig({
   sourcemap: true,
   target: "node20",
   onSuccess: "node dist/server.js",
+  splitting: true,
+  treeshake: true,
+  minify: true,
+  // ignore: ["node_modules/**", "dist/**", ".turbo/**", ".git/**"],
+  // watch: process.env.NODE_ENV === "development" && {
+  // },
 });

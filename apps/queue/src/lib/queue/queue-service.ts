@@ -28,8 +28,14 @@ export class QueueService {
           type: "exponential",
           delay: 1000,
         },
-        removeOnComplete: false,
-        removeOnFail: false,
+        removeOnComplete: {
+          age: 24 * 3600,
+          count: 1000,
+        },
+        removeOnFail: {
+          age: 24 * 3600,
+          count: 1000,
+        },
       },
     });
 
@@ -46,10 +52,19 @@ export class QueueService {
           type: "exponential",
           delay: 1000,
         },
-        removeOnComplete: false,
-        removeOnFail: false,
+        removeOnComplete: {
+          age: 24 * 3600,
+          count: 1000,
+        },
+        removeOnFail: {
+          age: 24 * 3600,
+          count: 1000,
+        },
       },
     });
+
+    // Add periodic cleanup
+    setInterval(() => this.cleanup(), 60 * 60 * 1000); // Run cleanup every hour
 
     // Set up queue event listeners
     this.setupEventListeners();
@@ -282,11 +297,47 @@ export class QueueService {
 
   // Clean up completed and failed jobs
   async cleanup(age: number = 24 * 60 * 60 * 1000): Promise<void> {
-    await Promise.all([
-      this.sequenceQueue.clean(age, "completed"),
-      this.sequenceQueue.clean(age, "failed"),
-      this.emailQueue.clean(age, "completed"),
-      this.emailQueue.clean(age, "failed"),
-    ]);
+    try {
+      logger.info("🧹 Starting queue cleanup...");
+
+      await Promise.all([
+        this.sequenceQueue.clean(age, "completed"),
+        this.sequenceQueue.clean(age, "failed"),
+        this.emailQueue.clean(age, "completed"),
+        this.emailQueue.clean(age, "failed"),
+
+        // Also clean waiting jobs older than the age
+        this.sequenceQueue.clean(age, "wait"),
+        this.emailQueue.clean(age, "wait"),
+
+        // Clean delayed jobs
+        this.sequenceQueue.clean(age, "delayed"),
+        this.emailQueue.clean(age, "delayed"),
+
+        // Clean active jobs that might be stuck
+        this.sequenceQueue.clean(age, "active"),
+        this.emailQueue.clean(age, "active"),
+      ]);
+
+      // Get all jobs to clean up events
+      const sequenceJobs = await this.sequenceQueue.getJobs([
+        "completed",
+        "failed",
+      ]);
+      const emailJobs = await this.emailQueue.getJobs(["completed", "failed"]);
+
+      // Keep only the most recent 1000 jobs
+      const jobsToRemove = [
+        ...sequenceJobs.slice(1000),
+        ...emailJobs.slice(1000),
+      ];
+
+      // Remove excess jobs
+      await Promise.all(jobsToRemove.map((job) => job.remove()));
+
+      logger.info("✓ Queue cleanup completed");
+    } catch (error) {
+      logger.error("❌ Error during queue cleanup:", error);
+    }
   }
 }

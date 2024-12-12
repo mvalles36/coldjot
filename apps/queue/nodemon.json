@@ -1,10 +1,14 @@
 {
     "watch": [
-        "dist"
+        "src"
     ],
-    "ext": "js",
+    "ext": "ts,json",
     "ignore": [
-        "src/**/*"
+        "node_modules/**/*",
+        "dist/**/*"
     ],
-    "exec": "node dist/server.js"
+    "exec": "npm run build && npm run start",
+    "env": {
+        "NODE_ENV": "development"
+    }
 }

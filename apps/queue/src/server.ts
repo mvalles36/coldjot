@@ -21,6 +21,7 @@ import {
 import type { ProcessingJob } from "./types/queue";
 import { resetSequence } from "./lib/sequence/helper";
 import { rateLimiter } from "./lib/rate-limit/rate-limiter";
+import { memoryMonitor } from "./lib/monitor/memory-monitor";
 
 const app = express();
 const port = 3001;
@@ -55,6 +56,9 @@ logger.info("✓ Queue processors configured");
 const schedulingService = new SchedulingService();
 const monitoringService = new MonitoringService(queueService);
 logger.info("✓ All services initialized");
+
+// Add after initializing services
+memoryMonitor.startMonitoring(30000); // Check every 30 seconds
 
 // Middleware
 app.use(cors());
@@ -458,21 +462,26 @@ process.on("SIGINT", async () => {
 
 async function handleShutdown() {
   try {
+    logger.info("🛑 Starting graceful shutdown...");
+
+    // Stop memory monitoring
+    memoryMonitor.stopMonitoring();
+
     // Stop accepting new requests
     server.close(() => {
-      logger.info("HTTP server closed");
+      logger.info("✓ HTTP server closed");
     });
 
-    // Shutdown queue service
-    // await queueService.shutdown();b
+    // Clean up queues before shutting down
+    await queueService.cleanup();
 
     // Close database connections
     await prisma.$disconnect();
 
-    logger.info("Graceful shutdown completed");
+    logger.info("✓ Graceful shutdown completed");
     process.exit(0);
   } catch (error) {
-    logger.error("Error during shutdown:", error);
+    logger.error("❌ Error during shutdown:", error);
     process.exit(1);
   }
 }
