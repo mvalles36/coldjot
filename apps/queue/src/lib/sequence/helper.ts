@@ -161,3 +161,85 @@ export async function getContactProgress(
     },
   });
 }
+
+/**
+ * Reset sequence state completely
+ */
+export async function resetSequence(sequenceId: string): Promise<void> {
+  logger.info(`🔄 Resetting sequence: ${sequenceId}`);
+
+  try {
+    // Delete all email tracking records
+    await prisma.emailTracking.deleteMany({
+      where: {
+        metadata: {
+          path: ["sequenceId"],
+          equals: sequenceId,
+        },
+      },
+    });
+    logger.info(`✓ Email tracking records deleted`);
+
+    // Delete all email events
+    await prisma.emailEvent.deleteMany({
+      where: {
+        sequenceId,
+      },
+    });
+    logger.info(`✓ Email events deleted`);
+
+    // Delete all step statuses
+    await prisma.stepStatus.deleteMany({
+      where: {
+        sequenceId,
+      },
+    });
+    logger.info(`✓ Step statuses deleted`);
+
+    // Delete sequence progress
+    await prisma.sequenceProgress.deleteMany({
+      where: {
+        sequenceId,
+      },
+    });
+    logger.info(`✓ Sequence progress deleted`);
+
+    // Reset sequence contacts status
+    await prisma.sequenceContact.updateMany({
+      where: {
+        sequenceId,
+      },
+      data: {
+        status: "pending",
+        lastProcessedAt: null,
+        completedAt: null,
+        threadId: null,
+      },
+    });
+    logger.info(`✓ Sequence contacts reset`);
+
+    // Reset sequence stats
+    await prisma.sequenceStats.deleteMany({
+      where: {
+        sequenceId,
+      },
+    });
+    logger.info(`✓ Sequence stats reset`);
+
+    // Reset sequence health
+    await prisma.sequenceHealth.deleteMany({
+      where: {
+        sequenceId,
+      },
+    });
+    logger.info(`✓ Sequence health reset`);
+
+    // Reset rate limits in Redis
+    // Note: This will be handled by the rate limiter service
+
+    logger.info(`✨ Sequence reset completed: ${sequenceId}`);
+  } catch (error) {
+    logger.error(`Error resetting sequence: ${error}`);
+    throw error;
+  }
+}

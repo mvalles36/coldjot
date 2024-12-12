@@ -4,8 +4,19 @@ import type { BusinessHours } from "@mailjot/types";
 const QUEUE_API_URL = env.QUEUE_API_URL || "http://localhost:3001/api";
 
 export class QueueApiClient {
+  private baseUrl: string;
+
+  constructor(
+    baseUrl: string = process.env.NEXT_PUBLIC_QUEUE_API_URL ||
+      "http://localhost:3001"
+  ) {
+    this.baseUrl = baseUrl.endsWith("/api") ? baseUrl.slice(0, -4) : baseUrl;
+  }
+
   private async fetchApi(endpoint: string, options: RequestInit = {}) {
-    const response = await fetch(`${QUEUE_API_URL}${endpoint}`, {
+    const url = `${this.baseUrl}/api${endpoint}`;
+    console.log("Fetching URL:", url);
+    const response = await fetch(url, {
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -56,6 +67,13 @@ export class QueueApiClient {
 
   async getSystemMetrics() {
     return this.fetchApi("/metrics");
+  }
+
+  async resetSequence(sequenceId: string, userId: string): Promise<any> {
+    return this.fetchApi(`/sequences/${sequenceId}/reset`, {
+      method: "POST",
+      body: JSON.stringify({ userId }),
+    });
   }
 }
 

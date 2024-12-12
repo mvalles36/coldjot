@@ -5,7 +5,7 @@
     "type": "module",
     "scripts": {
         "build": "tsup",
-        "dev": "concurrently \"tsup --watch\" \"NODE_OPTIONS='--max-old-space-size=4096' nodemon --max-old-space-size=4096 dist/server.js\"",
+        "dev": "NODE_OPTIONS='--max-old-space-size=4096' tsup --watch",
         "start": "NODE_OPTIONS='--max-old-space-size=4096' node dist/server.js",
         "lint": "eslint \"src/**/*.ts\"",
         "clean": "rimraf .turbo node_modules dist",

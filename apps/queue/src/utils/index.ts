@@ -9,6 +9,7 @@ export const getAppBaseUrl = () => {
   const url = process.env.NEXT_PUBLIC_APP_URL;
   if (url) {
     console.warn("NEXT_PUBLIC_APP_URL is not set, using fallback URL");
+    console.log("process.env.PUBLIC_APP_URL", process.env.NEXT_PUBLIC_APP_URL);
     if (process.env.NGROK_URL) {
       return process.env.NGROK_URL;
     }

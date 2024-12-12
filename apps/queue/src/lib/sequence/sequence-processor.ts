@@ -1,4 +1,4 @@
-import { ProcessingJob, EmailJob, EmailTracking } from "../../types/queue";
+import { ProcessingJob, EmailJob } from "../../types/queue";
 import { logger } from "@/lib/log/logger";
 import { rateLimiter } from "@/lib/rate-limit/rate-limiter";
 import { calculateNextSendTime } from "@/lib/time/timing-service";
@@ -14,6 +14,7 @@ import {
   getSequenceWithDetails,
   getContactProgress,
 } from "./helper";
+import { createEmailTracking } from "../track/tracking-service";
 
 export class SequenceProcessor {
   private queueService: QueueService;
@@ -162,12 +163,19 @@ export class SequenceProcessor {
           }
         );
 
-        const tracking: EmailTracking = {
-          enabled: true,
-          openTracking: true,
-          clickTracking: true,
-          unsubscribeTracking: true,
+        // Create tracking metadata
+        const trackingMetadata = {
+          email: data.testMode
+            ? process.env.TEST_EMAIL || googleAccount.email
+            : contact.contact.email,
+          userId: data.userId,
+          sequenceId: sequence.id,
+          stepId: currentStep.id,
+          contactId: contact.contact.id,
         };
+
+        // Create tracking object
+        const tracking = await createEmailTracking(trackingMetadata);
 
         // Create email job
         const emailJob: EmailJob = {

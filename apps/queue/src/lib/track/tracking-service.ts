@@ -204,11 +204,13 @@ export async function addTrackingToEmail(
 
     let trackedContent = content;
 
+    console.log("tracking", tracking);
+
     if (tracking.wrappedLinks) {
       trackedContent = await wrapLinksWithTracking(
         trackedContent,
-        tracking.metadata.hash!,
-        tracking.trackingId!
+        tracking.hash!,
+        tracking.id!
       );
     }
 
@@ -268,6 +270,10 @@ async function wrapLinksWithTracking(
   trackingId: string
 ): Promise<string> {
   try {
+    console.log("content", content);
+    console.log("hash", hash);
+    console.log("trackingId", trackingId);
+
     if (!content || !hash || !trackingId) {
       throw new Error(
         "Content, hash, and tracking ID are required for link tracking"

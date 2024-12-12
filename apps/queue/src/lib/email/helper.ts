@@ -2,7 +2,7 @@ import { encode as base64Encode } from "js-base64";
 import { prisma } from "@mailjot/database";
 import { generateMessageId, normalizeSubject } from "@/utils";
 import type { EmailResult, ThreadHeaders } from "@mailjot/types";
-import { sendEmail } from "@/lib/email/email-service";
+import { sendEmail } from "./email-service";
 import { refreshAccessToken } from "@/lib/google/google-account";
 import type { SendEmailOptions } from "@mailjot/types";
 import type { EmailTracking } from "@mailjot/types";

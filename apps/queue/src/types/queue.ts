@@ -6,6 +6,7 @@ import {
   StepPriority,
   ProcessingWindow,
   RateLimits,
+  EmailTracking,
 } from "@mailjot/types";
 
 // Job Types
@@ -54,12 +55,12 @@ export interface SendEmailOptions {
   }>;
 }
 
-export interface EmailTracking {
-  enabled: boolean;
-  openTracking: boolean;
-  clickTracking: boolean;
-  unsubscribeTracking: boolean;
-}
+// export interface EmailTracking {
+//   enabled: boolean;
+//   openTracking: boolean;
+//   clickTracking: boolean;
+//   unsubscribeTracking: boolean;
+// }
 
 export interface GoogleAccount {
   email: string;

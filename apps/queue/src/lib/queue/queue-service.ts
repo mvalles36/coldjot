@@ -217,11 +217,7 @@ export class QueueService {
 
   // Add an email sending job
   async addEmailJob(job: EmailJob): Promise<Bull.Job> {
-    logger.info(`📥 Adding email job to queue`, {
-      type: job.type,
-      to: job.data.emailOptions.to,
-      subject: job.data.emailOptions.subject,
-    });
+    logger.info(job, `📥 Adding email job to queue`);
 
     const queuedJob = await this.emailQueue.add(
       {

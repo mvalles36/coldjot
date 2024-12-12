@@ -11,4 +11,9 @@ export default defineConfig({
   format: ["esm"],
   sourcemap: true,
   target: "node20",
+  onSuccess: "node dist/server.js",
+  // watch: {
+  //   onSuccess: "node dist/server.js",
+  //   ignore: ["dist/**/*", "node_modules/**/*"],
+  // },
 });

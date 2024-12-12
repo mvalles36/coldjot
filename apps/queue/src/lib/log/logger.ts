@@ -9,19 +9,16 @@ export const logger = pino({
       colorize: true,
       ignore: "pid,hostname",
       translateTime: "yyyy-mm-dd HH:MM:ss",
-      messageFormat: "{msg} {context}",
-      levelFirst: true,
+      // messageKey: "msg",
+      // levelFirst: true,
+      customLevels: "error:30,warn:40,info:50,debug:60,trace:70",
+      customColors: "error:red,warn:yellow,info:blue,debug:green,trace:gray",
     },
-  },
-  base: {
-    // env: env.NODE_ENV,
-    // service: "queue",
   },
   timestamp: () => `,"time":"${new Date(Date.now()).toISOString()}"`,
   formatters: {
-    level: (label) => {
-      return { level: label.toUpperCase() };
-    },
+    bindings: () => ({}),
+    level: (label) => ({ level: label.toUpperCase() }),
   },
   serializers: {
     err: pino.stdSerializers.err,
@@ -30,3 +27,4 @@ export const logger = pino({
     res: pino.stdSerializers.res,
   },
 });
+2;

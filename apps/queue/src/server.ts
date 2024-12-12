@@ -19,6 +19,8 @@ import {
   BusinessHours,
 } from "@mailjot/types";
 import type { ProcessingJob } from "./types/queue";
+import { resetSequence } from "./lib/sequence/helper";
+import { rateLimiter } from "./lib/rate-limit/rate-limiter";
 
 const app = express();
 const port = 3001;
@@ -384,6 +386,60 @@ app.post("/api/sequences/:id/resume", async (req, res) => {
   } catch (error) {
     logger.error("Error resuming sequence:", error);
     res.status(500).json({ error: "Failed to resume sequence" });
+  }
+});
+
+// Reset sequence
+app.post("/api/sequences/:id/reset", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
+
+    // Verify sequence ownership
+    const sequence = await prisma.sequence.findUnique({
+      where: {
+        id,
+        userId,
+      },
+    });
+
+    if (!sequence) {
+      return res.status(404).json({ error: "Sequence not found" });
+    }
+
+    // Stop monitoring
+    await monitoringService.stopMonitoring(id);
+    logger.info(`Stopped monitoring sequence ${id}`);
+
+    // Reset rate limits
+    await rateLimiter.resetLimits(userId, id);
+    logger.info(`Rate limits reset for sequence ${id}`);
+
+    // Reset sequence data
+    await resetSequence(id);
+    logger.info(`Sequence data reset for ${id}`);
+
+    // Update sequence status
+    await prisma.sequence.update({
+      where: { id },
+      data: {
+        status: "draft",
+        testMode: false,
+      },
+    });
+    logger.info(`Sequence status reset to draft`);
+
+    res.json({
+      success: true,
+      message: "Sequence reset successfully",
+    });
+  } catch (error) {
+    logger.error("Error resetting sequence:", error);
+    res.status(500).json({ error: "Failed to reset sequence" });
   }
 });
 

@@ -21,12 +21,7 @@ export class EmailProcessor {
     job: EmailJob
   ): Promise<{ success: boolean; error?: string }> {
     const { data } = job;
-    logger.info(`📨 Processing email for sequence: ${data.sequenceId}`, {
-      to: data.emailOptions.to,
-      subject: data.emailOptions.subject,
-      step: data.stepId,
-      jobId: job.id,
-    });
+    logger.info(data, `📨 Processing email for sequence: ${data.sequenceId}`);
 
     try {
       // Check rate limits
@@ -37,7 +32,7 @@ export class EmailProcessor {
       );
 
       if (!allowed) {
-        logger.warn("⚠️ Rate limit exceeded:", info);
+        logger.warn(info, "⚠️ Rate limit exceeded:");
         return { success: false, error: "Rate limit exceeded" };
       }
 
@@ -66,30 +61,25 @@ export class EmailProcessor {
       }
 
       logger.info(`🔄 Sending email to: ${data.emailOptions.to}`, {
-        tracking: {
-          opens: data.tracking.openTracking ? "✓" : "✗",
-          clicks: data.tracking.clickTracking ? "✓" : "✗",
-          unsubscribe: data.tracking.unsubscribeTracking ? "✓" : "✗",
-        },
+        tracking: data.tracking,
         sequence: step.sequence.name,
         step: step.order + 1,
       });
 
+      // logger.info(data, "Email Options");
+
       // Send email
       const result = await emailService.sendEmail({
         ...data.emailOptions,
-        tracking: {
-          enabled: data.tracking.enabled,
-          openTracking: data.tracking.openTracking,
-          clickTracking: data.tracking.clickTracking,
-          unsubscribeTracking: data.tracking.unsubscribeTracking,
-        },
+        tracking: data.tracking,
         account: data.account,
         userId: data.userId,
         sequenceId: data.sequenceId,
         contactId: data.contactId,
         stepId: data.stepId,
       });
+
+      logger.info(result, "Email Result");
 
       if (result.success) {
         logger.info(`✅ Email sent successfully`, {
@@ -139,12 +129,15 @@ export class EmailProcessor {
 
       return { success: true };
     } catch (error) {
-      logger.error(`❌ Error sending email: ${error}`, {
-        to: data.emailOptions.to,
-        subject: data.emailOptions.subject,
-        error: error instanceof Error ? error.message : "Unknown error",
-        jobId: job.id,
-      });
+      logger.error(
+        {
+          to: data.emailOptions.to,
+          subject: data.emailOptions.subject,
+          error: error instanceof Error ? error.message : "Unknown error",
+          jobId: job.id,
+        },
+        `❌ Error sending email: ${error}`
+      );
 
       // Add error cooldown
       await rateLimiter.addCooldown(

@@ -36,11 +36,13 @@ const envSchema = z.object({
   // General
   LOG_LEVEL: z.string().default("info"),
   NODE_ENV: z.string().default("development"),
+  NEXT_PUBLIC_APP_URL: z.string().default("http://localhost:4000"),
 });
 
 // Validate and export environment variables
 try {
   const env = envSchema.parse(process.env);
+  console.log("env", env);
   console.log("✅ Valid environment variables:", env);
 } catch (error) {
   console.error("❌ Invalid environment variables:", error);
