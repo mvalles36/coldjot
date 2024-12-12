@@ -18,6 +18,7 @@ import {
   createMailOptions,
 } from "./helper";
 import { gmailClientService } from "../gmail/gmail";
+import { logger } from "@/lib/log/logger";
 
 interface SendGmailOptions {
   to: string;
@@ -46,7 +47,9 @@ export async function sendGmailSMTP({
   console.log("Generated message ID", messageId);
   const boundary = generateMimeBoundary();
 
-  // Get account information
+  logger.info(content, "Content");
+
+  // // Get account information
   const account = await prisma.account.findFirst({
     where: { access_token: accessToken },
     include: {
@@ -174,6 +177,20 @@ export async function sendGmailSMTP({
   };
 }
 
+// export async function sendGmailSMTP({
+//   to,
+//   subject,
+//   content,
+//   threadId,
+//   originalContent,
+//   accessToken,
+// }: SendGmailOptions): Promise<GmailResponse> {
+//   return {
+//     messageId: "",
+//     threadId: "",
+//   };
+// }
+
 interface UpdateSentEmailOptions {
   to: string;
   subject: string;
@@ -232,6 +249,7 @@ export async function updateSentEmail({
 
     // Decode and split the message
     const emailContent = Buffer.from(originalRaw.data.raw, "base64").toString();
+
     const { headers, body } = splitEmailContent(emailContent);
 
     // Get boundary and process parts

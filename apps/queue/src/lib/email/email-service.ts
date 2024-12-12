@@ -12,6 +12,19 @@ import type {
 import type { gmail_v1 } from "googleapis";
 import type { SendEmailOptions } from "@mailjot/types";
 import { gmailClientService } from "../google/gmail/gmail";
+import {
+  generateMimeBoundary,
+  generateEmailHeaders,
+  generateMimeParts,
+  convertToPlainText,
+  debeaconizeContent,
+  processEmailParts,
+  generateDebeaconizedId,
+  convertToBase64UrlFormat,
+  formatSenderInfo,
+  splitEmailContent,
+  parseMimeBoundary,
+} from "../google/smtp/helper";
 
 export class EmailService {
   /**
@@ -24,11 +37,79 @@ export class EmailService {
       this.logEmailSendStart(options);
       const gmail = await this.getGmailClient(options.userId, options.account);
 
-      // Send tracked email and get response
-      const trackedResponse = await this.sendTrackedEmail(gmail, options);
+      // Generate message ID and boundary
+      const messageId = `<${randomUUID()}@mailjot.com>`;
+      const boundary = generateMimeBoundary();
 
-      // Send untracked copy to sender
-      await this.sendUntrackedCopy(gmail, options);
+      // Format sender information
+      const fromHeader = formatSenderInfo(options.account.email!, "Zee");
+
+      // Create email headers
+      const headers = generateEmailHeaders({
+        fromHeader,
+        to: options.to,
+        subject: options.subject,
+        messageId,
+        threadId: options.threadId,
+        boundary,
+      });
+
+      // Convert HTML to plain text and prepare MIME parts
+      const plainText = convertToPlainText(options.html);
+      const trackingInfo = this.createTrackingInfo(options);
+      const trackedContent = await this.prepareTrackedContent(
+        options,
+        trackingInfo.trackingId,
+        trackingInfo.trackingHash,
+        trackingInfo.trackingMetadata
+      );
+
+      const { plainTextPart, senderPart, recipientPart } = generateMimeParts({
+        boundary,
+        plainText,
+        originalContent: options.html,
+        content: trackedContent,
+      });
+
+      // Send tracked email to recipient
+      const trackedResponse = await this.sendTrackedEmail(
+        gmail,
+        options,
+        headers,
+        plainTextPart,
+        recipientPart
+      );
+
+      // Wait for Gmail to process the message
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Delete the tracked email from sender's inbox
+      // try {
+      //   await gmail.users.messages.delete({
+      //     userId: "me",
+      //     id: trackedResponse.id!,
+      //   });
+      //   logger.info("✅ Deleted tracked email from sender's inbox");
+      // } catch (error) {
+      //   logger.warn(
+      //     {
+      //       error: error instanceof Error ? error.message : "Unknown error",
+      //       messageId: trackedResponse.id,
+      //     },
+      //     "⚠️ Failed to delete tracked email from sender's inbox"
+      //   );
+      // }
+
+      // Send untracked copy to sender with same thread ID
+      await this.sendUntrackedCopy(
+        gmail,
+        options,
+        headers,
+        plainTextPart,
+        senderPart,
+        trackedResponse.threadId!,
+        trackedResponse.id!
+      );
 
       // Create tracking records
       await this.createEmailRecords(options, trackedResponse);
@@ -101,29 +182,15 @@ export class EmailService {
   }
 
   /**
-   * Create and send tracked version of the email
+   * Send tracked version of the email
    */
   private async sendTrackedEmail(
     gmail: gmail_v1.Gmail,
-    options: SendEmailOptions
+    options: SendEmailOptions,
+    headers: string,
+    plainTextPart: string,
+    recipientPart: string
   ): Promise<gmail_v1.Schema$Message> {
-    const { trackingId, trackingHash, trackingMetadata } =
-      this.createTrackingInfo(options);
-    const trackedContent = await this.prepareTrackedContent(
-      options,
-      trackingId,
-      trackingHash,
-      trackingMetadata
-    );
-    const encodedEmail = this.encodeEmail(
-      this.createEmailContent(
-        options.to,
-        options.subject,
-        trackedContent,
-        options.replyTo
-      )
-    );
-
     logger.info(
       {
         to: options.to,
@@ -132,6 +199,11 @@ export class EmailService {
       },
       "📤 Sending tracked email"
     );
+
+    const emailContent = [headers, "", plainTextPart, recipientPart].join(
+      "\r\n"
+    );
+    const encodedEmail = convertToBase64UrlFormat(emailContent);
 
     const { data } = await gmail.users.messages.send({
       userId: "me",
@@ -153,9 +225,140 @@ export class EmailService {
   }
 
   /**
+   * Insert untracked copy to sender's sent folder with proper headers and content
+   */
+  private async sendUntrackedCopy(
+    gmail: gmail_v1.Gmail,
+    options: SendEmailOptions,
+    headers: string,
+    plainTextPart: string,
+    senderPart: string,
+    threadId?: string,
+    messageId?: string
+  ): Promise<void> {
+    try {
+      logger.info("Preparing untracked copy for sender's sent folder");
+
+      // Wait a bit for the original message to be processed
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Get the original message to maintain headers and structure
+      const originalRaw = await gmail.users.messages.get({
+        userId: "me",
+        id: messageId!,
+        format: "raw",
+      });
+
+      if (!originalRaw.data.raw) {
+        throw new Error("Could not get raw message content");
+      }
+
+      // Decode and split the message
+      const emailContent = Buffer.from(
+        originalRaw.data.raw,
+        "base64"
+      ).toString();
+
+      const { headers: originalHeaders, body } =
+        splitEmailContent(emailContent);
+
+      // Get boundary and process parts
+      const boundary = parseMimeBoundary(originalHeaders);
+      const parts = body
+        .split(`--${boundary}`)
+        .filter((part) => part.trim() && !part.startsWith("--"));
+
+      // Process parts and replace content with untracked version
+      const processedParts = await processEmailParts(parts, boundary);
+      const debeaconizedId = generateDebeaconizedId();
+
+      // Reconstruct the email with original headers and untracked content
+      const newEmailContent = [
+        `X-MT-Debeaconized-From: ${debeaconizedId}`,
+        originalHeaders,
+        "",
+        ...processedParts.map((part) => `--${boundary}\r\n${part}`),
+        `--${boundary}--\r\n`,
+      ].join("\r\n");
+
+      console.log(newEmailContent, "New Email Content");
+
+      // Convert to base64url
+      const base64EncodedEmail = convertToBase64UrlFormat(newEmailContent);
+
+      logger.info(
+        {
+          to: options.account.email,
+          subject: options.subject,
+          threadId,
+        },
+        "📤 Inserting untracked copy to sent folder"
+      );
+
+      // Insert the untracked version with original headers
+      const { data } = await gmail.users.messages.insert({
+        userId: "me",
+        requestBody: {
+          raw: base64EncodedEmail,
+          threadId,
+          labelIds: ["SENT", ...(originalRaw.data.labelIds || [])], // Maintain original labels plus SENT
+        },
+      });
+
+      logger.info(
+        {
+          messageId: data.id,
+          threadId: data.threadId,
+        },
+        "✅ Untracked copy added to sent folder"
+      );
+
+      if (data.id) {
+        console.log("Inserted message ID:", data.id);
+
+        try {
+          console.log("Deleting original message:", messageId);
+          await gmail.users.messages.delete({
+            userId: "me",
+            id: messageId,
+          });
+          console.log("Original message deleted successfully");
+        } catch (err) {
+          console.error("Error deleting original message:", err);
+        }
+      }
+
+      logger.info(
+        {
+          messageId: data.id,
+          threadId: data.threadId,
+          debeaconizedId,
+        },
+        "✅ Untracked copy added to sent folder"
+      );
+    } catch (error) {
+      logger.error(
+        {
+          error: error instanceof Error ? error.message : "Unknown error",
+          stack: error instanceof Error ? error.stack : undefined,
+          threadId,
+          to: options.account.email,
+          subject: options.subject,
+        },
+        "❌ Failed to insert untracked copy"
+      );
+      throw error;
+    }
+  }
+
+  /**
    * Create tracking information for the email
    */
-  private createTrackingInfo(options: SendEmailOptions) {
+  private createTrackingInfo(options: SendEmailOptions): {
+    trackingId: string;
+    trackingHash: string;
+    trackingMetadata: EmailTrackingMetadata;
+  } {
     const trackingId = randomUUID();
     const trackingHash = randomUUID();
 
@@ -176,18 +379,7 @@ export class EmailService {
       stepId: options.stepId,
     };
 
-    logger.info(
-      {
-        tracking: {
-          id: trackingId,
-          hash: trackingHash,
-          type: "tracked",
-          wrappedLinks: true,
-          metadata: trackingMetadata,
-        },
-      },
-      "📊 Created tracking object"
-    );
+    logger.info(trackingId, "📊 Created tracking object");
 
     return { trackingId, trackingHash, trackingMetadata };
   }
@@ -240,47 +432,6 @@ export class EmailService {
       .replace(/\+/g, "-")
       .replace(/\//g, "_")
       .replace(/=+$/, "");
-  }
-
-  /**
-   * Send untracked copy of the email to sender
-   */
-  private async sendUntrackedCopy(
-    gmail: gmail_v1.Gmail,
-    options: SendEmailOptions
-  ): Promise<void> {
-    logger.info("📝 Preparing untracked copy for sender");
-
-    const untrackedContent = this.createEmailContent(
-      options.account.email!,
-      options.subject,
-      options.html
-    );
-
-    const encodedEmail = this.encodeEmail(untrackedContent);
-
-    logger.info(
-      {
-        to: options.account.email,
-        subject: `${options.subject} (Sent)`,
-      },
-      "📤 Sending untracked copy to sender"
-    );
-
-    const { data } = await gmail.users.messages.send({
-      userId: "me",
-      requestBody: {
-        raw: encodedEmail,
-        labelIds: ["SENT"],
-      },
-    });
-
-    logger.info(
-      {
-        messageId: data.id,
-      },
-      "✅ Untracked copy sent successfully"
-    );
   }
 
   /**

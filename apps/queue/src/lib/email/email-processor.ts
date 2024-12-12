@@ -7,6 +7,7 @@ import { QueueService } from "../queue/queue-service";
 import { prisma } from "@mailjot/database";
 import { randomUUID } from "crypto";
 import { SequenceStep, StepStatus } from "@prisma/client";
+import { sendGmailSMTP } from "../google/smtp/gmail";
 
 export class EmailProcessor {
   private queueService: QueueService;
@@ -130,8 +131,23 @@ export class EmailProcessor {
       stepId: data.stepId,
     });
 
-    logger.info(result, "Email Result");
-    return result;
+    const emailData = {
+      ...data.emailOptions,
+      // tracking: data.tracking,
+      ...data,
+      content: data.emailOptions.html,
+      accessToken: data.account.accessToken,
+    };
+
+    // logger.info(emailData, "Email Data");
+    // const result = await sendGmailSMTP(emailData);
+    // logger.info(result, "Email Result");
+
+    return {
+      success: true,
+      messageId: result.messageId,
+      threadId: result.threadId,
+    };
   }
 
   // -------------------------------------------------------

@@ -15,6 +15,7 @@ export default defineConfig({
   splitting: true,
   treeshake: true,
   minify: true,
+  noExternal: ["events"],
   // ignore: ["node_modules/**", "dist/**", ".turbo/**", ".git/**"],
   // watch: process.env.NODE_ENV === "development" && {
   // },

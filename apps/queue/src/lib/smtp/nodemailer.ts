@@ -1,6 +1,6 @@
-import nodemailer from "nodemailer";
 import { google } from "googleapis";
 import { createTransport, TransportOptions } from "nodemailer";
+import nodemailer from "nodemailer";
 
 export async function createGmailTransport(
   accessToken: string,

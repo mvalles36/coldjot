@@ -1,10 +1,10 @@
 import { google } from "googleapis";
-import {
-  encode as quotedPrintableEncode,
-  decode as quotedPrintableDecode,
-} from "quoted-printable";
+import quotedPrintable from "quoted-printable";
 import { generateMessageId } from "@/utils";
 import crypto from "crypto";
+
+const quotedPrintableEncode = quotedPrintable.encode;
+const quotedPrintableDecode = quotedPrintable.decode;
 
 /**
  * Generate a unique MIME boundary
