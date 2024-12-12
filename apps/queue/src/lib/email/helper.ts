@@ -2,12 +2,12 @@ import { encode as base64Encode } from "js-base64";
 import { prisma } from "@mailjot/database";
 import { generateMessageId, normalizeSubject } from "@/utils";
 import type { EmailResult, ThreadHeaders } from "@mailjot/types";
-import { sendEmail } from "./email-service";
-import { refreshAccessToken } from "@/lib/google/google-account";
+// import { sendEmail } from "./email-service";
+import { refreshAccessToken } from "@/lib/google/account/google-account";
 import type { SendEmailOptions } from "@mailjot/types";
 import type { EmailTracking } from "@mailjot/types";
 import { trackEmailEvent } from "@/lib/track/tracking-service";
-import type { GoogleAccount } from "@/lib/google/google-account";
+import type { GoogleAccount } from "@/lib/google/account/google-account";
 
 interface SenderInfo {
   email: string;
@@ -380,37 +380,37 @@ export const trackEmailBounce = async (
 /**
  * Handle token refresh and retry sending email
  */
-export const handleTokenRefresh = async (
-  account: GoogleAccount,
-  emailOptions: SendEmailOptions
-): Promise<EmailResult> => {
-  console.log(`🔄 Refreshing access token...`);
-  const newAccessToken = await refreshAccessToken(
-    account.userId,
-    account.refresh_token
-  );
+// export const handleTokenRefresh = async (
+//   account: GoogleAccount,
+//   emailOptions: SendEmailOptions
+// ): Promise<EmailResult> => {
+//   console.log(`🔄 Refreshing access token...`);
+//   const newAccessToken = await refreshAccessToken(
+//     account.userId,
+//     account.refresh_token
+//   );
 
-  if (!newAccessToken) {
-    throw new Error("Failed to refresh token");
-  }
+//   if (!newAccessToken) {
+//     throw new Error("Failed to refresh token");
+//   }
 
-  console.log(`🔄 Retrying with new token...`);
-  const retryResult = await sendEmail({
-    ...emailOptions,
-    content: emailOptions.content,
-    accessToken: newAccessToken,
-    originalContent: emailOptions.content,
-  });
+//   console.log(`🔄 Retrying with new token...`);
+//   const retryResult = await sendEmail({
+//     ...emailOptions,
+//     content: emailOptions.content,
+//     accessToken: newAccessToken,
+//     originalContent: emailOptions.content,
+//   });
 
-  if (retryResult.threadId) {
-    console.log(
-      `📧 Email sent successfully in thread: ${retryResult.threadId}`
-    );
-  } else {
-    console.log(
-      `📧 New email thread created with ID: ${retryResult.messageId}`
-    );
-  }
+//   if (retryResult.threadId) {
+//     console.log(
+//       `📧 Email sent successfully in thread: ${retryResult.threadId}`
+//     );
+//   } else {
+//     console.log(
+//       `📧 New email thread created with ID: ${retryResult.messageId}`
+//     );
+//   }
 
-  return retryResult;
-};
+//   return retryResult;
+// };

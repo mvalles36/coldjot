@@ -2,6 +2,8 @@ export * from "./events";
 export * from "./search";
 export * from "./sequences";
 export * from "./email";
+export * from "./queue";
+export * from "./gmail";
 
 export interface User {
   id: string;

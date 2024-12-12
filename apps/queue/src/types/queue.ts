@@ -7,6 +7,7 @@ import {
   ProcessingWindow,
   RateLimits,
   EmailTracking,
+  GoogleAccount,
 } from "@mailjot/types";
 
 // Job Types
@@ -62,12 +63,12 @@ export interface SendEmailOptions {
 //   unsubscribeTracking: boolean;
 // }
 
-export interface GoogleAccount {
-  email: string;
-  accessToken: string;
-  refreshToken: string;
-  expiryDate: number;
-}
+// export interface GoogleAccount {
+//   email: string;
+//   accessToken: string;
+//   refreshToken: string;
+//   expiryDate: number;
+// }
 
 // Monitoring Types
 export interface AlertConfig {
