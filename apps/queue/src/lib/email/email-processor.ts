@@ -82,6 +82,10 @@ export class EmailProcessor {
     }
   }
 
+  // -------------------------------------------------------
+  // -------------------------------------------------------
+  // -------------------------------------------------------
+
   private async getAndValidateSequenceStep(stepId: string) {
     const step = await prisma.sequenceStep.findUnique({
       where: { id: stepId },
@@ -101,6 +105,10 @@ export class EmailProcessor {
 
     return step;
   }
+
+  // -------------------------------------------------------
+  // -------------------------------------------------------
+  // -------------------------------------------------------
 
   private async sendEmailAndLogResult(
     data: EmailJob["data"],
@@ -126,6 +134,10 @@ export class EmailProcessor {
     return result;
   }
 
+  // -------------------------------------------------------
+  // -------------------------------------------------------
+  // -------------------------------------------------------
+
   private async handleSuccessfulEmail(
     data: EmailJob["data"],
     result: { success: boolean; messageId?: string; threadId?: string },
@@ -143,6 +155,10 @@ export class EmailProcessor {
     await this.updateStepStatus(data, result);
     await this.scheduleBounceCheck(data, result, step);
   }
+
+  // -------------------------------------------------------
+  // -------------------------------------------------------
+  // -------------------------------------------------------
 
   private async updateStepStatus(
     data: EmailJob["data"],
@@ -178,6 +194,10 @@ export class EmailProcessor {
     });
   }
 
+  // -------------------------------------------------------
+  // -------------------------------------------------------
+  // -------------------------------------------------------
+
   private async scheduleBounceCheck(
     data: EmailJob["data"],
     result: { messageId?: string },
@@ -202,6 +222,10 @@ export class EmailProcessor {
     }
   }
 
+  // -------------------------------------------------------
+  // -------------------------------------------------------
+  // -------------------------------------------------------
+
   private async handleEmailError(
     error: unknown,
     job: EmailJob,
@@ -221,6 +245,10 @@ export class EmailProcessor {
     await this.updateStepStatusWithError(data, error);
   }
 
+  // -------------------------------------------------------
+  // -------------------------------------------------------
+  // -------------------------------------------------------
+
   private async addErrorCooldown(userId: string) {
     await rateLimiter.addCooldown(
       userId,
@@ -228,6 +256,10 @@ export class EmailProcessor {
       15 * 60 * 1000 // 15 minutes
     );
   }
+
+  // -------------------------------------------------------
+  // -------------------------------------------------------
+  // -------------------------------------------------------
 
   private async updateStepStatusWithError(
     data: EmailJob["data"],
@@ -257,6 +289,10 @@ export class EmailProcessor {
     });
   }
 
+  // -------------------------------------------------------
+  // -------------------------------------------------------
+  // -------------------------------------------------------
+
   // Helper functions for checkBounce
   private async checkAndHandleBounceStatus(data: EmailJob["data"]) {
     const bounceStatus = await emailService.checkBounceStatus(data.messageId!);
@@ -273,6 +309,10 @@ export class EmailProcessor {
     return bounceStatus;
   }
 
+  // -------------------------------------------------------
+  // -------------------------------------------------------
+  // -------------------------------------------------------
+
   private async handleBouncedEmail(
     data: EmailJob["data"],
     bounceStatus: { details?: string }
@@ -286,6 +326,10 @@ export class EmailProcessor {
     await this.updateBounceStatus(data, bounceStatus);
     await this.addBounceCooldown(data.userId);
   }
+
+  // -------------------------------------------------------
+  // -------------------------------------------------------
+  // -------------------------------------------------------
 
   private async updateBounceStatus(
     data: EmailJob["data"],
@@ -313,6 +357,10 @@ export class EmailProcessor {
     });
   }
 
+  // -------------------------------------------------------
+  // -------------------------------------------------------
+  // -------------------------------------------------------
+
   private async addBounceCooldown(userId: string) {
     await rateLimiter.addCooldown(
       userId,
@@ -320,6 +368,10 @@ export class EmailProcessor {
       24 * 60 * 60 * 1000 // 24 hours
     );
   }
+
+  // -------------------------------------------------------
+  // -------------------------------------------------------
+  // -------------------------------------------------------
 
   private async handleBounceCheckError(error: unknown, data: EmailJob["data"]) {
     logger.error(`❌ Error checking bounce status: ${error}`, {
