@@ -10,3 +10,11 @@ export interface GmailClientConfig {
   clientSecret: string;
   redirectUri: string;
 }
+
+export interface GmailCredentials {
+  userId: string;
+  accessToken: string;
+  refreshToken: string;
+  tokenType?: string;
+  expiryDate?: number;
+}

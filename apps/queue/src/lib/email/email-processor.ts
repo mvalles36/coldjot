@@ -158,7 +158,7 @@ export class EmailProcessor {
       threadId: result.threadId,
     };
 
-    logger.info(stepStatusData, "🔄 Step Status Data");
+    logger.info("🔄 Step Status Data");
 
     await prisma.stepStatus.upsert({
       where: {

@@ -1,10 +1,19 @@
 import { google } from "googleapis";
 import { encode as base64Encode } from "js-base64";
+import { prisma } from "@mailjot/database";
+import { GoogleAccount } from "@mailjot/types";
+
 import type { gmail_v1 } from "googleapis";
 import { logger } from "../../log/logger";
+import {
+  validateGmailCredentials,
+  refreshTokenIfNeeded,
+  setOAuth2Credentials,
+} from "./helper";
+
 import type {
+  GmailCredentials,
   GmailClientConfig,
-  GmailClientOptions,
   CreateDraftOptions,
   SendDraftOptions,
 } from "@mailjot/types";
@@ -26,6 +35,8 @@ export class GmailClientService {
     };
   }
 
+  // -------------------------------------------------------
+
   public static getInstance(): GmailClientService {
     if (!GmailClientService.instance) {
       GmailClientService.instance = new GmailClientService();
@@ -33,6 +44,7 @@ export class GmailClientService {
     return GmailClientService.instance;
   }
 
+  // -------------------------------------------------------
   /**
    * Create an OAuth2 client with the provided configuration
    */
@@ -44,41 +56,62 @@ export class GmailClientService {
     );
   }
 
-  /**
-   * Set credentials on the OAuth2 client
-   */
-  private setCredentials(auth: any, options: GmailClientOptions) {
-    auth.setCredentials({
-      access_token: options.accessToken,
-      token_type: options.tokenType || "Bearer",
-    });
-  }
+  // -------------------------------------------------------
 
   /**
-   * Get a Gmail client instance
+   * Get a Gmail client instance with automatic token refresh
    */
-  public async getClient(options: GmailClientOptions): Promise<gmail_v1.Gmail> {
+  // public async getClient(options: GmailCredentials): Promise<gmail_v1.Gmail> {
+  public async getClient(userId: string): Promise<gmail_v1.Gmail> {
     try {
       logger.info(
         {
-          userId: options.userId || "unknown",
+          userId: userId,
         },
-        "🔄 Creating Gmail client"
+        "🔄 Initializing Gmail client"
       );
 
-      const auth = this.createOAuth2Client();
-      this.setCredentials(auth, options);
+      // Lets get user account here instead of passing it in
+      const account = await prisma.account.findFirst({
+        where: {
+          userId: userId,
+          provider: "google",
+        },
+      });
 
+      if (!account) {
+        throw new Error("Account not found");
+      }
+
+      const credentials = {
+        userId: account.userId,
+        accessToken: account.access_token!,
+        refreshToken: account.refresh_token!,
+      };
+      // Validate credentials
+      validateGmailCredentials(credentials);
+
+      // Create OAuth2 client
+      const auth = this.createOAuth2Client();
+
+      // Refresh token if needed and get the current valid access token
+      const currentAccessToken = await refreshTokenIfNeeded(credentials);
+
+      // Set the credentials with the current access token
+      setOAuth2Credentials(auth, currentAccessToken, credentials);
+
+      // Create and return the Gmail client
       const gmail = google.gmail({ version: "v1", auth });
 
-      logger.info("✅ Gmail client created successfully");
+      logger.info({ userId: userId }, "✅ Gmail client created successfully");
+
       return gmail;
     } catch (error) {
       logger.error(
         {
           error: error instanceof Error ? error.message : "Unknown error",
           stack: error instanceof Error ? error.stack : undefined,
-          userId: options.userId || "unknown",
+          userId: userId,
         },
         "❌ Failed to create Gmail client"
       );
@@ -108,6 +141,14 @@ export async function getGmailClient(userId: string, accessToken: string) {
 
   return google.gmail({ version: "v1", auth });
 }
+
+// const gmail = await gmailClientService.getClient({
+//   userId: "user123",
+//   accessToken: currentToken,
+//   refreshToken: storedRefreshToken,
+//   expiryDate: tokenExpiryTime,
+//   tokenType: "Bearer"
+// });
 
 // -------------------------------------------------------
 // -------------------------------------------------------

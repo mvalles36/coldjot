@@ -9,12 +9,9 @@ import type {
   EmailTrackingMetadata,
   GoogleAccount,
 } from "@mailjot/types";
-import {
-  oauth2Client,
-  refreshAccessToken,
-} from "../google/account/google-account";
 import type { gmail_v1 } from "googleapis";
 import type { SendEmailOptions } from "@mailjot/types";
+import { gmailClientService } from "../google/gmail/gmail";
 
 export class EmailService {
   /**
@@ -25,7 +22,7 @@ export class EmailService {
   ): Promise<{ success: boolean; messageId?: string; threadId?: string }> {
     try {
       this.logEmailSendStart(options);
-      const gmail = await this.getGmailClient(options.account);
+      const gmail = await this.getGmailClient(options.userId, options.account);
 
       // Send tracked email and get response
       const trackedResponse = await this.sendTrackedEmail(gmail, options);
@@ -50,184 +47,32 @@ export class EmailService {
   }
 
   /**
-   * Main function to get an authenticated Gmail client
-   * Orchestrates the process of validating credentials, setting up OAuth2, and handling token refresh
+   * Get an authenticated Gmail client using the new GmailClientService
    */
   private async getGmailClient(
+    userId: string,
     account: GoogleAccount
   ): Promise<gmail_v1.Gmail> {
     try {
-      this.logInitialization(account);
-      await this.validateCredentials(account);
-      await this.setupAndRefreshCredentialsIfNeeded(account);
-      return this.createGmailClient();
+      return await gmailClientService.getClient(userId);
     } catch (error) {
-      this.handleGmailClientError(error, account);
-      throw error;
-    }
-  }
-
-  /**
-   * Log the initialization of Gmail client with account details
-   */
-  private logInitialization(account: GoogleAccount): void {
-    logger.info(
-      {
-        email: account.email || "unknown",
-        expiryDate: account.expiryDate
-          ? new Date(account.expiryDate).toISOString()
-          : "unknown",
-      },
-      "🔄 Initializing Gmail client"
-    );
-  }
-
-  /**
-   * Validate that the required OAuth2 credentials are present
-   */
-  private validateCredentials(account: GoogleAccount): void {
-    if (!account.accessToken || !account.refreshToken) {
       logger.error(
         {
-          hasAccessToken: !!account.accessToken,
-          hasRefreshToken: !!account.refreshToken,
+          error: error instanceof Error ? error.message : "Unknown error",
+          stack: error instanceof Error ? error.stack : undefined,
+          account: {
+            email: account.email || "unknown",
+            hasAccessToken: !!account.accessToken,
+            hasRefreshToken: !!account.refreshToken,
+            expiryDate: account.expiryDate
+              ? new Date(account.expiryDate).toISOString()
+              : "unknown",
+          },
         },
-        "❌ Missing required tokens"
+        "❌ Failed to initialize Gmail client"
       );
-      throw new Error("Missing required tokens");
-    }
-  }
-
-  /**
-   * Set up OAuth2 credentials and refresh them if needed
-   */
-  private async setupAndRefreshCredentialsIfNeeded(
-    account: GoogleAccount
-  ): Promise<void> {
-    this.setInitialCredentials(account);
-
-    if (this.shouldRefreshToken(account)) {
-      await this.refreshTokenAndUpdateCredentials(account);
-    }
-  }
-
-  /**
-   * Set the initial OAuth2 credentials
-   */
-  private setInitialCredentials(account: GoogleAccount): void {
-    oauth2Client.setCredentials({
-      access_token: account.accessToken,
-      refresh_token: account.refreshToken,
-      expiry_date: account.expiryDate,
-    });
-  }
-
-  /**
-   * Check if the access token needs to be refreshed
-   */
-  private shouldRefreshToken(account: GoogleAccount): boolean {
-    const needsRefresh = account.expiryDate && account.expiryDate < Date.now();
-
-    if (needsRefresh) {
-      logger.info(
-        {
-          expiryDate: new Date(account.expiryDate!).toISOString(),
-          currentTime: new Date().toISOString(),
-        },
-        "🔄 Token expired, refreshing..."
-      );
-    }
-
-    return needsRefresh || false;
-  }
-
-  /**
-   * Refresh the access token and update OAuth2 credentials
-   */
-  private async refreshTokenAndUpdateCredentials(
-    account: GoogleAccount
-  ): Promise<void> {
-    try {
-      const newAccessToken = await this.getNewAccessToken(account);
-      this.updateOAuthCredentials(account.refreshToken, newAccessToken);
-      logger.info("✓ Token refreshed and credentials updated successfully");
-    } catch (error) {
-      this.handleTokenRefreshError(error);
       throw error;
     }
-  }
-
-  /**
-   * Get a new access token using the refresh token
-   */
-  private async getNewAccessToken(account: GoogleAccount): Promise<string> {
-    const newAccessToken = await refreshAccessToken(
-      account.email || "",
-      account.refreshToken
-    );
-
-    if (!newAccessToken) {
-      throw new Error("Failed to refresh access token");
-    }
-
-    return newAccessToken;
-  }
-
-  /**
-   * Update OAuth2 credentials with the new access token
-   */
-  private updateOAuthCredentials(
-    refreshToken: string,
-    newAccessToken: string
-  ): void {
-    oauth2Client.setCredentials({
-      access_token: newAccessToken,
-      refresh_token: refreshToken,
-    });
-  }
-
-  /**
-   * Handle errors that occur during token refresh
-   */
-  private handleTokenRefreshError(error: unknown): void {
-    logger.error(
-      {
-        error: error instanceof Error ? error.message : "Unknown error",
-        stack: error instanceof Error ? error.stack : undefined,
-      },
-      "❌ Failed to refresh token"
-    );
-  }
-
-  /**
-   * Create and return an authenticated Gmail client
-   */
-  private createGmailClient(): gmail_v1.Gmail {
-    logger.info("🔄 Creating Gmail API client");
-    const gmail = google.gmail({ version: "v1", auth: oauth2Client });
-    logger.info("✓ Gmail API client created successfully");
-    return gmail;
-  }
-
-  /**
-   * Handle errors that occur during Gmail client initialization
-   */
-  private handleGmailClientError(error: unknown, account: GoogleAccount): void {
-    logger.error(
-      {
-        error: error instanceof Error ? error.message : "Unknown error",
-        stack: error instanceof Error ? error.stack : undefined,
-        account: {
-          email: account.email || "unknown",
-          hasAccessToken: !!account.accessToken,
-          hasRefreshToken: !!account.refreshToken,
-          expiryDate: account.expiryDate
-            ? new Date(account.expiryDate).toISOString()
-            : "unknown",
-        },
-      },
-      "❌ Failed to initialize Gmail client"
-    );
   }
 
   /**
@@ -589,7 +434,7 @@ export class EmailService {
         throw new Error("User's Google account not found");
       }
 
-      const gmail = await this.getGmailClient({
+      const gmail = await this.getGmailClient(metadata.userId, {
         accessToken: account.accounts[0].access_token || "",
         refreshToken: account.accounts[0].refresh_token || "",
         email: account.email || "",
