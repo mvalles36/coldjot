@@ -12,23 +12,21 @@ import {
 
 // Job Types
 export interface ProcessingJob {
-  type: "sequence" | "step" | "contact";
+  type: "sequence";
   id: string;
   priority: number;
   data: {
     sequenceId: string;
-    contactId?: string;
-    stepId?: string;
     userId: string;
-    scheduleType: "business" | "custom";
-    businessHours?: BusinessHours;
+    scheduleType?: "custom" | "default";
+    businessHours?: any;
     testMode?: boolean;
   };
 }
 
 export interface EmailJob {
-  type: "send" | "retry" | "bounce_check";
   id: string;
+  type: "send" | "bounce_check";
   priority: number;
   data: {
     sequenceId: string;
@@ -36,25 +34,37 @@ export interface EmailJob {
     stepId: string;
     userId: string;
     messageId?: string;
-    emailOptions: SendEmailOptions;
-    tracking: EmailTracking;
-    account: GoogleAccount;
+    testMode?: boolean;
+    scheduledTime: string;
+    to: string;
+    subject?: string;
+    threadId?: string;
   };
 }
 
 // Email Types
-export interface SendEmailOptions {
-  to: string;
-  subject: string;
-  html: string;
-  replyTo?: string;
+export interface EmailResult {
+  success: boolean;
+  messageId?: string;
   threadId?: string;
-  attachments?: Array<{
-    filename: string;
-    content: string | Buffer;
-    contentType: string;
-  }>;
+  error?: string;
 }
+
+// Email Types
+// export interface SendEmailOptions {
+//   to: string;
+//   subject: string;
+//   html: string;
+//   replyTo?: string;
+//   threadId?: string;
+//   tracking: EmailTracking;
+//   account: GoogleAccount;
+//   userId: string;
+//   sequenceId: string;
+//   contactId: string;
+//   stepId: string;
+//   testMode?: boolean;
+// }
 
 // export interface EmailTracking {
 //   enabled: boolean;

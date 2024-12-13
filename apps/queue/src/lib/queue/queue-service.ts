@@ -173,17 +173,22 @@ export class QueueService {
             stepId: data.stepId,
             userId: data.userId,
             messageId: data.messageId,
-            emailOptions: data.emailOptions,
-            tracking: data.tracking,
-            account: data.account,
+            to: data.to,
+            subject: data.subject,
+            scheduledTime: data.scheduledTime,
+            threadId: data.threadId,
+            testMode: data.testMode,
           },
         };
 
-        logger.info(`📧 Processing email job: ${emailJob.id}`, {
-          type: emailJob.type,
-          to: emailJob.data.emailOptions.to,
-          subject: emailJob.data.emailOptions.subject,
-        });
+        logger.info(
+          {
+            type: emailJob.type,
+            to: emailJob.data.to,
+            subject: emailJob.data.subject,
+          },
+          `📧 Processing email job: ${emailJob.id}`
+        );
 
         switch (emailJob.type) {
           case "send":
@@ -234,17 +239,25 @@ export class QueueService {
   async addEmailJob(job: EmailJob): Promise<Bull.Job> {
     logger.info(job, `📥 Adding email job to queue`);
 
+    const { data } = job;
+
+    const emailData: EmailJob["data"] = {
+      sequenceId: data.sequenceId,
+      contactId: data.contactId,
+      stepId: data.stepId,
+      userId: data.userId,
+      messageId: data.messageId,
+      to: data.to,
+      subject: data.subject,
+      scheduledTime: data.scheduledTime,
+      threadId: data.threadId,
+      testMode: data.testMode,
+    };
+
     const queuedJob = await this.emailQueue.add(
       {
         type: job.type,
-        sequenceId: job.data.sequenceId,
-        contactId: job.data.contactId,
-        stepId: job.data.stepId,
-        userId: job.data.userId,
-        messageId: job.data.messageId,
-        emailOptions: job.data.emailOptions,
-        tracking: job.data.tracking,
-        account: job.data.account,
+        ...emailData,
       },
       {
         priority: job.priority,
@@ -256,10 +269,13 @@ export class QueueService {
       }
     );
 
-    logger.info(`✓ Email job added to queue: ${queuedJob.id}`, {
-      type: job.type,
-      to: job.data.emailOptions.to,
-    });
+    logger.info(
+      {
+        type: job.type,
+        to: job.data.to,
+      },
+      `✓ Email job added to queue: ${queuedJob.id}`
+    );
     return queuedJob;
   }
 

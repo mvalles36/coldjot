@@ -163,20 +163,6 @@ export class SequenceProcessor {
           }
         );
 
-        // Create tracking metadata
-        const trackingMetadata = {
-          email: data.testMode
-            ? process.env.TEST_EMAIL || googleAccount.email
-            : contact.contact.email,
-          userId: data.userId,
-          sequenceId: sequence.id,
-          stepId: currentStep.id,
-          contactId: contact.contact.id,
-        };
-
-        // Create tracking object
-        const tracking = await createEmailTracking(trackingMetadata);
-
         // Create email job
         const emailJob: EmailJob = {
           id: randomUUID(),
@@ -187,38 +173,34 @@ export class SequenceProcessor {
             contactId: contact.contact.id,
             stepId: currentStep.id,
             userId: data.userId,
-            emailOptions: {
-              to: data.testMode
-                ? process.env.TEST_EMAIL || googleAccount.email
-                : contact.contact.email,
-              subject: currentStep.subject || "",
-              html: currentStep.content || "",
-              replyTo: googleAccount.email,
-              threadId: contact.threadId || undefined,
-            },
-            tracking,
-            account: googleAccount,
+            to: data.testMode
+              ? process.env.TEST_EMAIL || googleAccount.email
+              : contact.contact.email,
+            subject: currentStep.subject || "",
+            threadId: contact.threadId || undefined,
+            testMode: data.testMode || false,
+            scheduledTime: nextSendTime.toISOString(),
           },
         };
 
         // Add email job to queue
-        logger.info(`📬 Creating email job`, {
-          jobId: emailJob.id,
-          to: emailJob.data.emailOptions.to,
-          subject: emailJob.data.emailOptions.subject,
-          step: currentStepIndex + 1,
-          totalSteps: sequence.steps.length,
-        });
+        logger.info(
+          {
+            jobId: emailJob.id,
+            step: currentStepIndex + 1,
+            totalSteps: sequence.steps.length,
+          },
+          `📬 Creating email job`
+        );
 
         const queuedJob = await this.queueService.addEmailJob(emailJob);
 
-        logger.info(`📧 Email job queued successfully`, {
-          jobId: emailJob.id,
-          queueJobId: queuedJob.id,
-          to: emailJob.data.emailOptions.to,
-          subject: emailJob.data.emailOptions.subject,
-          sendTime: nextSendTime.toISOString(),
-        });
+        logger.info(
+          {
+            queuedJob,
+          },
+          `📧 Email job queued successfully`
+        );
 
         // Update progress
         await updateSequenceProgress(

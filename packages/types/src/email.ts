@@ -37,10 +37,11 @@ export interface ThreadHeaders {
   inReplyTo?: string;
   references?: string[];
 }
-
 export interface EmailResult {
   messageId: string;
-  threadId?: string;
+  threadId: string;
+  success?: boolean;
+  error?: string;
 }
 
 interface GmailAccountCredentials {
@@ -62,4 +63,5 @@ export interface SendEmailOptions {
   sequenceId: string;
   contactId: string;
   stepId: string;
+  testMode?: boolean;
 }

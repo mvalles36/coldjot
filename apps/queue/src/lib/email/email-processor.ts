@@ -1,3 +1,4 @@
+import { SendEmailOptions, EmailResult } from "@mailjot/types";
 import { EmailJob } from "@/types/queue";
 import { logger } from "../log/logger";
 import { rateLimiter } from "../rate-limit/rate-limiter";
@@ -8,6 +9,10 @@ import { prisma } from "@mailjot/database";
 import { randomUUID } from "crypto";
 import { SequenceStep, StepStatus } from "@prisma/client";
 import { sendGmailSMTP } from "../google/smtp/gmail";
+import { createEmailTracking } from "../track/tracking-service";
+import { EmailTrackingMetadata } from "@mailjot/types";
+import { gmailClientService } from "../google/gmail/gmail";
+import type { gmail_v1 } from "googleapis";
 
 export class EmailProcessor {
   private queueService: QueueService;
@@ -23,29 +28,162 @@ export class EmailProcessor {
     job: EmailJob
   ): Promise<{ success: boolean; error?: string }> {
     const { data } = job;
-    logger.info(`📨 Processing email for sequence: ${data.sequenceId}`);
-
-    logger.info(data, "Email Job Data");
+    logger.info(
+      {
+        jobId: job.id,
+        ...data,
+      },
+      `📨 Starting to process email job`
+    );
 
     try {
+      // Validate rate limits
+      logger.info(
+        {
+          userId: data.userId,
+          sequenceId: data.sequenceId,
+          contactId: data.contactId,
+        },
+        "🔍 Checking rate limits"
+      );
       await this.validateRateLimits(data);
+
+      // Get current step with sequence info
+      logger.info(
+        {
+          stepId: data.stepId,
+        },
+        "🔍 Fetching sequence step"
+      );
       const step = await this.getAndValidateSequenceStep(data.stepId);
 
       if (step.sequence.status !== "active") {
         logger.info(
-          `⏸️ Sequence ${step.sequence.name} is not active, skipping email`
+          {
+            sequenceName: step.sequence.name,
+            sequenceStatus: step.sequence.status,
+          },
+          `⏸️ Sequence is not active, skipping email`
         );
         return { success: true };
       }
 
-      const emailResult = await this.sendEmailAndLogResult(data, step);
+      // Get contact info
+      logger.info(
+        {
+          contactId: data.contactId,
+        },
+        "🔍 Fetching contact info"
+      );
+      const contact = await prisma.contact.findUnique({
+        where: { id: data.contactId },
+      });
+
+      if (!contact) {
+        throw new Error(`Contact ${data.contactId} not found`);
+      }
+
+      // Get Google account info
+      logger.info(
+        {
+          userId: data.userId,
+        },
+        "🔍 Fetching Google account info"
+      );
+      const googleAccount = await prisma.account.findFirst({
+        where: { userId: data.userId },
+        include: {
+          user: {
+            select: {
+              email: true,
+            },
+          },
+        },
+      });
+
+      if (!googleAccount) {
+        throw new Error(`No Google account found for user ${data.userId}`);
+      }
+
+      // Create tracking metadata
+      logger.info(data, "📊 Creating tracking metadata");
+      const trackingMetadata: EmailTrackingMetadata = {
+        email: data.to,
+        userId: data.userId,
+        sequenceId: data.sequenceId,
+        stepId: data.stepId,
+        contactId: data.contactId,
+      };
+
+      // Create tracking object
+      logger.info("🎯 Creating tracking object");
+      const tracking = await createEmailTracking(trackingMetadata);
+      if (!tracking) {
+        throw new Error("Failed to create tracking information");
+      }
+
+      // Prepare email options
+      logger.info(
+        {
+          to: data.to,
+          subject: data.subject || step.subject,
+          threadId: data.threadId,
+          testMode: data.testMode,
+        },
+        "📧 Preparing email options"
+      );
+      const completeEmailOptions: SendEmailOptions = {
+        to: data.to,
+        subject: data.subject || step.subject || "",
+        html: step.content || "",
+        replyTo: googleAccount.user.email || "",
+        threadId: data.threadId || "",
+        tracking: tracking,
+        account: {
+          email: googleAccount.user.email!,
+          accessToken: googleAccount.access_token!,
+          refreshToken: googleAccount.refresh_token!,
+          expiryDate: googleAccount.expires_at!,
+        },
+        userId: data.userId,
+        sequenceId: data.sequenceId,
+        contactId: data.contactId,
+        stepId: data.stepId,
+        testMode: data.testMode,
+      };
+
+      // Send email
+      logger.info(
+        {
+          to: completeEmailOptions.to,
+          subject: completeEmailOptions.subject,
+          testMode: completeEmailOptions.testMode,
+        },
+        "📤 Sending email"
+      );
+      const emailResult = await emailService.sendEmail(completeEmailOptions);
 
       if (emailResult.success) {
+        logger.info(
+          {
+            messageId: emailResult.messageId,
+            threadId: emailResult.threadId,
+          },
+          "✅ Email sent successfully"
+        );
         await this.handleSuccessfulEmail(data, emailResult, step);
       }
 
       return { success: true };
     } catch (error) {
+      logger.error(
+        {
+          error: error instanceof Error ? error.message : "Unknown error",
+          jobId: job.id,
+          ...data,
+        },
+        "❌ Error processing email"
+      );
       await this.handleEmailError(error, job, data);
       throw error;
     }
@@ -54,19 +192,108 @@ export class EmailProcessor {
   /**
    * Check for email bounce
    */
-  async checkBounce(
-    job: EmailJob
-  ): Promise<{ success: boolean; bounced?: boolean }> {
+  async checkBounce(job: EmailJob): Promise<{ success: boolean }> {
     const { data } = job;
-    logger.info(`🔍 Checking bounce status for email: ${data.messageId}`, {
-      to: data.emailOptions.to,
-    });
+    logger.info(`📨 Checking bounce for email: ${data.messageId}`);
 
     try {
-      const bounceStatus = await this.checkAndHandleBounceStatus(data);
-      return { success: true, ...bounceStatus };
+      // Get Google account info
+      const googleAccount = await prisma.account.findFirst({
+        where: { userId: data.userId },
+        include: {
+          user: {
+            select: {
+              email: true,
+            },
+          },
+        },
+      });
+
+      if (!googleAccount) {
+        throw new Error(`No Google account found for user ${data.userId}`);
+      }
+
+      // Get Gmail client
+      const gmail = await gmailClientService.getClient(data.userId);
+
+      // Get message details
+      const message = await gmail.users.messages.get({
+        userId: "me",
+        id: data.messageId!,
+        format: "full",
+      });
+
+      // Check headers for bounce indicators
+      const headers = message.data.payload?.headers || [];
+      const subject =
+        headers.find(
+          (header: gmail_v1.Schema$MessagePartHeader) =>
+            header.name === "Subject"
+        )?.value || "";
+
+      const from =
+        headers.find(
+          (header: gmail_v1.Schema$MessagePartHeader) => header.name === "From"
+        )?.value || "";
+
+      const bounceIndicators = [
+        "Mail delivery failed",
+        "Delivery Status Notification",
+        "Undeliverable",
+        "Failed Delivery",
+        "Delivery Failure",
+        "Non-Delivery Report",
+      ];
+
+      const isBounce = bounceIndicators.some(
+        (indicator) =>
+          subject.includes(indicator) || from.includes("MAILER-DAEMON")
+      );
+
+      if (isBounce) {
+        logger.warn(
+          {
+            messageId: data.messageId,
+            subject,
+            from,
+          },
+          "📭 Bounce detected"
+        );
+
+        // Update tracking status
+        await prisma.emailTracking.update({
+          where: { id: data.messageId },
+          data: {
+            status: "BOUNCED",
+            updatedAt: new Date(),
+          },
+        });
+
+        // Update sequence contact status
+        await prisma.sequenceContact.update({
+          where: {
+            sequenceId_contactId: {
+              sequenceId: data.sequenceId,
+              contactId: data.contactId,
+            },
+          },
+          data: {
+            status: "BOUNCED",
+            updatedAt: new Date(),
+          },
+        });
+      }
+
+      return { success: true };
     } catch (error) {
-      await this.handleBounceCheckError(error, data);
+      logger.error(
+        {
+          error: error instanceof Error ? error.message : "Unknown error",
+          jobId: job.id,
+          messageId: data.messageId,
+        },
+        "❌ Error checking bounce"
+      );
       throw error;
     }
   }
@@ -84,10 +311,6 @@ export class EmailProcessor {
       throw new Error("Rate limit exceeded");
     }
   }
-
-  // -------------------------------------------------------
-  // -------------------------------------------------------
-  // -------------------------------------------------------
 
   private async getAndValidateSequenceStep(stepId: string) {
     const step = await prisma.sequenceStep.findUnique({
@@ -109,298 +332,50 @@ export class EmailProcessor {
     return step;
   }
 
-  // -------------------------------------------------------
-  // -------------------------------------------------------
-  // -------------------------------------------------------
-
-  private async sendEmailAndLogResult(
-    data: EmailJob["data"],
-    step: SequenceStep & { sequence: { name: string; status: string } }
-  ) {
-    logger.info(
-      {
-        tracking: data.tracking,
-        sequence: step.sequence.name,
-        step: step.order + 1,
-      },
-      `🔄 Sending email to: ${data.emailOptions.to}`
-    );
-
-    // const result = await emailService.sendEmail({
-    //   ...data.emailOptions,
-    //   tracking: data.tracking,
-    //   account: data.account,
-    //   userId: data.userId,
-    //   sequenceId: data.sequenceId,
-    //   contactId: data.contactId,
-    //   stepId: data.stepId,
-    // });
-
-    const emailData = {
-      ...data.emailOptions,
-      // tracking: data.tracking,
-      ...data,
-      content: data.emailOptions.html,
-      accessToken: data.account.accessToken,
-    };
-
-    logger.info(emailData, "Email Data");
-    const result = await sendGmailSMTP(emailData);
-    logger.info(result, "Email Result");
-
-    return {
-      success: true,
-      messageId: result.messageId,
-      threadId: result.threadId,
-    };
-  }
-
-  // -------------------------------------------------------
-  // -------------------------------------------------------
-  // -------------------------------------------------------
-
   private async handleSuccessfulEmail(
     data: EmailJob["data"],
-    result: { success: boolean; messageId?: string; threadId?: string },
+    result: EmailResult,
     step: SequenceStep & { sequence: { name: string; status: string } }
   ) {
-    logger.info(`✅ Email sent successfully`, {
-      to: data.emailOptions.to,
-      messageId: result.messageId,
-      threadId: result.threadId,
-      sentAt: new Date().toISOString(),
-      sequence: step.sequence.name,
-      step: step.order + 1,
+    // Get contact for logging
+    const contact = await prisma.contact.findUnique({
+      where: { id: data.contactId },
+      select: { email: true },
     });
 
-    await this.updateStepStatus(data, result);
-    await this.scheduleBounceCheck(data, result, step);
-  }
-
-  // -------------------------------------------------------
-  // -------------------------------------------------------
-  // -------------------------------------------------------
-
-  private async updateStepStatus(
-    data: EmailJob["data"],
-    result: { messageId?: string; threadId?: string }
-  ) {
-    const stepStatusData = {
-      sequenceId: data.sequenceId,
-      stepId: data.stepId,
-      contactId: data.contactId,
-      status: "sent",
-      sentAt: new Date(),
-      messageId: result.messageId,
-      threadId: result.threadId,
-    };
-
-    logger.info("🔄 Step Status Data");
-
-    await prisma.stepStatus.upsert({
-      where: {
-        sequenceId_stepId_contactId: {
-          sequenceId: data.sequenceId,
-          stepId: data.stepId,
-          contactId: data.contactId,
-        },
-      },
-      update: stepStatusData,
-      create: {
-        ...stepStatusData,
-        sequenceId: data.sequenceId,
-        stepId: data.stepId,
-        contactId: data.contactId,
-      },
-    });
-  }
-
-  // -------------------------------------------------------
-  // -------------------------------------------------------
-  // -------------------------------------------------------
-
-  private async scheduleBounceCheck(
-    data: EmailJob["data"],
-    result: { messageId?: string },
-    step: SequenceStep & { sequence: { name: string } }
-  ) {
-    if (result.messageId) {
-      await this.queueService.addEmailJob({
-        id: randomUUID(),
-        type: "bounce_check",
-        priority: JOB_PRIORITIES.LOW,
-        data: {
-          ...data,
-          messageId: result.messageId,
-        },
-      });
-
-      logger.info(`🔍 Scheduled bounce check`, {
+    logger.info(
+      {
         messageId: result.messageId,
-        checkTime: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-        sequence: step.sequence.name,
-      });
-    }
+        threadId: result.threadId,
+        to: contact?.email,
+        step: step.order + 1,
+      },
+      "✅ Email sent successfully"
+    );
   }
-
-  // -------------------------------------------------------
-  // -------------------------------------------------------
-  // -------------------------------------------------------
 
   private async handleEmailError(
     error: unknown,
     job: EmailJob,
     data: EmailJob["data"]
   ) {
+    // Get contact for logging
+    const contact = await prisma.contact.findUnique({
+      where: { id: data.contactId },
+      select: { email: true },
+    });
+
     logger.error(
       {
-        to: data.emailOptions.to,
-        subject: data.emailOptions.subject,
         error: error instanceof Error ? error.message : "Unknown error",
         jobId: job.id,
-      },
-      `❌ Error sending email: ${error}`
-    );
-
-    await this.addErrorCooldown(data.userId);
-    await this.updateStepStatusWithError(data, error);
-  }
-
-  // -------------------------------------------------------
-  // -------------------------------------------------------
-  // -------------------------------------------------------
-
-  private async addErrorCooldown(userId: string) {
-    await rateLimiter.addCooldown(
-      userId,
-      "error",
-      15 * 60 * 1000 // 15 minutes
-    );
-  }
-
-  // -------------------------------------------------------
-  // -------------------------------------------------------
-  // -------------------------------------------------------
-
-  private async updateStepStatusWithError(
-    data: EmailJob["data"],
-    error: unknown
-  ) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-    await prisma.stepStatus.upsert({
-      where: {
-        sequenceId_stepId_contactId: {
-          sequenceId: data.sequenceId,
-          stepId: data.stepId,
-          contactId: data.contactId,
-        },
-      },
-      update: {
-        status: "failed",
-        error: errorMessage,
-      },
-      create: {
+        to: contact?.email,
         sequenceId: data.sequenceId,
         stepId: data.stepId,
-        contactId: data.contactId,
-        status: "failed",
-        error: errorMessage,
       },
-    });
-  }
-
-  // -------------------------------------------------------
-  // -------------------------------------------------------
-  // -------------------------------------------------------
-
-  // Helper functions for checkBounce
-  private async checkAndHandleBounceStatus(data: EmailJob["data"]) {
-    const bounceStatus = await emailService.checkBounceStatus(data.messageId!);
-
-    if (bounceStatus.bounced) {
-      await this.handleBouncedEmail(data, bounceStatus);
-    } else {
-      logger.info(`✅ Email delivered successfully`, {
-        messageId: data.messageId,
-        to: data.emailOptions.to,
-      });
-    }
-
-    return bounceStatus;
-  }
-
-  // -------------------------------------------------------
-  // -------------------------------------------------------
-  // -------------------------------------------------------
-
-  private async handleBouncedEmail(
-    data: EmailJob["data"],
-    bounceStatus: { details?: string }
-  ) {
-    logger.warn(`⚠️ Email bounced`, {
-      messageId: data.messageId,
-      to: data.emailOptions.to,
-      reason: bounceStatus.details,
-    });
-
-    await this.updateBounceStatus(data, bounceStatus);
-    await this.addBounceCooldown(data.userId);
-  }
-
-  // -------------------------------------------------------
-  // -------------------------------------------------------
-  // -------------------------------------------------------
-
-  private async updateBounceStatus(
-    data: EmailJob["data"],
-    bounceStatus: { details?: string }
-  ) {
-    await prisma.stepStatus.upsert({
-      where: {
-        sequenceId_stepId_contactId: {
-          sequenceId: data.sequenceId,
-          stepId: data.stepId,
-          contactId: data.contactId,
-        },
-      },
-      update: {
-        status: "bounced",
-        bounceInfo: bounceStatus.details,
-      },
-      create: {
-        sequenceId: data.sequenceId,
-        stepId: data.stepId,
-        contactId: data.contactId,
-        status: "bounced",
-        bounceInfo: bounceStatus.details,
-      },
-    });
-  }
-
-  // -------------------------------------------------------
-  // -------------------------------------------------------
-  // -------------------------------------------------------
-
-  private async addBounceCooldown(userId: string) {
-    await rateLimiter.addCooldown(
-      userId,
-      "bounce",
-      24 * 60 * 60 * 1000 // 24 hours
+      "❌ Error processing email"
     );
-  }
-
-  // -------------------------------------------------------
-  // -------------------------------------------------------
-  // -------------------------------------------------------
-
-  private async handleBounceCheckError(error: unknown, data: EmailJob["data"]) {
-    logger.error(`❌ Error checking bounce status: ${error}`, {
-      messageId: data.messageId,
-      to: data.emailOptions.to,
-    });
   }
 }
-
 // Export singleton instance
 export const emailProcessor = new EmailProcessor();

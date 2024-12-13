@@ -5,6 +5,7 @@ import { logger } from "../log/logger";
 import { addTrackingToEmail } from "../track/tracking-service";
 import type { EmailJob } from "../../types/queue";
 import type {
+  EmailResult,
   EmailTracking,
   EmailTrackingMetadata,
   GoogleAccount,
@@ -30,9 +31,7 @@ export class EmailService {
   /**
    * Main function to send an email with tracking and create necessary records
    */
-  async sendEmail(
-    options: SendEmailOptions
-  ): Promise<{ success: boolean; messageId?: string; threadId?: string }> {
+  async sendEmail(options: SendEmailOptions): Promise<EmailResult> {
     try {
       this.logEmailSendStart(options);
       const gmail = await this.getGmailClient(options.userId, options.account);
@@ -127,8 +126,8 @@ export class EmailService {
 
       return {
         success: true,
-        messageId: trackedResponse.id || undefined,
-        threadId: trackedResponse.threadId || undefined,
+        messageId: trackedResponse.id!,
+        threadId: trackedResponse.threadId!,
       };
     } catch (error) {
       await this.handleSendEmailError(error, options);
