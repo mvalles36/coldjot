@@ -71,17 +71,6 @@ export async function sendGmailSMTP({
   const senderEmail = account.user.email;
   const fromHeader = formatSenderInfo(senderEmail, account.user.name!);
 
-  // Create transport
-  const transport = await createGmailTransport(
-    account.access_token!,
-    account.refresh_token!,
-    senderEmail,
-    account.user.name!
-  );
-
-  // Convert content to plain text
-  const plainText = convertToPlainText(originalContent || content);
-
   // Generate email parts
   const headers = generateEmailHeaders({
     fromHeader,
@@ -91,6 +80,9 @@ export async function sendGmailSMTP({
     threadId,
     boundary,
   });
+
+  // Convert content to plain text
+  const plainText = convertToPlainText(originalContent || content);
 
   const { plainTextPart, senderPart, recipientPart } = generateMimeParts({
     boundary,
@@ -107,6 +99,14 @@ export async function sendGmailSMTP({
     plainTextPart,
     senderPart,
     recipientPart
+  );
+
+  // Create transport
+  const transport = await createGmailTransport(
+    account.access_token!,
+    account.refresh_token!,
+    senderEmail,
+    account.user.name!
   );
 
   // Send email

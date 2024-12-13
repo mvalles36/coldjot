@@ -5,6 +5,7 @@ import { getAppBaseUrl } from "@/utils";
 import { updateSequenceStats } from "@/lib/stats/sequence-stats-service";
 import type { Prisma } from "@prisma/client";
 import { EmailEventType } from "@mailjot/types";
+import { logger } from "../log/logger";
 
 export async function createEmailTracking(
   metadata: EmailTrackingMetadata
@@ -204,7 +205,13 @@ export async function addTrackingToEmail(
 
     let trackedContent = content;
 
-    console.log("tracking", tracking);
+    logger.info(
+      {
+        tracking,
+        content,
+      },
+      "🔄 Adding tracking to email content"
+    );
 
     if (tracking.wrappedLinks) {
       trackedContent = await wrapLinksWithTracking(
@@ -217,23 +224,27 @@ export async function addTrackingToEmail(
     // Add development tracking link
     if (process.env.NODE_ENV === "development") {
       const baseUrl = getAppBaseUrl();
-      const trackingUrl = new URL(
-        `${baseUrl}/api/track/${tracking.metadata.hash}`
+      const trackingUrl = new URL(`${baseUrl}/api/track/${tracking.hash}`);
+      logger.info(
+        {
+          trackingUrl,
+        },
+        "🔄 Adding development tracking link"
       );
       const devTrackingInfo = `
         <div style="background: #f0f0f0; padding: 10px; margin: 10px 0; font-family: monospace; font-size: 12px;">
           <p><strong>Development Tracking Info:</strong></p>
-          <p>Tracking Hash: ${tracking.metadata.hash}</p>
+          <p>Tracking Hash: ${tracking.hash}</p>
           <p>Tracking URL: ${trackingUrl.toString()}</p>
           <p>Email: ${tracking.metadata.email}</p>
-          <p>Tracking ID: ${tracking.trackingId}</p>
+          <p>Tracking ID: ${tracking.id}</p>
         </div>
       `;
       trackedContent = devTrackingInfo + trackedContent;
     }
 
     trackedContent += tracking.pixel;
-
+    logger.info(trackedContent, "Tracked Content");
     return trackedContent;
   } catch (error) {
     console.error("Error adding tracking to email:", error);

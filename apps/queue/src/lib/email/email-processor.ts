@@ -25,6 +25,8 @@ export class EmailProcessor {
     const { data } = job;
     logger.info(`📨 Processing email for sequence: ${data.sequenceId}`);
 
+    logger.info(data, "Email Job Data");
+
     try {
       await this.validateRateLimits(data);
       const step = await this.getAndValidateSequenceStep(data.stepId);
@@ -115,21 +117,24 @@ export class EmailProcessor {
     data: EmailJob["data"],
     step: SequenceStep & { sequence: { name: string; status: string } }
   ) {
-    logger.info(`🔄 Sending email to: ${data.emailOptions.to}`, {
-      tracking: data.tracking,
-      sequence: step.sequence.name,
-      step: step.order + 1,
-    });
+    logger.info(
+      {
+        tracking: data.tracking,
+        sequence: step.sequence.name,
+        step: step.order + 1,
+      },
+      `🔄 Sending email to: ${data.emailOptions.to}`
+    );
 
-    const result = await emailService.sendEmail({
-      ...data.emailOptions,
-      tracking: data.tracking,
-      account: data.account,
-      userId: data.userId,
-      sequenceId: data.sequenceId,
-      contactId: data.contactId,
-      stepId: data.stepId,
-    });
+    // const result = await emailService.sendEmail({
+    //   ...data.emailOptions,
+    //   tracking: data.tracking,
+    //   account: data.account,
+    //   userId: data.userId,
+    //   sequenceId: data.sequenceId,
+    //   contactId: data.contactId,
+    //   stepId: data.stepId,
+    // });
 
     const emailData = {
       ...data.emailOptions,
@@ -139,9 +144,9 @@ export class EmailProcessor {
       accessToken: data.account.accessToken,
     };
 
-    // logger.info(emailData, "Email Data");
-    // const result = await sendGmailSMTP(emailData);
-    // logger.info(result, "Email Result");
+    logger.info(emailData, "Email Data");
+    const result = await sendGmailSMTP(emailData);
+    logger.info(result, "Email Result");
 
     return {
       success: true,

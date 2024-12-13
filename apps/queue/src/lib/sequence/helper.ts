@@ -1,6 +1,6 @@
 import { prisma } from "@mailjot/database";
 import { BusinessHours, StepStatus } from "@mailjot/types";
-import { GoogleAccount } from "@/types/queue";
+import { GoogleAccount } from "@mailjot/types";
 import { logger } from "../log/logger";
 
 /**

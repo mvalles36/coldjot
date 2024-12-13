@@ -58,10 +58,10 @@ export class EmailService {
       const plainText = convertToPlainText(options.html);
       const trackingInfo = this.createTrackingInfo(options);
       const trackedContent = await this.prepareTrackedContent(
-        options,
-        trackingInfo.trackingId,
-        trackingInfo.trackingHash,
-        trackingInfo.trackingMetadata
+        options
+        // trackingInfo.trackingId,
+        // trackingInfo.trackingHash,
+        // trackingInfo.trackingMetadata
       );
 
       const { plainTextPart, senderPart, recipientPart } = generateMimeParts({
@@ -70,6 +70,15 @@ export class EmailService {
         originalContent: options.html,
         content: trackedContent,
       });
+
+      logger.info(
+        {
+          plainTextPart,
+          senderPart,
+          recipientPart,
+        },
+        "🔄 Generated MIME parts"
+      );
 
       // Send tracked email to recipient
       const trackedResponse = await this.sendTrackedEmail(
@@ -388,20 +397,15 @@ export class EmailService {
    * Prepare tracked content with tracking information
    */
   private async prepareTrackedContent(
-    options: SendEmailOptions,
-    trackingId: string,
-    trackingHash: string,
-    trackingMetadata: EmailTrackingMetadata
+    options: SendEmailOptions
+    // tracking: EmailTracking
+    // trackingId: string,
+    // trackingHash: string,
+    // trackingMetadata: EmailTrackingMetadata
   ): Promise<string> {
-    logger.info("🔄 Adding tracking to email content");
+    logger.info(options.tracking, "🔄 Adding tracking to email content");
 
-    return addTrackingToEmail(options.html, {
-      id: trackingId,
-      hash: trackingHash,
-      type: "tracked",
-      wrappedLinks: true,
-      metadata: trackingMetadata,
-    });
+    return addTrackingToEmail(options.html, options.tracking);
   }
 
   /**
