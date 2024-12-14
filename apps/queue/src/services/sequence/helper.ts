@@ -82,14 +82,14 @@ export async function updateSequenceContactStatus(
 /**
  * Update sequence progress
  */
-export async function updateSequenceProgress(
+export async function updateSequenceContactProgress(
   sequenceId: string,
   contactId: string,
   currentStepIndex: number,
   nextScheduledAt: Date
 ) {
   try {
-    await prisma.sequenceProgress.upsert({
+    await prisma.sequenceContactProgress.upsert({
       where: {
         sequenceId_contactId: {
           sequenceId,
@@ -154,7 +154,7 @@ export async function getContactProgress(
   sequenceId: string,
   contactId: string
 ) {
-  return prisma.sequenceProgress.findFirst({
+  return prisma.sequenceContactProgress.findFirst({
     where: {
       sequenceId,
       contactId,
@@ -197,7 +197,7 @@ export async function resetSequence(sequenceId: string): Promise<void> {
     logger.info(`✓ Step statuses deleted`);
 
     // Delete sequence progress
-    await prisma.sequenceProgress.deleteMany({
+    await prisma.sequenceContactProgress.deleteMany({
       where: {
         sequenceId,
       },

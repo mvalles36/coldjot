@@ -189,7 +189,7 @@ export class ContactProcessingService {
             currentStep: 1,
           },
         }),
-        prisma.sequenceProgress.create({
+        prisma.sequenceContactProgress.create({
           data: {
             sequenceId: sequence.id,
             contactId: contactDetails.id,

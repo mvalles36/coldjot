@@ -18,7 +18,7 @@ type SequenceWithRelations = {
 };
 
 // Define our email processing type
-interface SequenceProgressWithRelations {
+interface SequenceContactProgressWithRelations {
   id: string;
   sequenceId: string;
   contactId: string;
@@ -110,7 +110,7 @@ export class EmailSchedulingService {
       });
 
       // Find emails that are due to be sent
-      const dueEmails = await prisma.sequenceProgress.findMany({
+      const dueEmails = await prisma.sequenceContactProgress.findMany({
         where: {
           nextScheduledAt: {
             lte: new Date(),
@@ -161,7 +161,9 @@ export class EmailSchedulingService {
             email: email.contact.email,
           });
 
-          await this.processEmail(email as SequenceProgressWithRelations);
+          await this.processEmail(
+            email as SequenceContactProgressWithRelations
+          );
         } catch (error) {
           logger.error("❌ Error processing email", {
             id: email.id,
@@ -194,7 +196,7 @@ export class EmailSchedulingService {
    * Process an individual email
    */
   private async processEmail(
-    email: SequenceProgressWithRelations
+    email: SequenceContactProgressWithRelations
   ): Promise<void> {
     const { sequence, contact } = email;
 
@@ -321,7 +323,7 @@ export class EmailSchedulingService {
         nextScheduledAt: isLastStep ? null : nextSendTime,
       });
 
-      await prisma.sequenceProgress.update({
+      await prisma.sequenceContactProgress.update({
         where: { id: email.id },
         data: {
           lastProcessedAt: new Date(),
@@ -407,7 +409,7 @@ export class EmailSchedulingService {
         ).toISOString(),
       });
 
-      await prisma.sequenceProgress.update({
+      await prisma.sequenceContactProgress.update({
         where: { id: email.id },
         data: {
           nextScheduledAt: new Date(Date.now() + this.scheduler.retryDelay),

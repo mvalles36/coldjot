@@ -9,7 +9,7 @@ import {
   getUserGoogleAccount,
   getDefaultBusinessHours,
   updateSequenceContactStatus,
-  updateSequenceProgress,
+  updateSequenceContactProgress,
   getActiveSequenceContacts,
   getSequenceWithDetails,
   getContactProgress,
@@ -199,7 +199,7 @@ export class SequenceProcessor {
         );
 
         // Update progress
-        await updateSequenceProgress(
+        await updateSequenceContactProgress(
           sequence.id,
           contact.contact.id,
           currentStepIndex + 1,

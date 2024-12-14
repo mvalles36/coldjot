@@ -1,18 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@mailjot/database";
-// import { prisma } from "@mailjot/database";
-import { trackEmailEvent } from "@/lib/tracking/tracking-service";
 import type { EmailEventType } from "@mailjot/types";
 import { getUserAgent } from "@/lib/user-agent";
 import { getIpLocation } from "@/lib/ip-location";
-import { updateSequenceStats } from "@/lib/stats/sequence-stats-service";
-// import type { EmailEventType } from "@prisma/client";
-
-import {
-  recordEmailOpen,
-  recordLinkClick,
-} from "@/lib/tracking/tracking-service";
-import { getGmailEmail, getGmailThread } from "@/lib/google/gmail";
+import { trackingClient } from "@/lib/queue/tracking-client";
 
 const TRANSPARENT_PIXEL = Buffer.from(
   "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
@@ -90,20 +81,47 @@ async function handleEmailOpen(hash: string, request: NextRequest) {
     currentOpens: existingEvent.openCount,
   });
 
-  // Record the open - this will handle both tracking and stats update
-  await recordEmailOpen(hash);
+  // Get user agent and location info
+  const userAgentInfo = getUserAgent(request);
+  const ipAddress =
+    request.headers.get("x-forwarded-for") ||
+    request.headers.get("x-real-ip") ||
+    "unknown";
+  const location = await getIpLocation(ipAddress);
 
-  console.log(`✅ Recorded email open for ${existingEvent.email}`);
+  try {
+    // Record the open through the queue service
+    await trackingClient.recordEmailOpen(hash, {
+      userAgent: userAgentInfo.userAgent,
+      ipAddress,
+      location: JSON.stringify(location),
+      deviceType: userAgentInfo.device,
+    });
 
-  return new NextResponse(TRANSPARENT_PIXEL, {
-    status: 200,
-    headers: {
-      "Content-Type": "image/png",
-      "Cache-Control": "max-age=60, private",
-      "X-Frame-Options": "deny",
-      "X-Robots-Tag": "noindex, nofollow",
-    },
-  });
+    console.log(`✅ Recorded email open for ${existingEvent.email}`);
+
+    return new NextResponse(TRANSPARENT_PIXEL, {
+      status: 200,
+      headers: {
+        "Content-Type": "image/png",
+        "Cache-Control": "max-age=60, private",
+        "X-Frame-Options": "deny",
+        "X-Robots-Tag": "noindex, nofollow",
+      },
+    });
+  } catch (error) {
+    console.error("Failed to record email open:", error);
+    // Still return the pixel even if tracking fails
+    return new NextResponse(TRANSPARENT_PIXEL, {
+      status: 200,
+      headers: {
+        "Content-Type": "image/png",
+        "Cache-Control": "max-age=60, private",
+        "X-Frame-Options": "deny",
+        "X-Robots-Tag": "noindex, nofollow",
+      },
+    });
+  }
 }
 
 // Handle link clicks
@@ -151,37 +169,34 @@ async function handleLinkClick(hash: string, linkId: string | null) {
     currentClicks: trackedLink.clickCount,
   });
 
-  await recordLinkClick(linkId);
+  try {
+    // Record the click through the queue service
+    const { redirectUrl } = await trackingClient.recordLinkClick(hash, linkId, {
+      originalUrl: trackedLink.originalUrl,
+    });
 
-  // Always update stats for clicks as we want to track all clicks
-  if (existingEvent.sequenceId && existingEvent.contactId) {
-    // TODO: fix this
-    // await updateSequenceStats(
-    //   existingEvent.sequenceId,
-    //   "clicked",
-    //   existingEvent.contactId
-    // );
+    console.log(`✅ Recorded link click for ${trackedLink.originalUrl}`);
+
+    return NextResponse.redirect(redirectUrl || trackedLink.originalUrl);
+  } catch (error) {
+    console.error("Failed to record link click:", error);
+    // Redirect to original URL even if tracking fails
+    return NextResponse.redirect(trackedLink.originalUrl);
   }
-
-  console.log(`✅ Recorded link click for ${trackedLink.originalUrl}`);
-
-  return NextResponse.redirect(trackedLink.originalUrl);
 }
 
 // Main route handler
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ slug?: string[] }> }
+  { params }: { params: Promise<{ slug: string[] }> }
 ) {
   try {
     console.log(`\n🎯 New tracking request received`);
-    console.log(`📝 Raw params:`, await params);
-    console.log(`📝 Request headers:`, request.headers);
 
     // Parse the slug to get hash and action
-    const { slug } = (await params) || [];
-    let hash = slug![0] || "";
-    const action = slug![1] || "";
+    const { slug } = await params;
+    let hash = slug[0] || "";
+    const action = slug[1] || "";
 
     // Remove .png extension if present
     hash = hash.replace(".png", "");
@@ -244,13 +259,8 @@ export async function GET(
             <div class="error-box">
               <p class="error-message">${
                 error instanceof Error ? error.message : "Unknown error"
-                // TODO: Add back in
-                // <p><strong>Hash:</strong> ${params.slug?.[0] || "N/A"}</p>
-                // <p><strong>Action:</strong> ${params.slug?.[1] || "N/A"}</p>
               }</p>
               <div class="error-details">
-                <p><strong>Hash:</strong>"N/A"</p>
-                <p><strong>Action:</strong>"N/A"</p>
                 <p><strong>URL:</strong> ${request.url}</p>
               </div>
             </div>
@@ -271,11 +281,11 @@ export async function GET(
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ eventType: string }> }
+  { params }: { params: { eventType: string } }
 ) {
   try {
     const { emailId } = await req.json();
-    const eventType = (await params).eventType.toUpperCase();
+    const eventType = params.eventType.toUpperCase();
 
     if (!emailId) {
       return NextResponse.json(
@@ -291,18 +301,31 @@ export async function POST(
       "unknown";
     const location = await getIpLocation(ipAddress);
 
-    const event = await trackEmailEvent(emailId, eventType as EmailEventType, {
-      userAgent: userAgent.userAgent,
-      ipAddress,
-      location: JSON.stringify(location),
-      deviceType: userAgent.device,
-    });
+    try {
+      // Track the event through the queue service
+      await trackingClient.trackEmailEvent({
+        emailId,
+        eventType: eventType as EmailEventType,
+        metadata: {
+          userAgent: userAgent.userAgent,
+          ipAddress,
+          location: JSON.stringify(location),
+          deviceType: userAgent.device,
+        },
+      });
 
-    return NextResponse.json({ success: true, event });
+      return NextResponse.json({ success: true });
+    } catch (error) {
+      console.error("Failed to track email event:", error);
+      return NextResponse.json(
+        { error: "Failed to track email event" },
+        { status: 500 }
+      );
+    }
   } catch (error) {
-    console.error(`❌ Error tracking email event:`, error);
+    console.error(`❌ Error processing event request:`, error);
     return NextResponse.json(
-      { error: "Failed to track email event" },
+      { error: "Failed to process event request" },
       { status: 500 }
     );
   }

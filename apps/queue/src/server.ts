@@ -1,10 +1,8 @@
 import express from "express";
 import cors from "cors";
-import { env } from "./config";
 import { prisma } from "@mailjot/database";
 import { QueueService } from "@/services/queue/queue-service";
-import { SchedulingService } from "@/services/schedule/scheduling-service";
-import { MonitoringService } from "@/services/monitor/monitoring-service";
+
 import { sequenceProcessor } from "@/services/sequence/sequence-processor";
 import { emailProcessor } from "@/services/email/email-processor";
 import { logger } from "@/services/log/logger";
@@ -43,10 +41,6 @@ logger.info("✓ Queue service initialized");
 // Set up processors
 queueService.setProcessors(sequenceProcessor, emailProcessor);
 logger.info("✓ Queue processors configured");
-
-// Initialize other services
-const schedulingService = new SchedulingService();
-const monitoringService = new MonitoringService(queueService);
 
 // Start contact processing service
 contactProcessingService.start().catch((error) => {
@@ -140,6 +134,6 @@ process.on("SIGINT", async () => {
 });
 
 // Start the server
-const server = app.listen(port, () => {
+app.listen(port, () => {
   logger.info(`Queue service listening on port ${port}`);
 });

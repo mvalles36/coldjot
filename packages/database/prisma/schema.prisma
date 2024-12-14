@@ -75,13 +75,13 @@ model Contact {
     contacts    SequenceContact[] @relation("ContactToSequence")
     stats       SequenceStats[]
 
-    user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+    user            User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
     drafts          Draft[]
-    company         Company?           @relation(fields: [companyId], references: [id])
-    emailLists      EmailList[]        @relation("EmailListContacts")
+    company         Company?                  @relation(fields: [companyId], references: [id])
+    emailLists      EmailList[]               @relation("EmailListContacts")
     EmailEvent      EmailEvent[]
     EmailThread     EmailThread[]
-    progressRecords SequenceProgress[]
+    progressRecords SequenceContactProgress[]
 
     @@index([userId])
     @@index([companyId])
@@ -159,26 +159,26 @@ model EmailList {
 }
 
 model Sequence {
-    id              String             @id @default(cuid())
+    id              String                    @id @default(cuid())
     name            String
-    accessLevel     String             @default("team")
-    scheduleType    String             @default("business")
-    status          String             @default("draft")
-    testMode        Boolean            @default(false)
+    accessLevel     String                    @default("team")
+    scheduleType    String                    @default("business")
+    status          String                    @default("draft")
+    testMode        Boolean                   @default(false)
     userId          String
-    createdAt       DateTime           @default(now())
-    updatedAt       DateTime           @updatedAt
+    createdAt       DateTime                  @default(now())
+    updatedAt       DateTime                  @updatedAt
     steps           SequenceStep[]
-    user            User               @relation(fields: [userId], references: [id])
-    EmailList       EmailList?         @relation(fields: [emailListId], references: [id])
+    user            User                      @relation(fields: [userId], references: [id])
+    EmailList       EmailList?                @relation(fields: [emailListId], references: [id])
     emailListId     String?
     stats           SequenceStats[]
-    contacts        SequenceContact[]  @relation("SequenceToContact")
+    contacts        SequenceContact[]         @relation("SequenceToContact")
     EmailEvent      EmailEvent[]
     EmailThread     EmailThread[]
     businessHours   BusinessHours?
     SequenceHealth  SequenceHealth?
-    progressRecords SequenceProgress[]
+    progressRecords SequenceContactProgress[]
 
     @@index([userId])
 }
@@ -436,7 +436,7 @@ model StepStatus {
 }
 
 // Sequence progress
-model SequenceProgress {
+model SequenceContactProgress {
     id               String    @id @default(cuid())
     sequenceId       String
     contactId        String
