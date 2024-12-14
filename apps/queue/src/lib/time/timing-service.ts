@@ -22,7 +22,7 @@ export function calculateNextSendTime(
   currentTime: Date,
   delay: DelayConfig,
   businessHours: BusinessHours,
-  isDemoMode: boolean = true
+  isDemoMode: boolean = false
 ): Date {
   logger.info("⏰ Calculating next send time", {
     currentTime: currentTime.toISOString(),
