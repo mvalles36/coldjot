@@ -26,6 +26,12 @@
             "@/lib/*": [
                 "./src/lib/*"
             ],
+            "@/services/*": [
+                "./src/services/*"
+            ],
+            "@/routes/*": [
+                "./src/routes/*"
+            ],
             "@/types/*": [
                 "./src/types/*"
             ],
