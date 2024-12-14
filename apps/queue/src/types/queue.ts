@@ -18,8 +18,8 @@ export interface ProcessingJob {
   data: {
     sequenceId: string;
     userId: string;
-    scheduleType?: "custom" | "default";
-    businessHours?: any;
+    scheduleType?: "custom" | "default" | "business";
+    businessHours?: BusinessHours;
     testMode?: boolean;
   };
 }

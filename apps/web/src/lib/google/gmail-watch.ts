@@ -96,17 +96,6 @@ export async function refreshGmailWatch(userId: string) {
       account.refresh_token
     );
 
-    if (newAccessToken) accessToken = newAccessToken;
-    // if (newToken) {
-    //   accessToken = newToken;
-
-    //   // Update the access token in the database
-    //   await prisma.account.update({
-    //     where: { id: account.id },
-    //     data: { access_token: newToken },
-    //   });
-    // }
-
     return await setupGmailWatch({
       userId,
       accessToken,
