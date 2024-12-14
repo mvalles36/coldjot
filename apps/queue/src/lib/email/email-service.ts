@@ -289,8 +289,6 @@ export class EmailService {
         `--${boundary}--\r\n`,
       ].join("\r\n");
 
-      console.log(newEmailContent, "New Email Content");
-
       // Convert to base64url
       const base64EncodedEmail = convertToBase64UrlFormat(newEmailContent);
 

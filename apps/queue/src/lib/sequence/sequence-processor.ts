@@ -130,13 +130,16 @@ export class SequenceProcessor {
         logger.info(`📝 Processing step ${currentStepIndex + 1}:`, {
           step: currentStepIndex + 1,
           totalSteps: sequence.steps.length,
-          // type: currentStep.type,
           timing: currentStep.timing,
+          delay: {
+            amount: currentStep.delayAmount || 0,
+            unit: currentStep.delayUnit || "minutes",
+          },
         });
 
-        // Calculate next send time
-        const nextSendTime = await calculateNextSendTime(
-          currentStep.timing as "immediate" | "delay",
+        // Calculate next send time using the new timing service
+        const nextSendTime = calculateNextSendTime(
+          new Date(), // current time
           {
             amount: currentStep.delayAmount || 0,
             unit:
@@ -145,13 +148,6 @@ export class SequenceProcessor {
           },
           sequence.businessHours || getDefaultBusinessHours()
         );
-
-        if (!nextSendTime) {
-          logger.warn(
-            `⚠️ Could not calculate next send time for step ${currentStep.id}`
-          );
-          continue;
-        }
 
         logger.info(
           `📅 Scheduling email for contact: ${contact.contact.email}`,
