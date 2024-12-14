@@ -22,6 +22,7 @@ import type { ProcessingJob } from "./types/queue";
 import { resetSequence } from "./lib/sequence/helper";
 import { rateLimiter } from "./lib/rate-limit/rate-limiter";
 import { memoryMonitor } from "./lib/monitor/memory-monitor";
+import { contactProcessingService } from "./lib/sequence/contact-processing-service";
 
 const app = express();
 const port = 3001;
@@ -55,6 +56,13 @@ logger.info("✓ Queue processors configured");
 // Initialize other services
 const schedulingService = new SchedulingService();
 const monitoringService = new MonitoringService(queueService);
+
+// Start contact processing service
+contactProcessingService.start().catch((error) => {
+  logger.error("❌ Failed to start contact processing service:", error);
+});
+logger.info("✓ Contact processing service started");
+
 logger.info("✓ All services initialized");
 
 // Add after initializing services
@@ -451,40 +459,32 @@ app.post("/api/sequences/:id/reset", async (req, res) => {
 
 // Graceful shutdown handling
 process.on("SIGTERM", async () => {
-  logger.info("SIGTERM received. Starting graceful shutdown...");
-  await handleShutdown();
+  logger.info("📥 Received SIGTERM signal. Starting graceful shutdown...");
+
+  // Stop the contact processing service
+  contactProcessingService.stop();
+  logger.info("✓ Contact processing service stopped");
+
+  // Close other services and connections
+  await Promise.all([queueService.close(), redis.quit(), prisma.$disconnect()]);
+
+  logger.info("✓ All services stopped gracefully");
+  process.exit(0);
 });
 
 process.on("SIGINT", async () => {
-  logger.info("SIGINT received. Starting graceful shutdown...");
-  await handleShutdown();
+  logger.info("📥 Received SIGINT signal. Starting graceful shutdown...");
+
+  // Stop the contact processing service
+  contactProcessingService.stop();
+  logger.info("✓ Contact processing service stopped");
+
+  // Close other services and connections
+  await Promise.all([queueService.close(), redis.quit(), prisma.$disconnect()]);
+
+  logger.info("✓ All services stopped gracefully");
+  process.exit(0);
 });
-
-async function handleShutdown() {
-  try {
-    logger.info("🛑 Starting graceful shutdown...");
-
-    // Stop memory monitoring
-    memoryMonitor.stopMonitoring();
-
-    // Stop accepting new requests
-    server.close(() => {
-      logger.info("✓ HTTP server closed");
-    });
-
-    // Clean up queues before shutting down
-    await queueService.cleanup();
-
-    // Close database connections
-    await prisma.$disconnect();
-
-    logger.info("✓ Graceful shutdown completed");
-    process.exit(0);
-  } catch (error) {
-    logger.error("❌ Error during shutdown:", error);
-    process.exit(1);
-  }
-}
 
 // Start the server
 const server = app.listen(port, () => {

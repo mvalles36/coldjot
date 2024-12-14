@@ -356,4 +356,16 @@ export class QueueService {
       logger.error("❌ Error during queue cleanup:", error);
     }
   }
+
+  // Add close method for graceful shutdown
+  async close(): Promise<void> {
+    logger.info("🛑 Closing queue connections...");
+    try {
+      await Promise.all([this.sequenceQueue.close(), this.emailQueue.close()]);
+      logger.info("✓ Queue connections closed");
+    } catch (error) {
+      logger.error("❌ Error closing queue connections:", error);
+      throw error;
+    }
+  }
 }
