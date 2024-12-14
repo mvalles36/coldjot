@@ -75,12 +75,13 @@ model Contact {
     contacts    SequenceContact[] @relation("ContactToSequence")
     stats       SequenceStats[]
 
-    user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-    drafts      Draft[]
-    company     Company?      @relation(fields: [companyId], references: [id])
-    emailLists  EmailList[]   @relation("EmailListContacts")
-    EmailEvent  EmailEvent[]
-    EmailThread EmailThread[]
+    user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+    drafts          Draft[]
+    company         Company?           @relation(fields: [companyId], references: [id])
+    emailLists      EmailList[]        @relation("EmailListContacts")
+    EmailEvent      EmailEvent[]
+    EmailThread     EmailThread[]
+    progressRecords SequenceProgress[]
 
     @@index([userId])
     @@index([companyId])
@@ -158,25 +159,26 @@ model EmailList {
 }
 
 model Sequence {
-    id             String            @id @default(cuid())
-    name           String
-    accessLevel    String            @default("team")
-    scheduleType   String            @default("business")
-    status         String            @default("draft")
-    testMode       Boolean           @default(false)
-    userId         String
-    createdAt      DateTime          @default(now())
-    updatedAt      DateTime          @updatedAt
-    steps          SequenceStep[]
-    user           User              @relation(fields: [userId], references: [id])
-    EmailList      EmailList?        @relation(fields: [emailListId], references: [id])
-    emailListId    String?
-    stats          SequenceStats[]
-    contacts       SequenceContact[] @relation("SequenceToContact")
-    EmailEvent     EmailEvent[]
-    EmailThread    EmailThread[]
-    businessHours  BusinessHours?
-    SequenceHealth SequenceHealth?
+    id              String             @id @default(cuid())
+    name            String
+    accessLevel     String             @default("team")
+    scheduleType    String             @default("business")
+    status          String             @default("draft")
+    testMode        Boolean            @default(false)
+    userId          String
+    createdAt       DateTime           @default(now())
+    updatedAt       DateTime           @updatedAt
+    steps           SequenceStep[]
+    user            User               @relation(fields: [userId], references: [id])
+    EmailList       EmailList?         @relation(fields: [emailListId], references: [id])
+    emailListId     String?
+    stats           SequenceStats[]
+    contacts        SequenceContact[]  @relation("SequenceToContact")
+    EmailEvent      EmailEvent[]
+    EmailThread     EmailThread[]
+    businessHours   BusinessHours?
+    SequenceHealth  SequenceHealth?
+    progressRecords SequenceProgress[]
 
     @@index([userId])
 }
@@ -446,7 +448,13 @@ model SequenceProgress {
     createdAt        DateTime  @default(now())
     updatedAt        DateTime  @updatedAt
 
+    // Add relations
+    sequence Sequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+    contact  Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
     @@unique([sequenceId, contactId])
+    @@index([sequenceId])
+    @@index([contactId])
 }
 
 // Email tracking

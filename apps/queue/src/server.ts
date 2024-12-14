@@ -23,6 +23,7 @@ import { resetSequence } from "./lib/sequence/helper";
 import { rateLimiter } from "./lib/rate-limit/rate-limiter";
 import { memoryMonitor } from "./lib/monitor/memory-monitor";
 import { contactProcessingService } from "./lib/sequence/contact-processing-service";
+import { emailSchedulingService } from "./lib/schedule/email-scheduling-service";
 
 const app = express();
 const port = 3001;
@@ -62,6 +63,12 @@ contactProcessingService.start().catch((error) => {
   logger.error("❌ Failed to start contact processing service:", error);
 });
 logger.info("✓ Contact processing service started");
+
+// Start email scheduling service
+emailSchedulingService.start().catch((error) => {
+  logger.error("❌ Failed to start email scheduling service:", error);
+});
+logger.info("✓ Email scheduling service started");
 
 logger.info("✓ All services initialized");
 
@@ -465,6 +472,10 @@ process.on("SIGTERM", async () => {
   contactProcessingService.stop();
   logger.info("✓ Contact processing service stopped");
 
+  // Stop the email scheduling service
+  emailSchedulingService.stop();
+  logger.info("✓ Email scheduling service stopped");
+
   // Close other services and connections
   await Promise.all([queueService.close(), redis.quit(), prisma.$disconnect()]);
 
@@ -478,6 +489,10 @@ process.on("SIGINT", async () => {
   // Stop the contact processing service
   contactProcessingService.stop();
   logger.info("✓ Contact processing service stopped");
+
+  // Stop the email scheduling service
+  emailSchedulingService.stop();
+  logger.info("✓ Email scheduling service stopped");
 
   // Close other services and connections
   await Promise.all([queueService.close(), redis.quit(), prisma.$disconnect()]);
