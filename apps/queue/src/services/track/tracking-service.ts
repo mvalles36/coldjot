@@ -20,12 +20,7 @@ export async function createEmailTracking(
       "contactId",
     ];
 
-    logger.info(
-      {
-        metadata,
-      },
-      "🔍 Creating tracking object"
-    );
+    logger.info("🔍 Creating tracking object");
 
     const missingFields = requiredFields.filter(
       (field) => !metadata[field as keyof EmailTrackingMetadata]

@@ -3,6 +3,7 @@ import { prisma } from "@mailjot/database";
 import { randomUUID } from "crypto";
 import { logger } from "../log/logger";
 import { addTrackingToEmail } from "../track/tracking-service";
+import { updateSequenceStats } from "../stats/sequence-stats-service";
 import type { EmailJob } from "../../types/queue";
 import type {
   EmailResult,
@@ -495,6 +496,7 @@ export class EmailService {
   ): Promise<void> {
     logger.info("📝 Creating email event");
 
+    // Create the email event
     await prisma.emailEvent.create({
       data: {
         emailId,
@@ -509,7 +511,12 @@ export class EmailService {
       },
     });
 
-    logger.info("✅ Email event created");
+    // Update sequence stats for the sent event
+    if (options.sequenceId && options.contactId) {
+      await updateSequenceStats(options.sequenceId, "sent", options.contactId);
+    }
+
+    logger.info("✅ Email event and stats created");
   }
 
   /**

@@ -152,6 +152,9 @@ export class EmailProcessor {
         testMode: data.testMode,
       };
 
+      // Complete email options
+      logger.info(completeEmailOptions, "📧 Complete email options");
+
       // Send email
       logger.info(
         {

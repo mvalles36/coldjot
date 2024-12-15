@@ -77,6 +77,10 @@ export async function refreshTokenIfNeeded(
  * Throws an error if required credentials are missing
  */
 export function validateGmailCredentials(credentials: GmailCredentials): void {
+  logger.info(credentials, "🔄 Validating Gmail credentials");
+
+  const isTokenExpired =
+    !credentials.expiryDate || new Date(credentials.expiryDate) <= new Date();
   if (!credentials.accessToken || !credentials.refreshToken) {
     logger.error(
       {

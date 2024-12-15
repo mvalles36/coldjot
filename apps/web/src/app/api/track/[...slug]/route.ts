@@ -3,7 +3,7 @@ import { prisma } from "@mailjot/database";
 import type { EmailEventType } from "@mailjot/types";
 import { getUserAgent } from "@/lib/user-agent";
 import { getIpLocation } from "@/lib/ip-location";
-import { trackingClient } from "@/lib/queue/tracking-client";
+// import { trackingClient } from "@/lib/queue/tracking-client";
 
 const TRANSPARENT_PIXEL = Buffer.from(
   "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
@@ -91,12 +91,12 @@ async function handleEmailOpen(hash: string, request: NextRequest) {
 
   try {
     // Record the open through the queue service
-    await trackingClient.recordEmailOpen(hash, {
-      userAgent: userAgentInfo.userAgent,
-      ipAddress,
-      location: JSON.stringify(location),
-      deviceType: userAgentInfo.device,
-    });
+    // await trackingClient.recordEmailOpen(hash, {
+    //   userAgent: userAgentInfo.userAgent,
+    //   ipAddress,
+    //   location: JSON.stringify(location),
+    //   deviceType: userAgentInfo.device,
+    // });
 
     console.log(`✅ Recorded email open for ${existingEvent.email}`);
 
@@ -171,13 +171,13 @@ async function handleLinkClick(hash: string, linkId: string | null) {
 
   try {
     // Record the click through the queue service
-    const { redirectUrl } = await trackingClient.recordLinkClick(hash, linkId, {
-      originalUrl: trackedLink.originalUrl,
-    });
+    // const { redirectUrl } = await trackingClient.recordLinkClick(hash, linkId, {
+    //   originalUrl: trackedLink.originalUrl,
+    // });
 
     console.log(`✅ Recorded link click for ${trackedLink.originalUrl}`);
 
-    return NextResponse.redirect(redirectUrl || trackedLink.originalUrl);
+    // return NextResponse.redirect(redirectUrl || trackedLink.originalUrl);
   } catch (error) {
     console.error("Failed to record link click:", error);
     // Redirect to original URL even if tracking fails
@@ -303,16 +303,16 @@ export async function POST(
 
     try {
       // Track the event through the queue service
-      await trackingClient.trackEmailEvent({
-        emailId,
-        eventType: eventType as EmailEventType,
-        metadata: {
-          userAgent: userAgent.userAgent,
-          ipAddress,
-          location: JSON.stringify(location),
-          deviceType: userAgent.device,
-        },
-      });
+      // await trackingClient.trackEmailEvent({
+      //   emailId,
+      //   eventType: eventType as EmailEventType,
+      //   metadata: {
+      //     userAgent: userAgent.userAgent,
+      //     ipAddress,
+      //     location: JSON.stringify(location),
+      //     deviceType: userAgent.device,
+      //   },
+      // });
 
       return NextResponse.json({ success: true });
     } catch (error) {

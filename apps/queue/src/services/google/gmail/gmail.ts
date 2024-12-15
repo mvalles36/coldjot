@@ -87,18 +87,28 @@ export class GmailClientService {
         userId: account.userId,
         accessToken: account.access_token!,
         refreshToken: account.refresh_token!,
+        expiryDate: account.expires_at!,
       };
+
+      logger.info(credentials, "🔄 Gmail credentials");
+
       // Validate credentials
       validateGmailCredentials(credentials);
 
       // Create OAuth2 client
       const auth = this.createOAuth2Client();
 
+      logger.info(auth, "🔄 OAuth2 client");
+
       // Refresh token if needed and get the current valid access token
       const currentAccessToken = await refreshTokenIfNeeded(credentials);
 
+      logger.info(currentAccessToken, "🔄 Current access token");
+
       // Set the credentials with the current access token
       setOAuth2Credentials(auth, currentAccessToken, credentials);
+
+      logger.info(auth, "🔄 OAuth2 client after setting credentials");
 
       // Create and return the Gmail client
       const gmail = google.gmail({ version: "v1", auth });
