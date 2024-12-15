@@ -10,6 +10,6 @@ const router = Router();
 router.use("/sequences", sequenceRoutes);
 router.use("/health", healthRoutes);
 router.use("/metrics", metricsRoutes);
-router.use("/tracking", trackingRoutes);
+router.use("/track", trackingRoutes);
 
 export default router;

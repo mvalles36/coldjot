@@ -75,14 +75,17 @@ export async function handleEmailOpen(req: Request, res: Response) {
 export async function handleLinkClick(req: Request, res: Response) {
   try {
     const { hash } = req.params;
-    const { linkId } = req.body;
+    const { lid: linkId } = req.query;
 
     if (!linkId) {
       return res.status(400).json({ error: "Link ID is required" });
     }
 
-    const redirectUrl = await trackingService.handleLinkClick(hash, linkId);
-    res.redirect(redirectUrl);
+    const redirectUrl = await trackingService.handleLinkClick(
+      hash,
+      linkId as string
+    );
+    return res.redirect(redirectUrl);
   } catch (error) {
     logger.error("Error handling link click:", error);
     res.status(500).json({ error: "Failed to track link click" });

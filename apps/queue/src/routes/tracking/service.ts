@@ -18,15 +18,44 @@ export class TrackingService {
         return;
       }
 
-      // Update tracking event
+      // Check for existing open event
+      const existingOpenEvent = await prisma.emailEvent.findFirst({
+        where: {
+          emailId: event.id,
+          type: "opened",
+          sequenceId: event.sequenceId,
+        },
+      });
+
+      // Always increment the open count on the tracking event
       await prisma.emailTrackingEvent.update({
         where: { hash },
-        data: { openCount: { increment: 1 } },
+        data: {
+          type: "opened",
+          openCount: {
+            increment: 1,
+          },
+          timestamp: new Date(),
+        },
       });
 
       // Update sequence stats
       if (event.sequenceId && event.contactId) {
         await updateSequenceStats(event.sequenceId, "opened", event.contactId);
+      }
+
+      // Only update stats if this is the first open for this email
+      const isFirstOpen = !existingOpenEvent;
+
+      if (isFirstOpen) {
+        await prisma.emailEvent.create({
+          data: {
+            emailId: event.id,
+            type: "opened",
+            sequenceId: event.sequenceId,
+            contactId: event.contactId,
+          },
+        });
       }
 
       logger.info(`Recorded email open for hash: ${hash}`);
@@ -51,6 +80,11 @@ export class TrackingService {
       // Then get the tracked link
       const link = await prisma.trackedLink.findUnique({
         where: { id: linkId },
+        include: {
+          // TODO: fix this as this is emailTrackingEvent not emailTracking
+          // We are already getting the emailTrackingEvent at the top
+          // emailTracking: true,
+        },
       });
 
       if (!link) {
@@ -58,17 +92,26 @@ export class TrackingService {
         throw new Error("Invalid link data");
       }
 
-      // Update link click count
-      await prisma.trackedLink.update({
-        where: { id: linkId },
-        data: {
-          clickCount: { increment: 1 },
-          clicks: {
-            create: {
-              timestamp: new Date(),
-            },
+      // Create click record and update click count in a transaction
+      await prisma.$transaction(async (prisma) => {
+        // Create click record
+        await prisma.linkClick.create({
+          data: {
+            trackedLinkId: linkId,
+            timestamp: new Date(),
           },
-        },
+        });
+
+        // Increment click count
+        await prisma.trackedLink.update({
+          where: { id: linkId },
+          data: {
+            clickCount: {
+              increment: 1,
+            },
+            updatedAt: new Date(),
+          },
+        });
       });
 
       // Update sequence stats

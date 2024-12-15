@@ -45,7 +45,7 @@ export class EmailSchedulingService {
   private queueService: QueueService;
   private intervalId?: NodeJS.Timeout;
   private scheduler: NextEmailScheduler = {
-    checkInterval: 5000, // 5 seconds
+    checkInterval: 60000, // 1 minute
     retryDelay: 300000, // 5 minutes
   };
 

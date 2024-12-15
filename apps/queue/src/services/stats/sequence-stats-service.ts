@@ -1,6 +1,7 @@
 import { prisma } from "@mailjot/database";
 import type { EmailEventType } from "@mailjot/types";
 import type { Prisma } from "@prisma/client";
+import { logger } from "../log/logger";
 
 /**
  * Calculate rates based on current stats
@@ -37,6 +38,12 @@ const getExistingEventCount = async (params: {
       type: params.type,
     },
   });
+
+  logger.info(
+    { count },
+    `Found ${count} existing events for sequence ${params.sequenceId} with type ${params.type}`
+  );
+
   return count;
 };
 
@@ -122,19 +129,26 @@ export const updateSequenceStats = async (
       }
 
       case "opened": {
+        // Always increment total opens
         updates.openedEmails = { increment: 1 };
 
         if (contactId) {
-          const existingOpens = await tx.emailEvent.findFirst({
-            where: {
-              sequenceId,
-              contactId,
-              type: "opened",
-            },
+          // Check if this is the first open for this contact
+          const existingOpens = await getExistingEventCount({
+            sequenceId,
+            contactId,
+            type: "opened",
           });
 
-          if (!existingOpens) {
+          logger.info(
+            { existingOpens },
+            `Found ${existingOpens} existing opens for contact ${contactId}`
+          );
+
+          // Only increment unique opens if this is the first open for this contact
+          if (existingOpens === 0) {
             updates.uniqueOpens = { increment: 1 };
+            // Recalculate open rate based on unique opens
             const newRates = calculateRates({
               ...stats,
               sentEmails: stats.sentEmails ?? 0,
@@ -225,6 +239,11 @@ export const updateSequenceStats = async (
         break;
       }
     }
+
+    logger.info(
+      updates,
+      `Updated sequence stats for ${sequenceId} with type ${type}`
+    );
 
     // Update stats atomically
     return tx.sequenceStats.update({
