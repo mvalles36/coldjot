@@ -235,7 +235,7 @@ export class EmailSchedulingService {
 
       // 2. Get current step
       const currentStep = sequence.steps[email.currentStepIndex];
-      logger.debug(sequence.steps, "🔍 Sequence steps");
+      logger.debug("🔍 Sequence steps");
       logger.debug(email, "🔍 Current Email");
       if (!currentStep) {
         logger.error("❌ Step not found", {

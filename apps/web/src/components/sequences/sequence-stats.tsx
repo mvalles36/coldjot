@@ -97,7 +97,7 @@ export const SequenceStats = ({ stats }: SequenceStatsProps) => {
     {
       title: "Total opens",
       value: stats.openedEmails || 0,
-      subValue: formatRate(stats.openedEmails, stats.sentEmails),
+      // subValue: formatRate(stats.openedEmails, stats.sentEmails),
       icon: Eye,
       color: "text-green-500",
       showProgress: true,
@@ -105,7 +105,7 @@ export const SequenceStats = ({ stats }: SequenceStatsProps) => {
     {
       title: "Unique opens",
       value: stats.uniqueOpens || 0,
-      subValue: formatRate(stats.uniqueOpens, stats.sentEmails),
+      // subValue: formatRate(stats.uniqueOpens, stats.sentEmails),
       icon: BarChart3,
       color: "text-emerald-500",
       showProgress: true,
