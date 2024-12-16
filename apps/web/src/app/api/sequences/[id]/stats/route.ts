@@ -64,15 +64,16 @@ export async function GET(
       },
     });
 
+    // TODO: Fix it as we have removed status from sequence step
     // Calculate stats
-    const stats = {
-      sent: steps.filter((step) => step.status === "sent").length,
-      delivered: steps.filter((step) => step.status === "delivered").length,
-      opened: steps.filter((step) => step.status === "opened").length,
-      clicked: steps.filter((step) => step.status === "clicked").length,
-      replied: steps.filter((step) => step.status === "replied").length,
-      bounced: steps.filter((step) => step.status === "bounced").length,
-    };
+    // const stats = {
+    //   sent: steps.filter((step) => step.status === "sent").length,
+    //   delivered: steps.filter((step) => step.status === "delivered").length,
+    //   opened: steps.filter((step) => step.status === "opened").length,
+    //   clicked: steps.filter((step) => step.status === "clicked").length,
+    //   replied: steps.filter((step) => step.status === "replied").length,
+    //   bounced: steps.filter((step) => step.status === "bounced").length,
+    // };
 
     // Format activities
     const activities = steps.map((step) => ({
@@ -84,13 +85,13 @@ export async function GET(
         sequenceContacts.find((sc) => sc.currentStep === step.order)?.contact
           .email || "",
       subject: step.subject || "(No subject)",
-      status: step.status,
+
       timestamp: step.updatedAt,
       stepNumber: step.order,
     }));
 
     return NextResponse.json({
-      stats,
+      // stats,
       activities,
     });
   } catch (error) {

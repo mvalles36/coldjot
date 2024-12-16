@@ -13,12 +13,33 @@ import { createEmailTracking } from "../track/tracking-service";
 import { EmailTrackingMetadata } from "@mailjot/types";
 import { gmailClientService } from "../google/gmail/gmail";
 import type { gmail_v1 } from "googleapis";
+import { schedulingService } from "../schedule/scheduling-service";
+import { emailSchedulingService } from "../schedule/email-scheduling-service";
 
 export class EmailProcessor {
   private queueService: QueueService;
 
   constructor() {
     this.queueService = QueueService.getInstance();
+  }
+
+  // Example testing flow
+  private async testEmailSequence() {
+    // 1. Check next scheduled email
+    const { nextEmail } =
+      await emailSchedulingService.checkNextScheduledEmail();
+    console.log("Next email scheduled for:", nextEmail?.scheduledTime);
+
+    // 2. Advance time to process it
+    await emailSchedulingService.advanceToNextEmail();
+
+    // 3. Check if it was processed and what's next
+    const { nextEmail: nextInSequence } =
+      await emailSchedulingService.checkNextScheduledEmail();
+    console.log("Next in sequence:", nextInSequence);
+
+    // 4. Reset time if needed
+    schedulingService.resetTime();
   }
 
   /**
@@ -174,7 +195,9 @@ export class EmailProcessor {
           },
           "✅ Email sent successfully"
         );
+
         await this.handleSuccessfulEmail(data, emailResult, step);
+        await this.testEmailSequence();
       }
 
       return { success: true };

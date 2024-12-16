@@ -1,8 +1,8 @@
 import { ProcessingJob, EmailJob } from "../../types/queue";
 import { logger } from "@/services/log/logger";
 import { rateLimiter } from "@/services/rate-limit/rate-limiter";
-import { calculateNextSendTime } from "@/services/time/timing-service";
-import { StepStatus } from "@mailjot/types";
+import { schedulingService } from "@/services/schedule/scheduling-service";
+import { SequenceStep, StepStatus } from "@mailjot/types";
 import { QueueService } from "@/services/queue/queue-service";
 import { randomUUID } from "crypto";
 import {
@@ -137,15 +137,16 @@ export class SequenceProcessor {
           },
         });
 
+        // const sendTime = await schedulingService.calculateNextRun(
+        //   new Date(),
+        //   firstStep,
+        //   sequence.businessHours || getDefaultBusinessHours()
+        // );
+
         // Calculate next send time using the new timing service
-        const nextSendTime = calculateNextSendTime(
+        const nextSendTime = schedulingService.calculateNextRun(
           new Date(), // current time
-          {
-            amount: currentStep.delayAmount || 0,
-            unit:
-              (currentStep.delayUnit as "minutes" | "hours" | "days") ||
-              "minutes",
-          },
+          currentStep as SequenceStep,
           sequence.businessHours || getDefaultBusinessHours()
         );
 
@@ -217,6 +218,7 @@ export class SequenceProcessor {
         );
 
         // Add rate limiting delay between contacts
+        // TODO: Remove this delay
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
 

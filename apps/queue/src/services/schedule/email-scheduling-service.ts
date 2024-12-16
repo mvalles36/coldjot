@@ -45,7 +45,7 @@ export class EmailSchedulingService {
   private queueService: QueueService;
   private intervalId?: NodeJS.Timeout;
   private scheduler: NextEmailScheduler = {
-    checkInterval: 60000, // 1 minute
+    checkInterval: 15000, // 15 seconds
     retryDelay: 300000, // 5 minutes
   };
 
@@ -139,6 +139,23 @@ export class EmailSchedulingService {
         },
       });
 
+      // Development mode: Log scheduled times for debugging
+      const isDevelopment = process.env.APP_ENV === "development" ? true : true;
+      if (isDevelopment) {
+        logger.debug(
+          {
+            currentTime: new Date().toISOString(),
+            scheduledEmails: dueEmails.map((email) => ({
+              id: email.id,
+              nextScheduledAt: email.nextScheduledAt?.toISOString(),
+              email: email.contact.email,
+              stepIndex: email.currentStepIndex,
+            })),
+          },
+          "🔧 Development mode: Scheduled emails"
+        );
+      }
+
       logger.info("📥 Found emails to process", {
         count: dueEmails.length,
         emails: dueEmails.map((e) => ({
@@ -147,6 +164,7 @@ export class EmailSchedulingService {
           contactId: e.contactId,
           currentStep: e.currentStepIndex,
           email: e.contact.email,
+          scheduledTime: e.nextScheduledAt?.toISOString(),
         })),
       });
 
@@ -235,8 +253,7 @@ export class EmailSchedulingService {
 
       // 2. Get current step
       const currentStep = sequence.steps[email.currentStepIndex];
-      logger.debug("🔍 Sequence steps");
-      logger.debug(email, "🔍 Current Email");
+
       if (!currentStep) {
         logger.error("❌ Step not found", {
           sequenceId: sequence.id,
@@ -418,6 +435,105 @@ export class EmailSchedulingService {
 
       // Re-throw error for higher-level handling
       throw error;
+    }
+  }
+
+  // Add development helper method
+  public async checkNextScheduledEmail(): Promise<{
+    nextEmail?: {
+      id: string;
+      scheduledTime: Date | null;
+      contact: string;
+      step: number;
+    };
+    currentTime: Date;
+  }> {
+    if (process.env.APP_ENV !== "development") {
+      logger.warn(
+        "⚠️ checkNextScheduledEmail is only available in development mode"
+      );
+      return { currentTime: new Date() };
+    }
+
+    const nextEmail = await prisma.sequenceContactProgress.findFirst({
+      where: {
+        completed: false,
+        nextScheduledAt: {
+          not: null,
+        },
+      },
+      orderBy: {
+        nextScheduledAt: "asc",
+      },
+      select: {
+        id: true,
+        nextScheduledAt: true,
+        currentStepIndex: true,
+        contact: {
+          select: {
+            email: true,
+          },
+        },
+      },
+    });
+
+    if (!nextEmail) {
+      logger.info("📭 No scheduled emails found");
+      return { currentTime: new Date() };
+    }
+
+    logger.info("📧 Next scheduled email:", {
+      id: nextEmail.id,
+      scheduledTime: nextEmail.nextScheduledAt?.toISOString(),
+      contact: nextEmail.contact.email,
+      step: nextEmail.currentStepIndex,
+      timeUntilSend: nextEmail.nextScheduledAt
+        ? `${Math.round((nextEmail.nextScheduledAt.getTime() - Date.now()) / 1000 / 60)} minutes`
+        : "unknown",
+    });
+
+    return {
+      nextEmail: nextEmail
+        ? {
+            id: nextEmail.id,
+            scheduledTime: nextEmail.nextScheduledAt,
+            contact: nextEmail.contact.email,
+            step: nextEmail.currentStepIndex,
+          }
+        : undefined,
+      currentTime: new Date(),
+    };
+  }
+
+  // Add method to advance time to next email
+  public async advanceToNextEmail(): Promise<void> {
+    if (process.env.APP_ENV !== "development") {
+      logger.warn(
+        "⚠️ advanceToNextEmail is only available in development mode"
+      );
+      return;
+    }
+
+    const { nextEmail } = await this.checkNextScheduledEmail();
+
+    if (nextEmail?.scheduledTime) {
+      // Add 1 second to ensure we're past the scheduled time
+      const targetTime = new Date(nextEmail.scheduledTime.getTime() + 1000);
+
+      logger.info("⏰ Advancing time to process next email", {
+        from: new Date().toISOString(),
+        to: targetTime.toISOString(),
+        emailId: nextEmail.id,
+        contact: nextEmail.contact,
+      });
+
+      // Use scheduling service to advance time
+      schedulingService.advanceTimeTo(targetTime);
+
+      // Trigger immediate check
+      await this.processScheduledEmails();
+    } else {
+      logger.info("📭 No emails to advance to");
     }
   }
 }
