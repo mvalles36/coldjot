@@ -71,14 +71,7 @@ export class EmailService {
         content: trackedContent,
       });
 
-      logger.info(
-        {
-          plainTextPart,
-          senderPart,
-          recipientPart,
-        },
-        "🔄 Generated MIME parts"
-      );
+      logger.info("🔄 Generated MIME parts");
 
       // Send tracked email to recipient
       const trackedResponse = await this.sendTrackedEmail(

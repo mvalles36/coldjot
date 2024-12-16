@@ -80,6 +80,28 @@ export async function updateSequenceContactStatus(
 }
 
 /**
+ * Update sequence contact status
+ */
+export async function updateSequenceContactThreadId(
+  contactId: string,
+  sequenceId: string,
+  threadId: string
+) {
+  try {
+    await prisma.sequenceContact.update({
+      where: { sequenceId_contactId: { sequenceId, contactId } },
+      data: {
+        threadId,
+        lastProcessedAt: new Date(),
+      },
+    });
+  } catch (error) {
+    logger.error(`Error updating sequence contact threadId: ${error}`);
+    throw error;
+  }
+}
+
+/**
  * Update sequence progress
  */
 export async function updateSequenceContactProgress(

@@ -160,6 +160,14 @@ export class SequenceProcessor {
           }
         );
 
+        // Get previous subject from previous step if replyToThread is true
+        const previousStep = sequence.steps[currentStepIndex - 1];
+        const previousSubject = previousStep?.subject || "";
+
+        const subject = currentStep.replyToThread
+          ? `Re: ${previousSubject}`
+          : currentStep.subject;
+
         // Create email job
         const emailJob: EmailJob = {
           id: randomUUID(),
@@ -173,7 +181,7 @@ export class SequenceProcessor {
             to: data.testMode
               ? process.env.TEST_EMAIL || googleAccount.email
               : contact.contact.email,
-            subject: currentStep.subject || "",
+            subject: subject || "",
             threadId: contact.threadId || undefined,
             testMode: data.testMode || false,
             scheduledTime: nextSendTime.toISOString(),
@@ -191,13 +199,6 @@ export class SequenceProcessor {
         );
 
         const queuedJob = await this.queueService.addEmailJob(emailJob);
-
-        logger.info(
-          {
-            queuedJob,
-          },
-          `📧 Email job queued successfully`
-        );
 
         // Update progress
         await updateSequenceContactProgress(

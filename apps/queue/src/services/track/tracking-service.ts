@@ -250,7 +250,7 @@ export async function addTrackingToEmail(
     }
 
     trackedContent += tracking.pixel;
-    logger.info(trackedContent, "Tracked Content");
+
     return trackedContent;
   } catch (error) {
     console.error("Error adding tracking to email:", error);

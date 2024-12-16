@@ -15,6 +15,8 @@ import { gmailClientService } from "../google/gmail/gmail";
 import type { gmail_v1 } from "googleapis";
 import { schedulingService } from "../schedule/scheduling-service";
 import { emailSchedulingService } from "../schedule/email-scheduling-service";
+import { updateSequenceContactThreadId } from "../sequence/helper";
+import { updateSequenceContactStatus } from "../sequence/helper";
 
 export class EmailProcessor {
   private queueService: QueueService;
@@ -174,7 +176,7 @@ export class EmailProcessor {
       };
 
       // Complete email options
-      logger.info(completeEmailOptions, "📧 Complete email options");
+      logger.info("📧 Complete email options");
 
       // Send email
       logger.info(
@@ -197,7 +199,15 @@ export class EmailProcessor {
         );
 
         await this.handleSuccessfulEmail(data, emailResult, step);
-        await this.testEmailSequence();
+
+        // Update contact threadId
+        await updateSequenceContactThreadId(
+          contact.id,
+          data.sequenceId,
+          emailResult.threadId
+        );
+
+        // await this.testEmailSequence();
       }
 
       return { success: true };
