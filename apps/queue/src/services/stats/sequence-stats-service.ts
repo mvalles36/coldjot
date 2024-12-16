@@ -240,10 +240,7 @@ export const updateSequenceStats = async (
       }
     }
 
-    logger.info(
-      updates,
-      `Updated sequence stats for ${sequenceId} with type ${type}`
-    );
+    logger.info(`Updated sequence stats for ${sequenceId} with type ${type}`);
 
     // Update stats atomically
     return tx.sequenceStats.update({

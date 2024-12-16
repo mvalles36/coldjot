@@ -12,16 +12,7 @@ export function shouldRefreshToken(credentials: GmailCredentials): boolean {
     credentials.expiryDate < Date.now() + 5 * 60 * 1000; // 5 minutes buffer
 
   if (needsRefresh) {
-    logger.info(
-      {
-        userId: credentials.userId,
-        expiryDate: credentials.expiryDate
-          ? new Date(credentials.expiryDate).toISOString()
-          : "unknown",
-        currentTime: new Date().toISOString(),
-      },
-      "🔄 Token expired or about to expire, refreshing..."
-    );
+    logger.info("🔄 Token expired or about to expire, refreshing...");
   }
 
   return needsRefresh ? needsRefresh : false;
@@ -77,7 +68,7 @@ export async function refreshTokenIfNeeded(
  * Throws an error if required credentials are missing
  */
 export function validateGmailCredentials(credentials: GmailCredentials): void {
-  logger.info(credentials, "🔄 Validating Gmail credentials");
+  logger.info("🔄 Validating Gmail credentials");
 
   const isTokenExpired =
     !credentials.expiryDate || new Date(credentials.expiryDate) <= new Date();

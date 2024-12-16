@@ -225,12 +225,6 @@ export async function addTrackingToEmail(
     if (process.env.NODE_ENV === "development") {
       const baseUrl = getAppBaseUrl();
       const trackingUrl = new URL(`${baseUrl}/api/track/${tracking.hash}`);
-      logger.info(
-        {
-          trackingUrl,
-        },
-        "🔄 Adding development tracking link"
-      );
       const devTrackingInfo = `
         <div style="background: #f0f0f0; padding: 10px; margin: 10px 0; font-family: monospace; font-size: 12px;">
           <p><strong>Development Tracking Info:</strong></p>

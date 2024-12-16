@@ -90,8 +90,6 @@ export class GmailClientService {
         expiryDate: account.expires_at!,
       };
 
-      logger.info("🔄 Gmail credentials");
-
       // Validate credentials
       validateGmailCredentials(credentials);
 
@@ -100,8 +98,6 @@ export class GmailClientService {
 
       // Refresh token if needed and get the current valid access token
       const currentAccessToken = await refreshTokenIfNeeded(credentials);
-
-      logger.info(currentAccessToken, "🔄 Current access token");
 
       // Set the credentials with the current access token
       setOAuth2Credentials(auth, currentAccessToken, credentials);

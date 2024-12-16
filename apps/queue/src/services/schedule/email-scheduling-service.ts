@@ -300,11 +300,10 @@ export class EmailSchedulingService {
       const previousStep = currentStep.order - 1;
       const previousSubject = sequence.steps[previousStep]?.subject || "";
 
-      // const subject = currentStep.replyToThread
-      //   ? `Re: ${previousSubject}`
-      //   : currentStep.subject;
-
-      const subject = "";
+      // Fix subject line handling
+      const subject = currentStep.replyToThread
+        ? `Re: ${previousSubject}`
+        : currentStep.subject;
 
       // Get threadId from SequenceContact if it exists
       const sequenceContact = await prisma.sequenceContact.findUnique({
@@ -319,10 +318,35 @@ export class EmailSchedulingService {
         },
       });
 
-      logger.debug("📋 Thread details", {
-        threadId: sequenceContact?.threadId,
-        replyToThread: currentStep.replyToThread,
-      });
+      // Log thread details for debugging
+      logger.info(
+        {
+          sequenceId: sequence.id,
+          contactId: contact.id,
+          currentStepIndex: email.currentStepIndex,
+          stepId: currentStep.id,
+          replyToThread: currentStep.replyToThread,
+          existingThreadId: sequenceContact?.threadId,
+          willUseThreadId: currentStep.replyToThread
+            ? sequenceContact?.threadId
+            : undefined,
+          subject,
+          previousSubject,
+          stepOrder: currentStep.order,
+        },
+        "🧵 Thread details for email creation"
+      );
+
+      if (currentStep.replyToThread && !sequenceContact?.threadId) {
+        logger.warn(
+          {
+            stepId: currentStep.id,
+            sequenceId: sequence.id,
+            contactId: contact.id,
+          },
+          "⚠️ Reply to thread was requested but no thread ID found"
+        );
+      }
 
       // 4. Create email job
       const emailJob: EmailJob = {
@@ -336,39 +360,59 @@ export class EmailSchedulingService {
           userId: sequence.userId,
           to: contact.email,
           subject: subject || currentStep.subject || "",
-          threadId: currentStep.replyToThread
-            ? (sequenceContact?.threadId as string)
-            : "",
+          threadId:
+            currentStep.replyToThread && sequenceContact?.threadId
+              ? sequenceContact.threadId
+              : undefined,
           scheduledTime: nextSendTime.toISOString(),
         },
       };
 
+      logger.info(
+        // {
+        //   jobId: emailJob.id,
+        //   threadId: emailJob.data.threadId,
+        //   replyToThread: currentStep.replyToThread,
+        //   stepIndex: email.currentStepIndex,
+        // },
+        "📧 Created email job with thread details"
+      );
+
       // 5. Add to queue
-      logger.debug("📤 Adding email job to queue", {
-        jobId: emailJob.id,
-        type: emailJob.type,
-        priority: emailJob.priority,
-        scheduledTime: emailJob.data.scheduledTime,
-      });
+      logger.debug(
+        {
+          jobId: emailJob.id,
+          type: emailJob.type,
+          priority: emailJob.priority,
+          scheduledTime: emailJob.data.scheduledTime,
+        },
+        "📤 Adding email job to queue"
+      );
 
       await this.queueService.addEmailJob(emailJob);
 
-      logger.info("📧 Created email job", {
-        jobId: emailJob.id,
-        scheduledTime: nextSendTime.toISOString(),
-        to: contact.email,
-        sequenceId: sequence.id,
-        stepId: currentStep.id,
-      });
+      logger.info(
+        {
+          jobId: emailJob.id,
+          scheduledTime: nextSendTime.toISOString(),
+          to: contact.email,
+          sequenceId: sequence.id,
+          stepId: currentStep.id,
+        },
+        "📧 Created email job"
+      );
 
       // 6. Update sequence progress
       const isLastStep = email.currentStepIndex + 1 >= sequence.steps.length;
-      logger.debug("📝 Updating sequence progress", {
-        id: email.id,
-        currentStep: email.currentStepIndex,
-        isLastStep,
-        nextScheduledAt: isLastStep ? null : nextSendTime,
-      });
+      logger.debug(
+        {
+          id: email.id,
+          currentStep: email.currentStepIndex,
+          isLastStep,
+          nextScheduledAt: isLastStep ? null : nextSendTime,
+        },
+        "📝 Updating sequence progress"
+      );
 
       await prisma.sequenceContactProgress.update({
         where: { id: email.id },
@@ -382,12 +426,15 @@ export class EmailSchedulingService {
       });
 
       // 7. Create step status
-      logger.debug("📝 Creating step status", {
-        sequenceId: sequence.id,
-        stepId: currentStep.id,
-        contactId: contact.id,
-        status: "scheduled",
-      });
+      logger.debug(
+        {
+          sequenceId: sequence.id,
+          stepId: currentStep.id,
+          contactId: contact.id,
+          status: "scheduled",
+        },
+        "📝 Creating step status"
+      );
 
       await prisma.stepStatus.create({
         data: {
@@ -400,11 +447,7 @@ export class EmailSchedulingService {
       });
 
       // 8. Increment rate limit counters
-      logger.debug("🔄 Incrementing rate limit counters", {
-        userId: sequence.userId,
-        sequenceId: sequence.id,
-        contactId: contact.id,
-      });
+      logger.debug("🔄 Incrementing rate limit counters");
 
       await rateLimiter.incrementCounters(
         sequence.userId,
@@ -412,30 +455,39 @@ export class EmailSchedulingService {
         contact.id
       );
 
-      logger.info("✅ Successfully processed email", {
-        id: email.id,
-        sequenceId: sequence.id,
-        contactId: contact.id,
-        email: contact.email,
-        nextStep: email.currentStepIndex + 1,
-        isComplete: isLastStep,
-      });
+      logger.info(
+        {
+          id: email.id,
+          sequenceId: sequence.id,
+          contactId: contact.id,
+          email: contact.email,
+          nextStep: email.currentStepIndex + 1,
+          isComplete: isLastStep,
+        },
+        "✅ Successfully processed email"
+      );
     } catch (error) {
-      logger.error("❌ Error processing email", {
-        id: email.id,
-        sequenceId: sequence.id,
-        contactId: contact.id,
-        email: contact.email,
-        error: error instanceof Error ? error.message : "Unknown error",
-        stack: error instanceof Error ? error.stack : undefined,
-      });
+      logger.error(
+        {
+          id: email.id,
+          sequenceId: sequence.id,
+          contactId: contact.id,
+          email: contact.email,
+          error: error instanceof Error ? error.message : "Unknown error",
+          stack: error instanceof Error ? error.stack : undefined,
+        },
+        "❌ Error processing email"
+      );
 
       // Update step status to failed
-      logger.debug("📝 Creating failed step status", {
-        sequenceId: sequence.id,
-        stepId: sequence.steps[email.currentStepIndex]?.id,
-        contactId: contact.id,
-      });
+      logger.debug(
+        {
+          sequenceId: sequence.id,
+          stepId: sequence.steps[email.currentStepIndex]?.id,
+          contactId: contact.id,
+        },
+        "📝 Creating failed step status"
+      );
 
       await prisma.stepStatus.create({
         data: {
@@ -448,13 +500,16 @@ export class EmailSchedulingService {
       });
 
       // Schedule retry
-      logger.debug("🔄 Scheduling retry", {
-        id: email.id,
-        retryDelay: this.scheduler.retryDelay,
-        nextRetry: new Date(
-          Date.now() + this.scheduler.retryDelay
-        ).toISOString(),
-      });
+      logger.debug(
+        {
+          id: email.id,
+          retryDelay: this.scheduler.retryDelay,
+          nextRetry: new Date(
+            Date.now() + this.scheduler.retryDelay
+          ).toISOString(),
+        },
+        "🔄 Scheduling retry"
+      );
 
       await prisma.sequenceContactProgress.update({
         where: { id: email.id },

@@ -175,10 +175,7 @@ export class ContactProcessingService {
       // 7. Add to queue
       await this.queueService.addEmailJob(emailJob);
 
-      logger.info(`📧 Created email job for contact: ${contactDetails.email}`, {
-        jobId: emailJob.id,
-        scheduledTime: sendTime,
-      });
+      logger.info(`📧 Created email job for contact: ${contactDetails.email}`);
 
       // 8. Update contact status and progress
       await Promise.all([

@@ -49,7 +49,7 @@ export async function sendGmailSMTP({
 
   logger.info(content, "Content");
 
-  // // Get account information
+  // Get account information
   const account = await prisma.account.findFirst({
     where: { access_token: accessToken },
     include: {
@@ -71,7 +71,58 @@ export async function sendGmailSMTP({
   const senderEmail = account.user.email;
   const fromHeader = formatSenderInfo(senderEmail, account.user.name!);
 
-  // Generate email parts
+  // Create Gmail client for fetching thread information
+  const gmail = await gmailClientService.getClient(account.user.id!);
+
+  // If threadId exists, fetch the original message headers
+  let threadHeaders;
+  let originalSubject;
+  if (threadId) {
+    try {
+      // Get the thread messages
+      const thread = await gmail.users.threads.get({
+        userId: "me",
+        id: threadId,
+        format: "raw",
+      });
+
+      if (thread.data.messages && thread.data.messages.length > 0) {
+        // Get the first message in the thread
+        const originalMessage = thread.data.messages[0];
+        const headers = originalMessage.payload?.headers || [];
+
+        // Get the original message ID and subject
+        const originalMessageId = headers.find(
+          (h) => h.name?.toLowerCase() === "message-id"
+        )?.value;
+        originalSubject = headers.find(
+          (h) => h.name?.toLowerCase() === "subject"
+        )?.value;
+
+        // Collect all message IDs in the thread for References
+        const references = thread.data.messages
+          .map((msg) => {
+            const msgId = msg.payload?.headers?.find(
+              (h) => h.name?.toLowerCase() === "message-id"
+            )?.value;
+            return msgId ? msgId.replace(/[<>]/g, "") : null;
+          })
+          .filter(Boolean) as string[];
+
+        threadHeaders = {
+          messageId: messageId,
+          inReplyTo: originalMessageId?.replace(/[<>]/g, ""),
+          references: references,
+        };
+
+        console.log("Thread Headers:", threadHeaders);
+      }
+    } catch (error) {
+      console.error("Error fetching thread information:", error);
+    }
+  }
+
+  // Generate email headers with thread information
   const headers = generateEmailHeaders({
     fromHeader,
     to,
@@ -79,6 +130,8 @@ export async function sendGmailSMTP({
     messageId,
     threadId,
     boundary,
+    originalSubject: originalSubject || subject,
+    threadHeaders,
   });
 
   // Convert content to plain text
@@ -113,15 +166,6 @@ export async function sendGmailSMTP({
   const result = await transport.sendMail(mailOptions);
   console.log("Message ID", messageId);
   console.log("Result Message ID", result.messageId);
-
-  // Create Gmail client
-  // const oauth2Client = createGmailOAuth2Client(
-  //   account.access_token!,
-  //   account.refresh_token!
-  // );
-  // const gmail = google.gmail({ version: "v1", auth: oauth2Client });
-
-  const gmail = await gmailClientService.getClient(account.user.id!);
 
   // Wait for Gmail to process the message
   await new Promise((resolve) => setTimeout(resolve, 1000));

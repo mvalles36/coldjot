@@ -38,31 +38,76 @@ export class EmailService {
       const gmail = await this.getGmailClient(options.userId, options.account);
 
       // Generate message ID and boundary
-      const messageId = `<${randomUUID()}@mailjot.com>`;
+      const messageId = `<${randomUUID()}>`;
       const boundary = generateMimeBoundary();
 
       // Format sender information
       const fromHeader = formatSenderInfo(options.account.email!, "Zee");
+
+      // If threadId exists, fetch the original message headers
+      let threadHeaders;
+      let originalSubject;
+      if (options.threadId) {
+        try {
+          // Get the thread messages
+          const thread = await gmail.users.threads.get({
+            userId: "me",
+            id: options.threadId,
+            format: "full",
+          });
+
+          if (thread.data.messages && thread.data.messages.length > 0) {
+            // Get the first message in the thread
+            const originalMessage = thread.data.messages[0];
+            const headers = originalMessage.payload?.headers || [];
+
+            // Get the original message ID and subject
+            const originalMessageId = headers.find(
+              (h) => h.name?.toLowerCase() === "message-id"
+            )?.value;
+            originalSubject = headers.find(
+              (h) => h.name?.toLowerCase() === "subject"
+            )?.value;
+
+            // Collect all message IDs in the thread for References
+            const references = thread.data.messages
+              .map((msg) => {
+                const msgId = msg.payload?.headers?.find(
+                  (h) => h.name?.toLowerCase() === "message-id"
+                )?.value;
+                return msgId ? msgId.replace(/[<>]/g, "") : null;
+              })
+              .filter(Boolean) as string[];
+
+            threadHeaders = {
+              messageId: messageId.replace(/[<>]/g, ""),
+              inReplyTo: originalMessageId?.replace(/[<>]/g, ""),
+              references: references,
+            };
+
+            logger.info({ threadHeaders }, "Thread Headers Retrieved");
+          }
+        } catch (error) {
+          logger.error("Error fetching thread information:", error);
+        }
+      }
 
       // Create email headers
       const headers = generateEmailHeaders({
         fromHeader,
         to: options.to,
         subject: options.subject,
-        messageId,
+        messageId: messageId.replace(/[<>]/g, ""),
         threadId: options.threadId,
         boundary,
+        originalSubject: originalSubject || options.subject,
+        threadHeaders,
       });
 
       // Convert HTML to plain text and prepare MIME parts
       const plainText = convertToPlainText(options.html);
       const trackingInfo = this.createTrackingInfo(options);
-      const trackedContent = await this.prepareTrackedContent(
-        options
-        // trackingInfo.trackingId,
-        // trackingInfo.trackingHash,
-        // trackingInfo.trackingMetadata
-      );
+      const trackedContent = await this.prepareTrackedContent(options);
 
       const { plainTextPart, senderPart, recipientPart } = generateMimeParts({
         boundary,
@@ -84,23 +129,6 @@ export class EmailService {
 
       // Wait for Gmail to process the message
       await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Delete the tracked email from sender's inbox
-      // try {
-      //   await gmail.users.messages.delete({
-      //     userId: "me",
-      //     id: trackedResponse.id!,
-      //   });
-      //   logger.info("✅ Deleted tracked email from sender's inbox");
-      // } catch (error) {
-      //   logger.warn(
-      //     {
-      //       error: error instanceof Error ? error.message : "Unknown error",
-      //       messageId: trackedResponse.id,
-      //     },
-      //     "⚠️ Failed to delete tracked email from sender's inbox"
-      //   );
-      // }
 
       // Send untracked copy to sender with same thread ID
       await this.sendUntrackedCopy(
@@ -162,25 +190,7 @@ export class EmailService {
    * Log the start of email sending process
    */
   private logEmailSendStart(options: SendEmailOptions): void {
-    logger.info(
-      {
-        to: options.to,
-        subject: options.subject,
-        threadId: options.threadId,
-        account: {
-          email: options.account.email,
-          expiryDate: new Date(options.account.expiryDate!).toISOString(),
-        },
-      },
-      "📧 Starting email send process"
-    );
-
-    logger.info(
-      {
-        email: options.account.email,
-      },
-      "🔄 Getting Gmail client"
-    );
+    logger.info("📧 Starting email send process");
   }
 
   /**
@@ -206,6 +216,12 @@ export class EmailService {
       "\r\n"
     );
     const encodedEmail = convertToBase64UrlFormat(emailContent);
+
+    // Log the headers for debugging
+    logger.debug("Email Headers for tracked email:", {
+      headers: headers.split("\r\n"),
+      threadId: options.threadId,
+    });
 
     const { data } = await gmail.users.messages.send({
       userId: "me",
@@ -235,8 +251,8 @@ export class EmailService {
     headers: string,
     plainTextPart: string,
     senderPart: string,
-    threadId?: string,
-    messageId?: string
+    threadId: string,
+    messageId: string
   ): Promise<void> {
     try {
       logger.info("Preparing untracked copy for sender's sent folder");
@@ -245,46 +261,45 @@ export class EmailService {
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       // Get the original message to maintain headers and structure
-      const originalRaw = await gmail.users.messages.get({
+      const originalMessage = await gmail.users.messages.get({
         userId: "me",
-        id: messageId!,
-        format: "raw",
+        id: messageId,
+        format: "full",
       });
 
-      if (!originalRaw.data.raw) {
-        throw new Error("Could not get raw message content");
+      if (!originalMessage.data.payload?.headers) {
+        throw new Error("Could not get original message headers");
       }
 
-      // Decode and split the message
-      const emailContent = Buffer.from(
-        originalRaw.data.raw,
-        "base64"
-      ).toString();
+      // Get the original headers
+      const originalHeaders = originalMessage.data.payload.headers;
+      const messageIdHeader = originalHeaders.find(
+        (h) => h.name?.toLowerCase() === "message-id"
+      )?.value;
+      const inReplyToHeader = originalHeaders.find(
+        (h) => h.name?.toLowerCase() === "in-reply-to"
+      )?.value;
+      const referencesHeader = originalHeaders.find(
+        (h) => h.name?.toLowerCase() === "references"
+      )?.value;
 
-      const { headers: originalHeaders, body } =
-        splitEmailContent(emailContent);
-
-      // Get boundary and process parts
-      const boundary = parseMimeBoundary(originalHeaders);
-      const parts = body
-        .split(`--${boundary}`)
-        .filter((part) => part.trim() && !part.startsWith("--"));
-
-      // Process parts and replace content with untracked version
-      const processedParts = await processEmailParts(parts, boundary);
-      const debeaconizedId = generateDebeaconizedId();
-
-      // Reconstruct the email with original headers and untracked content
-      const newEmailContent = [
-        `X-MT-Debeaconized-From: ${debeaconizedId}`,
-        originalHeaders,
+      // Create new email content with the same threading headers
+      const emailContent = [
+        headers, // Use the same headers as the tracked email
         "",
-        ...processedParts.map((part) => `--${boundary}\r\n${part}`),
-        `--${boundary}--\r\n`,
+        plainTextPart,
+        senderPart,
       ].join("\r\n");
 
-      // Convert to base64url
-      const base64EncodedEmail = convertToBase64UrlFormat(newEmailContent);
+      // Log the headers for debugging
+      logger.debug("Email Headers for untracked copy:", {
+        originalMessageId: messageIdHeader,
+        originalInReplyTo: inReplyToHeader,
+        originalReferences: referencesHeader,
+        threadId,
+      });
+
+      const base64EncodedEmail = convertToBase64UrlFormat(emailContent);
 
       logger.info(
         {
@@ -301,7 +316,7 @@ export class EmailService {
         requestBody: {
           raw: base64EncodedEmail,
           threadId,
-          labelIds: ["SENT", ...(originalRaw.data.labelIds || [])], // Maintain original labels plus SENT
+          labelIds: ["SENT"],
         },
       });
 
@@ -313,29 +328,16 @@ export class EmailService {
         "✅ Untracked copy added to sent folder"
       );
 
-      if (data.id) {
-        console.log("Inserted message ID:", data.id);
-
-        try {
-          console.log("Deleting original message:", messageId);
-          await gmail.users.messages.delete({
-            userId: "me",
-            id: messageId,
-          });
-          console.log("Original message deleted successfully");
-        } catch (err) {
-          console.error("Error deleting original message:", err);
-        }
+      // Delete the original tracked message from sent folder
+      try {
+        await gmail.users.messages.delete({
+          userId: "me",
+          id: messageId,
+        });
+        logger.info("✅ Original tracked message deleted from sent folder");
+      } catch (err) {
+        logger.error("Error deleting original tracked message:", err);
       }
-
-      logger.info(
-        {
-          messageId: data.id,
-          threadId: data.threadId,
-          debeaconizedId,
-        },
-        "✅ Untracked copy added to sent folder"
-      );
     } catch (error) {
       logger.error(
         {
@@ -362,14 +364,7 @@ export class EmailService {
     const trackingId = randomUUID();
     const trackingHash = randomUUID();
 
-    logger.info(
-      {
-        trackingId,
-        trackingHash,
-        to: options.to,
-      },
-      "📝 Creating tracking metadata"
-    );
+    logger.info("📝 Creating tracking metadata");
 
     const trackingMetadata: EmailTrackingMetadata = {
       email: options.to,
@@ -449,14 +444,7 @@ export class EmailService {
     options: SendEmailOptions,
     trackedResponse: gmail_v1.Schema$Message
   ): Promise<void> {
-    logger.info(
-      {
-        emailId,
-        messageId: trackedResponse.id,
-        threadId: options.threadId,
-      },
-      "📝 Creating email tracking record"
-    );
+    logger.info("📝 Creating email tracking record");
 
     await prisma.emailTracking.create({
       data: {

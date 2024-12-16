@@ -23,6 +23,8 @@ export function generateEmailHeaders({
   messageId,
   threadId,
   boundary,
+  originalSubject,
+  threadHeaders,
 }: {
   fromHeader: string;
   to: string;
@@ -30,19 +32,56 @@ export function generateEmailHeaders({
   messageId: string;
   threadId?: string;
   boundary: string;
+  originalSubject?: string;
+  threadHeaders?: {
+    messageId: string;
+    inReplyTo?: string;
+    references?: string[];
+  };
 }): string {
-  return [
+  // Ensure messageId has angle brackets
+  const formattedMessageId = messageId.includes("<")
+    ? messageId
+    : `<${messageId}>`;
+
+  // Format references with angle brackets if needed
+  const formattedReferences = threadHeaders?.references?.map((ref) =>
+    ref.includes("<") ? ref : `<${ref}>`
+  );
+
+  // Format In-Reply-To with angle brackets if needed
+  const formattedInReplyTo = threadHeaders?.inReplyTo
+    ? threadHeaders.inReplyTo.includes("<")
+      ? threadHeaders.inReplyTo
+      : `<${threadHeaders.inReplyTo}>`
+    : undefined;
+
+  const headers = [
     "MIME-Version: 1.0",
     `From: ${fromHeader}`,
     `To: ${to}`,
     `Subject: ${subject}`,
-    threadId ? `References: ${threadId}` : "",
-    `Message-ID: ${messageId}`,
+    `Message-ID: ${formattedMessageId}`,
+    formattedInReplyTo ? `In-Reply-To: ${formattedInReplyTo}` : "",
+    formattedReferences?.length
+      ? `References: ${formattedReferences.join(" ")}`
+      : threadId
+        ? `References: <${threadId}>`
+        : "",
     `Date: ${new Date().toUTCString()}`,
     `Content-Type: multipart/alternative; boundary="${boundary}"`,
-  ]
-    .filter(Boolean)
-    .join("\r\n");
+  ];
+
+  // Log headers for debugging
+  console.log("Generated Email Headers:", {
+    messageId: formattedMessageId,
+    inReplyTo: formattedInReplyTo,
+    references: formattedReferences || threadId,
+    subject,
+    threadId,
+  });
+
+  return headers.filter(Boolean).join("\r\n");
 }
 
 /**

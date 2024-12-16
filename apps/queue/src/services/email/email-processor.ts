@@ -51,13 +51,7 @@ export class EmailProcessor {
     job: EmailJob
   ): Promise<{ success: boolean; error?: string }> {
     const { data } = job;
-    logger.info(
-      {
-        jobId: job.id,
-        ...data,
-      },
-      `📨 Starting to process email job`
-    );
+    logger.info(`📨 Starting to process email job`);
 
     try {
       // Validate rate limits
@@ -129,7 +123,7 @@ export class EmailProcessor {
       }
 
       // Create tracking metadata
-      logger.info(data, "📊 Creating tracking metadata");
+      logger.info("📊 Creating tracking metadata");
       const trackingMetadata: EmailTrackingMetadata = {
         email: data.to,
         userId: data.userId,
@@ -139,7 +133,6 @@ export class EmailProcessor {
       };
 
       // Create tracking object
-      logger.info("🎯 Creating tracking object");
       const tracking = await createEmailTracking(trackingMetadata);
       if (!tracking) {
         throw new Error("Failed to create tracking information");
@@ -188,6 +181,7 @@ export class EmailProcessor {
         "📤 Sending email"
       );
       const emailResult = await emailService.sendEmail(completeEmailOptions);
+      // const emailResult = await sendGmailSMTP(completeEmailOptions);
 
       if (emailResult.success) {
         logger.info(
@@ -212,18 +206,13 @@ export class EmailProcessor {
           logger.info(
             "🧪 Test mode: Triggering next email in sequence in 10 seconds"
           );
-          await setTimeout(async () => {
-            try {
-              const { nextEmail } =
-                await emailSchedulingService.checkNextScheduledEmail();
-              if (nextEmail) {
-                logger.info("🧪 Test mode: Processing next email in sequence");
-                await emailSchedulingService.advanceToNextEmail();
-              }
-            } catch (error) {
-              logger.error("❌ Error processing next test email:", error);
-            }
-          }, 10000); // 10 second delay
+
+          const { nextEmail } =
+            await emailSchedulingService.checkNextScheduledEmail();
+          if (nextEmail) {
+            logger.info("🧪 Test mode: Processing next email in sequence");
+            await emailSchedulingService.advanceToNextEmail();
+          }
         }
       }
 
