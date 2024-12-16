@@ -160,6 +160,7 @@ export class SequenceProcessor {
           }
         );
 
+        // TODO : remove this as it' will run on sequence start only
         // Get previous subject from previous step if replyToThread is true
         const previousStep = sequence.steps[currentStepIndex - 1];
         const previousSubject = previousStep?.subject || "";

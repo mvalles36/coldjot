@@ -734,7 +734,9 @@ export async function POST(req: NextRequest) {
 
     // Process history
     const history = await getGmailHistory(gmail, historyId);
-    await processHistoryRecords(gmail, history, user.id);
+
+    // TOOD : uncomment this
+    // await processHistoryRecords(gmail, history, user.id);
 
     // Update history ID
     await updateHistoryId(account.id, history.data.historyId?.toString());

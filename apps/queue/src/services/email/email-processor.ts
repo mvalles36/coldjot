@@ -207,7 +207,24 @@ export class EmailProcessor {
           emailResult.threadId
         );
 
-        // await this.testEmailSequence();
+        // If in test mode, trigger the next email in sequence after a short delay
+        if (true) {
+          logger.info(
+            "🧪 Test mode: Triggering next email in sequence in 10 seconds"
+          );
+          await setTimeout(async () => {
+            try {
+              const { nextEmail } =
+                await emailSchedulingService.checkNextScheduledEmail();
+              if (nextEmail) {
+                logger.info("🧪 Test mode: Processing next email in sequence");
+                await emailSchedulingService.advanceToNextEmail();
+              }
+            } catch (error) {
+              logger.error("❌ Error processing next test email:", error);
+            }
+          }, 10000); // 10 second delay
+        }
       }
 
       return { success: true };

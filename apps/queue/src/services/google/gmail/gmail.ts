@@ -90,7 +90,7 @@ export class GmailClientService {
         expiryDate: account.expires_at!,
       };
 
-      logger.info(credentials, "🔄 Gmail credentials");
+      logger.info("🔄 Gmail credentials");
 
       // Validate credentials
       validateGmailCredentials(credentials);

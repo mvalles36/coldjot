@@ -45,7 +45,7 @@ export class EmailSchedulingService {
   private queueService: QueueService;
   private intervalId?: NodeJS.Timeout;
   private scheduler: NextEmailScheduler = {
-    checkInterval: 15000, // 15 seconds
+    checkInterval: 60000, // 1 minute
     retryDelay: 300000, // 5 minutes
   };
 
@@ -297,6 +297,33 @@ export class EmailSchedulingService {
         delay: nextSendTime.getTime() - Date.now(),
       });
 
+      const previousStep = currentStep.order - 1;
+      const previousSubject = sequence.steps[previousStep]?.subject || "";
+
+      // const subject = currentStep.replyToThread
+      //   ? `Re: ${previousSubject}`
+      //   : currentStep.subject;
+
+      const subject = "";
+
+      // Get threadId from SequenceContact if it exists
+      const sequenceContact = await prisma.sequenceContact.findUnique({
+        where: {
+          sequenceId_contactId: {
+            sequenceId: sequence.id,
+            contactId: contact.id,
+          },
+        },
+        select: {
+          threadId: true,
+        },
+      });
+
+      logger.debug("📋 Thread details", {
+        threadId: sequenceContact?.threadId,
+        replyToThread: currentStep.replyToThread,
+      });
+
       // 4. Create email job
       const emailJob: EmailJob = {
         id: randomUUID(),
@@ -308,7 +335,10 @@ export class EmailSchedulingService {
           stepId: currentStep.id,
           userId: sequence.userId,
           to: contact.email,
-          subject: currentStep.subject || "",
+          subject: subject || currentStep.subject || "",
+          threadId: currentStep.replyToThread
+            ? (sequenceContact?.threadId as string)
+            : "",
           scheduledTime: nextSendTime.toISOString(),
         },
       };

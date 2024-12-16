@@ -211,13 +211,7 @@ export async function addTrackingToEmail(
 
     let trackedContent = content;
 
-    logger.info(
-      {
-        tracking,
-        content,
-      },
-      "🔄 Adding tracking to email content"
-    );
+    logger.info("🔄 Adding tracking to email content");
 
     if (tracking.wrappedLinks) {
       trackedContent = await wrapLinksWithTracking(

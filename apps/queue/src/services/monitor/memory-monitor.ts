@@ -46,18 +46,18 @@ export class MemoryMonitor {
     const external = used.external / 1024 / 1024;
 
     // Log memory usage
-    logger.info(
-      {
-        heapUsed: `${Math.round(heapUsed)}MB`,
-        heapTotal: `${Math.round(heapTotal)}MB`,
-        rss: `${Math.round(rss)}MB`,
-        external: `${Math.round(external)}MB`,
-        warningThreshold: `${Math.round(this.warningThresholdMB)}MB`,
-        criticalThreshold: `${Math.round(this.criticalThresholdMB)}MB`,
-        targetLimit: `${this.TARGET_MEMORY_LIMIT}MB`,
-      },
-      "📊 Memory Usage"
-    );
+    // logger.info(
+    //   {
+    //     heapUsed: `${Math.round(heapUsed)}MB`,
+    //     heapTotal: `${Math.round(heapTotal)}MB`,
+    //     rss: `${Math.round(rss)}MB`,
+    //     external: `${Math.round(external)}MB`,
+    //     warningThreshold: `${Math.round(this.warningThresholdMB)}MB`,
+    //     criticalThreshold: `${Math.round(this.criticalThresholdMB)}MB`,
+    //     targetLimit: `${this.TARGET_MEMORY_LIMIT}MB`,
+    //   },
+    //   "📊 Memory Usage"
+    // );
 
     // Check against absolute thresholds
     if (heapUsed > this.criticalThresholdMB) {

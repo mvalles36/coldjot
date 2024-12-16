@@ -394,7 +394,7 @@ export class EmailService {
     // trackingHash: string,
     // trackingMetadata: EmailTrackingMetadata
   ): Promise<string> {
-    logger.info(options.tracking, "🔄 Adding tracking to email content");
+    logger.info("🔄 Adding tracking to email content");
 
     return addTrackingToEmail(options.html, options.tracking);
   }
