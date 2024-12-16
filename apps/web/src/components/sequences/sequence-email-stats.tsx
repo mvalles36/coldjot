@@ -140,8 +140,11 @@ export function SequenceEmailStats({
                   </TableCell>
                   <TableCell>{activity.subject}</TableCell>
                   <TableCell>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-sm">
                       Step {activity.stepNumber} of {activity.totalSteps}
+                      <div className="text-xs text-muted-foreground">
+                        {activity.stepName || "Manual Email"}
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell>{getStatusBadge(activity.status)}</TableCell>

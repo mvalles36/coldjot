@@ -232,25 +232,24 @@ export default function SequencePageClient({
           </div>
         </div>
         <div className="flex gap-3">
-          <SequenceControls
-            sequenceId={sequence.id}
-            initialStatus={sequence.status}
-          />
-
           <AddSequenceStep
             sequenceId={sequence.id}
             onStepAdded={handleStepAdded}
             steps={steps}
           />
-          <Button
-            variant="default"
-            onClick={() => setShowLaunchModal(true)}
-            disabled={
-              sequence.status === "active" || sequence._count.contacts === 0
-            }
-          >
-            Launch
-          </Button>
+          {sequence.status !== "active" && (
+            <Button
+              variant="default"
+              onClick={() => setShowLaunchModal(true)}
+              disabled={sequence._count.contacts === 0}
+            >
+              Launch
+            </Button>
+          )}
+          <SequenceControls
+            sequenceId={sequence.id}
+            initialStatus={sequence.status}
+          />
         </div>
       </div>
 

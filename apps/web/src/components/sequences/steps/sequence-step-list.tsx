@@ -113,9 +113,6 @@ export function SequenceStepList({
                         <span className="font-medium">
                           Day {index + 1}: Manual email
                         </span>
-                        <Badge variant="outline" className="text-xs">
-                          {step.status}
-                        </Badge>
                       </div>
                       <div className="text-sm text-muted-foreground">
                         {step.subject || "(No Subject)"}
