@@ -12,12 +12,13 @@ import {
   debeaconizeContent,
   processEmailParts,
   generateDebeaconizedId,
-  convertToBase64UrlFormat,
+  convertEmailToBase64Format,
   parseMimeBoundary,
   splitEmailContent,
   createMailOptions,
 } from "./helper";
 import { gmailClientService } from "../gmail/gmail";
+import { getThreadInfo } from "../../email/helper";
 import { logger } from "@/services/log/logger";
 
 interface SendGmailOptions {
@@ -75,52 +76,10 @@ export async function sendGmailSMTP({
   const gmail = await gmailClientService.getClient(account.user.id!);
 
   // If threadId exists, fetch the original message headers
-  let threadHeaders;
-  let originalSubject;
-  if (threadId) {
-    try {
-      // Get the thread messages
-      const thread = await gmail.users.threads.get({
-        userId: "me",
-        id: threadId,
-        format: "raw",
-      });
-
-      if (thread.data.messages && thread.data.messages.length > 0) {
-        // Get the first message in the thread
-        const originalMessage = thread.data.messages[0];
-        const headers = originalMessage.payload?.headers || [];
-
-        // Get the original message ID and subject
-        const originalMessageId = headers.find(
-          (h) => h.name?.toLowerCase() === "message-id"
-        )?.value;
-        originalSubject = headers.find(
-          (h) => h.name?.toLowerCase() === "subject"
-        )?.value;
-
-        // Collect all message IDs in the thread for References
-        const references = thread.data.messages
-          .map((msg) => {
-            const msgId = msg.payload?.headers?.find(
-              (h) => h.name?.toLowerCase() === "message-id"
-            )?.value;
-            return msgId ? msgId.replace(/[<>]/g, "") : null;
-          })
-          .filter(Boolean) as string[];
-
-        threadHeaders = {
-          messageId: messageId,
-          inReplyTo: originalMessageId?.replace(/[<>]/g, ""),
-          references: references,
-        };
-
-        console.log("Thread Headers:", threadHeaders);
-      }
-    } catch (error) {
-      console.error("Error fetching thread information:", error);
-    }
-  }
+  const { threadHeaders, originalSubject } = await getThreadInfo(
+    gmail,
+    threadId
+  );
 
   // Generate email headers with thread information
   const headers = generateEmailHeaders({
@@ -315,7 +274,7 @@ export async function updateSentEmail({
     ].join("\r\n");
 
     // Convert to base64url
-    const base64EncodedEmail = convertToBase64UrlFormat(newEmailContent);
+    const base64EncodedEmail = convertEmailToBase64Format(newEmailContent);
 
     // Insert debeaconized version
     console.log("Inserting debeaconized version...");

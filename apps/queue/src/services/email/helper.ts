@@ -58,6 +58,29 @@ export async function getSenderInfo(accessToken: string): Promise<SenderInfo> {
   };
 }
 
+export async function getSenderInfoWithId(id: string): Promise<SenderInfo> {
+  const account = await prisma.user.findFirst({
+    where: { id: id },
+    include: {
+      accounts: {},
+    },
+  });
+
+  if (!account?.accounts[0]?.access_token) {
+    throw new Error("User email not found");
+  }
+
+  const senderEmail = account.email;
+  const senderName = account.name;
+  const header = senderName ? `${senderName} <${senderEmail}>` : senderEmail;
+
+  return {
+    email: senderEmail!,
+    name: senderName || undefined,
+    header: header!,
+  };
+}
+
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
@@ -70,7 +93,7 @@ export async function getThreadInfo(
   originalSubject?: string;
 }> {
   let threadHeaders: ThreadHeaders = {
-    messageId: generateMessageId(),
+    messageId: generateMessageId().replace(/@[^>]+>$/, "@mail.gmail.com>"),
   };
   let originalSubject: string | undefined;
 
@@ -102,26 +125,47 @@ export async function getThreadInfo(
         );
       }
 
+      // Get the last message we're replying to
       const lastMessage = messages[messages.length - 1];
-      const headers = lastMessage.payload?.headers || [];
+      const lastMessageHeaders = lastMessage.payload?.headers || [];
 
-      const lastMessageId = headers.find(
+      // Get the Message-ID of the last message to use as In-Reply-To
+      const lastMessageId = lastMessageHeaders.find(
         (h: MessageHeader) => h.name?.toLowerCase() === "message-id"
       )?.value;
 
+      // Build References chain by collecting all Message-IDs in order
       const references = messages
         .map((msg: GmailMessage) => {
           const msgIdHeader = msg.payload?.headers?.find(
             (h: MessageHeader) => h.name?.toLowerCase() === "message-id"
           );
-          return msgIdHeader?.value || "";
+          return msgIdHeader?.value;
         })
+        .filter(Boolean) as string[];
+
+      // Get existing References from the last message
+      const existingReferences = lastMessageHeaders
+        .find((h: MessageHeader) => h.name?.toLowerCase() === "references")
+        ?.value?.split(/\s+/)
         .filter(Boolean);
 
+      // Combine existing references with new ones, maintaining order and removing duplicates
+      const allReferences = [
+        ...new Set([...(existingReferences || []), ...references]),
+      ];
+
+      // Ensure all Message-IDs have proper Gmail format
+      const formattedReferences = allReferences.map((ref) =>
+        ref.includes("@mail.gmail.com")
+          ? ref
+          : ref.replace(/@[^>]+>$/, "@mail.gmail.com>")
+      );
+
       threadHeaders = {
-        messageId: threadHeaders.messageId,
-        inReplyTo: lastMessageId || undefined,
-        references: references,
+        messageId: generateMessageId().replace(/@[^>]+>$/, "@mail.gmail.com>"),
+        inReplyTo: lastMessageId,
+        references: formattedReferences,
       };
     }
   } catch (error) {
@@ -211,6 +255,14 @@ export async function createUntrackedMessage({
   const date =
     headers.find((h: MessageHeader) => h.name?.toLowerCase() === "date")
       ?.value || "";
+  
+  // Get the actual Message-ID and Subject from the sent message
+  const actualMessageId = headers.find(
+    (h: MessageHeader) => h.name?.toLowerCase() === "message-id"
+  )?.value;
+  const actualSubject = headers.find(
+    (h: MessageHeader) => h.name?.toLowerCase() === "subject"
+  )?.value;
 
   const untrackedMessage = [
     "Content-Type: text/html; charset=utf-8",
@@ -218,8 +270,8 @@ export async function createUntrackedMessage({
     `From: ${from}`,
     `Date: ${date}`,
     `To: ${to}`,
-    `Subject: ${normalizeSubject(subject, !!threadId, originalSubject)}`,
-    `Message-ID: <${threadHeaders.messageId}>`,
+    `Subject: ${actualSubject || subject}`,  // Use the actual sent subject
+    `Message-ID: ${actualMessageId || threadHeaders.messageId}`,
     ...(threadHeaders.inReplyTo
       ? [`In-Reply-To: ${threadHeaders.inReplyTo}`]
       : []),

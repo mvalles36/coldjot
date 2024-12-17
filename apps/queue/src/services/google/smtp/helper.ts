@@ -2,6 +2,7 @@ import { google } from "googleapis";
 import quotedPrintable from "quoted-printable";
 import { generateMessageId } from "@/utils";
 import crypto from "crypto";
+import type { EmailResult, ThreadHeaders } from "@mailjot/types";
 
 const quotedPrintableEncode = quotedPrintable.encode;
 const quotedPrintableDecode = quotedPrintable.decode;
@@ -33,11 +34,7 @@ export function generateEmailHeaders({
   threadId?: string;
   boundary: string;
   originalSubject?: string;
-  threadHeaders?: {
-    messageId: string;
-    inReplyTo?: string;
-    references?: string[];
-  };
+  threadHeaders: ThreadHeaders;
 }): string {
   // Ensure messageId has angle brackets
   const formattedMessageId = messageId.includes("<")
@@ -235,7 +232,7 @@ export function generateDebeaconizedId(): string {
 /**
  * Convert email content to base64url format
  */
-export function convertToBase64UrlFormat(content: string): string {
+export function convertEmailToBase64Format(content: string): string {
   return Buffer.from(content)
     .toString("base64")
     .replace(/\+/g, "-")

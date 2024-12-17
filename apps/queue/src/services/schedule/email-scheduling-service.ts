@@ -300,7 +300,7 @@ export class EmailSchedulingService {
       const previousStep = currentStep.order - 1;
       const previousSubject = sequence.steps[previousStep]?.subject || "";
 
-      // Fix subject line handling
+      // TODOD: Fix subject line handling. May be remove it
       const subject = currentStep.replyToThread
         ? `Re: ${previousSubject}`
         : currentStep.subject;
