@@ -39,10 +39,10 @@ export async function sendGmailSMTP({
 }: SendGmailOptions): Promise<GmailResponse> {
   // Generate message ID and boundary
   const messageId = generateMessageId();
-  console.log("Generated message ID", messageId);
   const boundary = generateMimeBoundary();
 
-  logger.info(content, "Content");
+  console.log("Generated message ID", messageId);
+  console.log("Generated boundary", boundary);
 
   // Get account information
   const account = await prisma.account.findFirst({

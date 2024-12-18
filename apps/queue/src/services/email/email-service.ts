@@ -1,24 +1,14 @@
-import { google } from "googleapis";
 import { prisma } from "@mailjot/database";
 import { randomUUID } from "crypto";
 import { logger } from "../log/logger";
-import { addTrackingToEmail } from "../track/tracking-service";
-import { updateSequenceStats } from "../stats/sequence-stats-service";
-import type { EmailJob } from "../../types/queue";
-import type {
-  EmailResult,
-  EmailTracking,
-  EmailTrackingMetadata,
-  GoogleAccount,
-} from "@mailjot/types";
+import { addTrackingToEmail } from "@/services/track/tracking-service";
+import { updateSequenceStats } from "@/services/stats/sequence-stats-service";
+import type { EmailResult, EmailTrackingMetadata } from "@mailjot/types";
 import type { gmail_v1 } from "googleapis";
 import type { SendEmailOptions } from "@mailjot/types";
-import { gmailClientService } from "../google/gmail/gmail";
 import fs from "fs";
-import path from "path";
 
 import {
-  getSenderInfo,
   getSenderInfoWithId,
   createEmailMessage,
   createUntrackedMessage,
@@ -26,8 +16,7 @@ import {
 } from "./helper";
 
 import { getEmailThreadInfo } from "@/services/google/helper";
-
-import { sendGmailSMTP } from "@/services/google/smtp/gmail";
+import { sendGmailSMTP, gmailClientService } from "@/services/google";
 
 export class EmailService {
   private readonly logsDir = "email_logs";
@@ -56,6 +45,7 @@ export class EmailService {
       if (useApi) {
         logger.info("📧 Starting email send process");
 
+        // Get gmail client
         const gmail = await gmailClientService.getClient(options.userId);
 
         // Get sender info using accessToken like SMTP version
@@ -64,18 +54,6 @@ export class EmailService {
         // Get thread info exactly like SMTP version
         const { threadHeaders, originalSubject } = await getEmailThreadInfo(
           gmail,
-          options.threadId
-        );
-
-        // Log thread info to file
-        logEmailHeadersToFile(
-          "thread_info",
-          {
-            threadHeaders,
-            originalSubject,
-            threadId: options.threadId,
-          },
-          threadHeaders.messageId,
           options.threadId
         );
 
@@ -95,21 +73,6 @@ export class EmailService {
           originalSubject: originalSubject || options.subject,
           threadHeaders,
         });
-
-        // Log tracked message headers
-        logEmailHeadersToFile(
-          "tracked_message",
-          {
-            fromHeader: senderInfo.header,
-            to: options.to,
-            subject: options.subject,
-            threadId: options.threadId,
-            originalSubject,
-            threadHeaders,
-          },
-          threadHeaders.messageId,
-          options.threadId
-        );
 
         const response = await gmail.users.messages.send({
           userId: "me",
@@ -143,18 +106,6 @@ export class EmailService {
           threadHeaders.messageId = gmailMessageId;
         }
 
-        // Log sent message response
-        logEmailHeadersToFile(
-          "sent_message_response",
-          {
-            messageId: response.data.id,
-            threadId: response.data.threadId,
-            labelIds: response.data.labelIds,
-          },
-          response.data.id!,
-          response.data.threadId!
-        );
-
         // Create untracked version for sender's sent folder
         if (options.html && response.data.id) {
           // Get the sent message to ensure we have the correct thread ID and Message-ID
@@ -185,22 +136,8 @@ export class EmailService {
             threadHeaders,
           });
 
-          // Log untracked message headers
-          logEmailHeadersToFile(
-            "untracked_message",
-            {
-              to: options.to,
-              subject: sentSubject || options.subject,
-              threadId: sentMessage.data.threadId,
-              originalSubject,
-              threadHeaders,
-            },
-            response.data.id!,
-            sentMessage.data.threadId!
-          );
-
           // Insert untracked version in sender's sent folder
-          const untrackedResponse = await gmail.users.messages.insert({
+          await gmail.users.messages.insert({
             userId: "me",
             requestBody: {
               raw: encodedUntrackedMessage,
@@ -208,18 +145,6 @@ export class EmailService {
               labelIds: ["SENT"],
             },
           });
-
-          // Log untracked insert response
-          logEmailHeadersToFile(
-            "untracked_insert_response",
-            {
-              messageId: untrackedResponse.data.id,
-              threadId: untrackedResponse.data.threadId,
-              labelIds: untrackedResponse.data.labelIds,
-            },
-            untrackedResponse.data.id!,
-            untrackedResponse.data.threadId!
-          );
 
           // Delete the original tracked message from sent folder
           try {
@@ -271,21 +196,6 @@ export class EmailService {
       }
     } catch (error: any) {
       // Log error details
-      logEmailHeadersToFile(
-        "error",
-        {
-          error: error.message,
-          stack: error.stack,
-          options: {
-            to: options.to,
-            subject: options.subject,
-            threadId: options.threadId,
-          },
-        },
-        randomUUID(),
-        options.threadId
-      );
-
       if (
         error.status === 401 ||
         (error.responseCode === 535 && error.command === "AUTH XOAUTH2")
@@ -295,238 +205,6 @@ export class EmailService {
       await this.handleSendEmailError(error, options);
       throw error;
     }
-  }
-
-  // -----------------------------------------
-  // -----------------------------------------
-  // -----------------------------------------
-
-  /**
-   * @deprecated This method will be removed in the next major release.
-   */
-  private async sendTrackedEmail(
-    gmail: gmail_v1.Gmail,
-    options: SendEmailOptions,
-    headers: string,
-    plainTextPart: string,
-    recipientPart: string
-  ): Promise<gmail_v1.Schema$Message> {
-    logger.info(
-      {
-        to: options.to,
-        subject: options.subject,
-        threadId: options.threadId,
-      },
-      "📤 Sending tracked email"
-    );
-
-    const emailContent = [headers, "", plainTextPart, recipientPart].join(
-      "\r\n"
-    );
-    const encodedEmail = this.encodeEmail(emailContent);
-
-    // Log the headers for debugging
-    logger.debug("Email Headers for tracked email:", {
-      headers: headers.split("\r\n"),
-      threadId: options.threadId,
-    });
-
-    const { data } = await gmail.users.messages.send({
-      userId: "me",
-      requestBody: {
-        raw: encodedEmail,
-        threadId: options.threadId,
-      },
-    });
-
-    logger.info(
-      `✅ Tracked email sent successfully ${data.id} --- ${data.threadId}`
-    );
-
-    return data;
-  }
-
-  // -----------------------------------------
-  // -----------------------------------------
-  // -----------------------------------------
-
-  /**
-   * @deprecated This method will be removed in the next major release.
-   */
-  private async sendUntrackedCopy(
-    gmail: gmail_v1.Gmail,
-    options: SendEmailOptions,
-    headers: string,
-    plainTextPart: string,
-    senderPart: string,
-    threadId: string,
-    messageId: string
-  ): Promise<void> {
-    try {
-      logger.info("Preparing untracked copy for sender's sent folder");
-
-      // Wait a bit for the original message to be processed
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Get the original message to maintain headers and structure
-      const originalMessage = await gmail.users.messages.get({
-        userId: "me",
-        id: messageId,
-        format: "full",
-      });
-
-      if (!originalMessage.data.payload?.headers) {
-        throw new Error("Could not get original message headers");
-      }
-
-      // Get the original headers
-      const originalHeaders = originalMessage.data.payload.headers;
-      const messageIdHeader = originalHeaders.find(
-        (h) => h.name?.toLowerCase() === "message-id"
-      )?.value;
-      const inReplyToHeader = originalHeaders.find(
-        (h) => h.name?.toLowerCase() === "in-reply-to"
-      )?.value;
-      const referencesHeader = originalHeaders.find(
-        (h) => h.name?.toLowerCase() === "references"
-      )?.value;
-
-      // Create new email content with the same threading headers
-      const emailContent = [
-        headers, // Use the same headers as the tracked email
-        "",
-        plainTextPart,
-        senderPart,
-      ].join("\r\n");
-
-      // Log the headers for debugging
-      logger.debug("Email Headers for untracked copy:", {
-        originalMessageId: messageIdHeader,
-        originalInReplyTo: inReplyToHeader,
-        originalReferences: referencesHeader,
-        threadId,
-      });
-
-      const base64EncodedEmail = this.encodeEmail(emailContent);
-
-      logger.info(
-        {
-          to: options.account.email,
-          subject: options.subject,
-          threadId,
-        },
-        "📤 Inserting untracked copy to sent folder"
-      );
-
-      // Insert the untracked version with original headers
-      const { data } = await gmail.users.messages.insert({
-        userId: "me",
-        requestBody: {
-          raw: base64EncodedEmail,
-          threadId,
-          labelIds: ["SENT"],
-        },
-      });
-
-      logger.info(
-        {
-          messageId: data.id,
-          threadId: data.threadId,
-        },
-        "✅ Untracked copy added to sent folder"
-      );
-
-      // Delete the original tracked message from sent folder
-      try {
-        await gmail.users.messages.delete({
-          userId: "me",
-          id: messageId,
-        });
-        logger.info("✅ Original tracked message deleted from sent folder");
-      } catch (err) {
-        logger.error("Error deleting original tracked message:", err);
-      }
-    } catch (error) {
-      logger.error(
-        {
-          error: error instanceof Error ? error.message : "Unknown error",
-          stack: error instanceof Error ? error.stack : undefined,
-          threadId,
-          to: options.account.email,
-          subject: options.subject,
-        },
-        "❌ Failed to insert untracked copy"
-      );
-      throw error;
-    }
-  }
-
-  // -----------------------------------------
-  // -----------------------------------------
-  // -----------------------------------------
-
-  /**
-   * @deprecated This method will be removed in the next major release.
-   */
-  private createTrackingInfo(options: SendEmailOptions): {
-    trackingId: string;
-    trackingHash: string;
-    trackingMetadata: EmailTrackingMetadata;
-  } {
-    const trackingId = randomUUID();
-    const trackingHash = randomUUID();
-
-    logger.info("📝 Creating tracking metadata");
-
-    const trackingMetadata: EmailTrackingMetadata = {
-      email: options.to,
-      userId: options.userId,
-      sequenceId: options.sequenceId,
-      contactId: options.contactId,
-      stepId: options.stepId,
-    };
-
-    logger.info(trackingId, "📊 Created tracking object");
-
-    return { trackingId, trackingHash, trackingMetadata };
-  }
-
-  // -----------------------------------------
-  // -----------------------------------------
-  // -----------------------------------------
-
-  /**
-   * @deprecated This method will be removed in the next major release.
-   */
-  private createEmailContent(
-    to: string,
-    subject: string,
-    content: string,
-    replyTo?: string
-  ): string {
-    return [
-      `To: ${to}`,
-      `Subject: ${subject}`,
-      "Content-Type: text/html; charset=utf-8",
-      replyTo ? `Reply-To: ${replyTo}` : "",
-      "",
-      content,
-    ].join("\n");
-  }
-
-  // -----------------------------------------
-  // -----------------------------------------
-  // -----------------------------------------
-
-  /**
-   * @deprecated This method will be removed in the next major release.
-   */
-  private encodeEmail(content: string): string {
-    return Buffer.from(content)
-      .toString("base64")
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=+$/, "");
   }
 
   // -----------------------------------------
