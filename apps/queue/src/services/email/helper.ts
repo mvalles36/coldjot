@@ -8,27 +8,12 @@ import type { SendEmailOptions } from "@mailjot/types";
 import type { EmailTracking } from "@mailjot/types";
 import { trackEmailEvent } from "@/services/track/tracking-service";
 import type { GoogleAccount } from "@/services/google/account/google-account";
+import path from "path";
+import { logger } from "../log/logger";
 
-interface SenderInfo {
-  email: string;
-  name?: string;
-  header: string;
-}
-
-interface MessageHeader {
-  name?: string;
-  value?: string;
-}
-
-interface GmailMessage {
-  payload?: {
-    headers?: MessageHeader[];
-  };
-}
-
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
 
 export async function getSenderInfo(accessToken: string): Promise<SenderInfo> {
   const account = await prisma.account.findFirst({
@@ -81,9 +66,9 @@ export async function getSenderInfoWithId(id: string): Promise<SenderInfo> {
   };
 }
 
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
 
 export async function getThreadInfo(
   gmail: any,
@@ -175,9 +160,9 @@ export async function getThreadInfo(
   return { threadHeaders, originalSubject };
 }
 
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
 
 export function createEmailMessage({
   fromHeader,
@@ -219,9 +204,9 @@ export function createEmailMessage({
     .replace(/=+$/, "");
 }
 
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
 
 export async function createUntrackedMessage({
   gmail,
@@ -255,7 +240,7 @@ export async function createUntrackedMessage({
   const date =
     headers.find((h: MessageHeader) => h.name?.toLowerCase() === "date")
       ?.value || "";
-  
+
   // Get the actual Message-ID and Subject from the sent message
   const actualMessageId = headers.find(
     (h: MessageHeader) => h.name?.toLowerCase() === "message-id"
@@ -270,7 +255,7 @@ export async function createUntrackedMessage({
     `From: ${from}`,
     `Date: ${date}`,
     `To: ${to}`,
-    `Subject: ${actualSubject || subject}`,  // Use the actual sent subject
+    `Subject: ${actualSubject || subject}`, // Use the actual sent subject
     `Message-ID: ${actualMessageId || threadHeaders.messageId}`,
     ...(threadHeaders.inReplyTo
       ? [`In-Reply-To: ${threadHeaders.inReplyTo}`]
@@ -288,9 +273,9 @@ export async function createUntrackedMessage({
     .replace(/=+$/, "");
 }
 
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
 
 /**
  * Update tracking event with message and thread IDs
@@ -310,9 +295,9 @@ export const updateTrackingEvent = async (
   });
 };
 
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
 
 /**
  * Update sequence contact with thread ID
@@ -334,9 +319,9 @@ export const updateSequenceContact = async (
   });
 };
 
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
 
 /**
  * Create or get email thread
@@ -368,9 +353,9 @@ export const createOrGetEmailThread = async (
   }
 };
 
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
 
 /**
  * Track email sent event
@@ -397,9 +382,9 @@ export const trackEmailSent = async (
   );
 };
 
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
 
 /**
  * Track email bounce event
@@ -425,44 +410,74 @@ export const trackEmailBounce = async (
   );
 };
 
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
 
-/**
- * Handle token refresh and retry sending email
- */
-// export const handleTokenRefresh = async (
-//   account: GoogleAccount,
-//   emailOptions: SendEmailOptions
-// ): Promise<EmailResult> => {
-//   console.log(`🔄 Refreshing access token...`);
-//   const newAccessToken = await refreshAccessToken(
-//     account.userId,
-//     account.refresh_token
-//   );
+export const logEmailHeadersToFile = (
+  stage: string,
+  headers: any,
+  messageId: string,
+  threadId?: string
+): void => {
+  try {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
 
-//   if (!newAccessToken) {
-//     throw new Error("Failed to refresh token");
-//   }
+    // Create a sequence map for the stages
+    const stageSequence = {
+      thread_info: "01",
+      tracked_message: "02",
+      sent_message_response: "03",
+      sent_message_details: "04",
+      untracked_message: "05",
+      untracked_insert_response: "06",
+      error: "99",
+    };
 
-//   console.log(`🔄 Retrying with new token...`);
-//   const retryResult = await sendEmail({
-//     ...emailOptions,
-//     content: emailOptions.content,
-//     accessToken: newAccessToken,
-//     originalContent: emailOptions.content,
-//   });
+    const sequenceNumber =
+      stageSequence[stage as keyof typeof stageSequence] || "00";
 
-//   if (retryResult.threadId) {
-//     console.log(
-//       `📧 Email sent successfully in thread: ${retryResult.threadId}`
-//     );
-//   } else {
-//     console.log(
-//       `📧 New email thread created with ID: ${retryResult.messageId}`
-//     );
-//   }
+    const logsDir = "email_logs";
+    const filename = path.join(
+      logsDir,
+      `${timestamp}_${sequenceNumber}_${stage}.txt`
+    );
 
-//   return retryResult;
-// };
+    const logContent = [
+      `Timestamp: ${new Date().toISOString()}`,
+      `Stage: ${stage} (${sequenceNumber})`,
+      `Message ID: ${messageId}`,
+      `Thread ID: ${threadId || "N/A"}`,
+      "\nHeaders:",
+      JSON.stringify(headers, null, 2),
+      "\n-------------------\n",
+    ].join("\n");
+
+    // fs.appendFileSync(filename, logContent);
+    logger.debug(`Email headers logged to ${filename}`);
+  } catch (error) {
+    logger.error("Failed to log email headers:", error);
+  }
+};
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+// TODO: move this to types
+interface SenderInfo {
+  email: string;
+  name?: string;
+  header: string;
+}
+
+interface MessageHeader {
+  name?: string;
+  value?: string;
+}
+
+interface GmailMessage {
+  payload?: {
+    headers?: MessageHeader[];
+  };
+}

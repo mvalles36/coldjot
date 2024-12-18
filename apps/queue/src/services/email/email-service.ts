@@ -16,17 +16,24 @@ import type { SendEmailOptions } from "@mailjot/types";
 import { gmailClientService } from "../google/gmail/gmail";
 import fs from "fs";
 import path from "path";
+
 import {
   getSenderInfo,
+  getSenderInfoWithId,
   getThreadInfo,
   createEmailMessage,
   createUntrackedMessage,
-  getSenderInfoWithId,
+  logEmailHeadersToFile,
 } from "./helper";
+
 import { sendGmailSMTP } from "../google/smtp/gmail";
 
 export class EmailService {
   private readonly logsDir = "email_logs";
+
+  // -----------------------------------------
+  // -----------------------------------------
+  // -----------------------------------------
 
   constructor() {
     // Create logs directory if it doesn't exist
@@ -35,53 +42,9 @@ export class EmailService {
     }
   }
 
-  /**
-   * Helper function to log email headers to a file
-   */
-  private logEmailHeadersToFile(
-    stage: string,
-    headers: any,
-    messageId: string,
-    threadId?: string
-  ): void {
-    try {
-      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-
-      // Create a sequence map for the stages
-      const stageSequence = {
-        thread_info: "01",
-        tracked_message: "02",
-        sent_message_response: "03",
-        sent_message_details: "04",
-        untracked_message: "05",
-        untracked_insert_response: "06",
-        error: "99",
-      };
-
-      const sequenceNumber =
-        stageSequence[stage as keyof typeof stageSequence] || "00";
-
-      const filename = path.join(
-        this.logsDir,
-        `${timestamp}_${sequenceNumber}_${stage}.txt`
-      );
-
-      const logContent = [
-        `Timestamp: ${new Date().toISOString()}`,
-        `Stage: ${stage} (${sequenceNumber})`,
-        `Message ID: ${messageId}`,
-        `Thread ID: ${threadId || "N/A"}`,
-        "\nHeaders:",
-        JSON.stringify(headers, null, 2),
-        "\n-------------------\n",
-      ].join("\n");
-
-      // fs.appendFileSync(filename, logContent);
-      logger.debug(`Email headers logged to ${filename}`);
-    } catch (error) {
-      logger.error("Failed to log email headers:", error);
-    }
-  }
+  // -----------------------------------------
+  // -----------------------------------------
+  // -----------------------------------------
 
   /**
    * Main function to send an email with tracking and create necessary records
@@ -92,11 +55,7 @@ export class EmailService {
       if (useApi) {
         logger.info("📧 Starting email send process");
 
-        // Get Gmail client
-        const gmail = await this.getGmailClient(
-          options.userId,
-          options.account
-        );
+        const gmail = await gmailClientService.getClient(options.userId);
 
         // Get sender info using accessToken like SMTP version
         const senderInfo = await getSenderInfoWithId(options.userId);
@@ -108,7 +67,7 @@ export class EmailService {
         );
 
         // Log thread info to file
-        this.logEmailHeadersToFile(
+        logEmailHeadersToFile(
           "thread_info",
           {
             threadHeaders,
@@ -120,7 +79,10 @@ export class EmailService {
         );
 
         // Create tracked version for recipient
-        const trackedContent = await this.prepareTrackedContent(options);
+        const trackedContent = await addTrackingToEmail(
+          options.html,
+          options.tracking
+        );
 
         // Create message with proper thread headers - exactly like SMTP version
         const encodedMessage = createEmailMessage({
@@ -134,7 +96,7 @@ export class EmailService {
         });
 
         // Log tracked message headers
-        this.logEmailHeadersToFile(
+        logEmailHeadersToFile(
           "tracked_message",
           {
             fromHeader: senderInfo.header,
@@ -181,7 +143,7 @@ export class EmailService {
         }
 
         // Log sent message response
-        this.logEmailHeadersToFile(
+        logEmailHeadersToFile(
           "sent_message_response",
           {
             messageId: response.data.id,
@@ -223,7 +185,7 @@ export class EmailService {
           });
 
           // Log untracked message headers
-          this.logEmailHeadersToFile(
+          logEmailHeadersToFile(
             "untracked_message",
             {
               to: options.to,
@@ -247,7 +209,7 @@ export class EmailService {
           });
 
           // Log untracked insert response
-          this.logEmailHeadersToFile(
+          logEmailHeadersToFile(
             "untracked_insert_response",
             {
               messageId: untrackedResponse.data.id,
@@ -273,7 +235,9 @@ export class EmailService {
         // Create tracking records
         await this.createEmailRecords(options, response.data);
 
-        this.logEmailSendSuccess(response.data);
+        logger.info(
+          `✨ Email sending process completed successfully ${response.data.id} --- ${response.data.threadId}`
+        );
 
         return {
           success: true,
@@ -282,7 +246,10 @@ export class EmailService {
         };
       } else {
         // Fallback to SMTP version
-        const trackedContent = await this.prepareTrackedContent(options);
+        const trackedContent = await addTrackingToEmail(
+          options.html,
+          options.tracking
+        );
         const email = await sendGmailSMTP({
           to: options.to,
           subject: options.subject,
@@ -300,7 +267,7 @@ export class EmailService {
       }
     } catch (error: any) {
       // Log error details
-      this.logEmailHeadersToFile(
+      logEmailHeadersToFile(
         "error",
         {
           error: error.message,
@@ -326,44 +293,12 @@ export class EmailService {
     }
   }
 
-  /**
-   * Get an authenticated Gmail client using the new GmailClientService
-   */
-  private async getGmailClient(
-    userId: string,
-    account: GoogleAccount
-  ): Promise<gmail_v1.Gmail> {
-    try {
-      return await gmailClientService.getClient(userId);
-    } catch (error) {
-      logger.error(
-        {
-          error: error instanceof Error ? error.message : "Unknown error",
-          stack: error instanceof Error ? error.stack : undefined,
-          account: {
-            email: account.email || "unknown",
-            hasAccessToken: !!account.accessToken,
-            hasRefreshToken: !!account.refreshToken,
-            expiryDate: account.expiryDate
-              ? new Date(account.expiryDate).toISOString()
-              : "unknown",
-          },
-        },
-        "❌ Failed to initialize Gmail client"
-      );
-      throw error;
-    }
-  }
+  // -----------------------------------------
+  // -----------------------------------------
+  // -----------------------------------------
 
   /**
-   * Log the start of email sending process
-   */
-  private logEmailSendStart(options: SendEmailOptions): void {
-    logger.info("📧 Starting email send process");
-  }
-
-  /**
-   * Send tracked version of the email
+   * @deprecated This method will be removed in the next major release.
    */
   private async sendTrackedEmail(
     gmail: gmail_v1.Gmail,
@@ -401,18 +336,18 @@ export class EmailService {
     });
 
     logger.info(
-      {
-        messageId: data.id,
-        threadId: data.threadId,
-      },
-      "✅ Tracked email sent successfully"
+      `✅ Tracked email sent successfully ${data.id} --- ${data.threadId}`
     );
 
     return data;
   }
 
+  // -----------------------------------------
+  // -----------------------------------------
+  // -----------------------------------------
+
   /**
-   * Insert untracked copy to sender's sent folder with proper headers and content
+   * @deprecated This method will be removed in the next major release.
    */
   private async sendUntrackedCopy(
     gmail: gmail_v1.Gmail,
@@ -522,8 +457,12 @@ export class EmailService {
     }
   }
 
+  // -----------------------------------------
+  // -----------------------------------------
+  // -----------------------------------------
+
   /**
-   * Create tracking information for the email
+   * @deprecated This method will be removed in the next major release.
    */
   private createTrackingInfo(options: SendEmailOptions): {
     trackingId: string;
@@ -548,17 +487,12 @@ export class EmailService {
     return { trackingId, trackingHash, trackingMetadata };
   }
 
+  // -----------------------------------------
+  // -----------------------------------------
+  // -----------------------------------------
+
   /**
-   * Prepare tracked content with tracking information
-   */
-  private async prepareTrackedContent(
-    options: SendEmailOptions
-  ): Promise<string> {
-    logger.info("🔄 Adding tracking to email content");
-    return addTrackingToEmail(options.html, options.tracking);
-  }
-  /**
-   * Create email content with headers
+   * @deprecated This method will be removed in the next major release.
    */
   private createEmailContent(
     to: string,
@@ -576,8 +510,12 @@ export class EmailService {
     ].join("\n");
   }
 
+  // -----------------------------------------
+  // -----------------------------------------
+  // -----------------------------------------
+
   /**
-   * Encode email content to base64url format
+   * @deprecated This method will be removed in the next major release.
    */
   private encodeEmail(content: string): string {
     return Buffer.from(content)
@@ -586,6 +524,10 @@ export class EmailService {
       .replace(/\//g, "_")
       .replace(/=+$/, "");
   }
+
+  // -----------------------------------------
+  // -----------------------------------------
+  // -----------------------------------------
 
   /**
    * Create email tracking and event records
@@ -598,6 +540,8 @@ export class EmailService {
     await this.createEmailTrackingRecord(emailId, options, trackedResponse);
     await this.createEmailEvent(emailId, options, trackedResponse);
   }
+
+  // -----------------------------------------
 
   /**
    * Create email tracking record
@@ -629,6 +573,8 @@ export class EmailService {
 
     logger.info("✅ Email tracking record created");
   }
+
+  // -----------------------------------------
 
   /**
    * Create email event record
@@ -663,18 +609,9 @@ export class EmailService {
     logger.info("✅ Email event and stats created");
   }
 
-  /**
-   * Log successful email send completion
-   */
-  private logEmailSendSuccess(trackedResponse: gmail_v1.Schema$Message): void {
-    logger.info(
-      {
-        messageId: trackedResponse.id,
-        threadId: trackedResponse.threadId,
-      },
-      "✨ Email sending process completed successfully"
-    );
-  }
+  // -----------------------------------------
+  // -----------------------------------------
+  // -----------------------------------------
 
   /**
    * Handle errors during email sending process

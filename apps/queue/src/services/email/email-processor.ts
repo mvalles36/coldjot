@@ -3,10 +3,10 @@ import { EmailJob } from "@mailjot/types";
 import { logger } from "../log/logger";
 import { rateLimiter } from "../rate-limit/rate-limiter";
 import { emailService } from "./email-service";
-import { JOB_PRIORITIES } from "../queue/queue-config";
+
 import { QueueService } from "../queue/queue-service";
 import { prisma } from "@mailjot/database";
-import { randomUUID } from "crypto";
+
 import { SequenceStep, StepStatus } from "@prisma/client";
 import { sendGmailSMTP } from "../google/smtp/gmail";
 import { createEmailTracking } from "../track/tracking-service";
@@ -22,27 +22,13 @@ export class EmailProcessor {
   private queueService: QueueService;
 
   constructor() {
+    // TODO: check this and see if it is required anywhere
     this.queueService = QueueService.getInstance();
   }
 
-  // Example testing flow
-  private async testEmailSequence() {
-    // 1. Check next scheduled email
-    const { nextEmail } =
-      await emailSchedulingService.checkNextScheduledEmail();
-    console.log("Next email scheduled for:", nextEmail?.scheduledTime);
-
-    // 2. Advance time to process it
-    await emailSchedulingService.advanceToNextEmail();
-
-    // 3. Check if it was processed and what's next
-    const { nextEmail: nextInSequence } =
-      await emailSchedulingService.checkNextScheduledEmail();
-    console.log("Next in sequence:", nextInSequence);
-
-    // 4. Reset time if needed
-    schedulingService.resetTime();
-  }
+  // -----------------------------------------
+  // -----------------------------------------
+  // -----------------------------------------
 
   /**
    * Process an email job
@@ -56,42 +42,23 @@ export class EmailProcessor {
     try {
       // Validate rate limits
       logger.info(
-        {
-          userId: data.userId,
-          sequenceId: data.sequenceId,
-          contactId: data.contactId,
-        },
-        "🔍 Checking rate limits"
+        `🔍 Checking rate limits for user ${data.userId} --- sequence ${data.sequenceId} --- contact ${data.contactId}`
       );
       await this.validateRateLimits(data);
 
       // Get current step with sequence info
-      logger.info(
-        {
-          stepId: data.stepId,
-        },
-        "🔍 Fetching sequence step"
-      );
+      logger.info(`🔍 Fetching sequence step ${data.stepId}`);
       const step = await this.getAndValidateSequenceStep(data.stepId);
 
       if (step.sequence.status !== "active") {
         logger.info(
-          {
-            sequenceName: step.sequence.name,
-            sequenceStatus: step.sequence.status,
-          },
-          `⏸️ Sequence is not active, skipping email`
+          `⏸️ Sequence is not active, skipping email ${step.sequence.name}`
         );
         return { success: true };
       }
 
       // Get contact info
-      logger.info(
-        {
-          contactId: data.contactId,
-        },
-        "🔍 Fetching contact info"
-      );
+      logger.info(`🔍 Fetching contact info ${data.contactId}`);
       const contact = await prisma.contact.findUnique({
         where: { id: data.contactId },
       });
@@ -101,12 +68,8 @@ export class EmailProcessor {
       }
 
       // Get Google account info
-      logger.info(
-        {
-          userId: data.userId,
-        },
-        "🔍 Fetching Google account info"
-      );
+      logger.info(`🔍 Fetching Google account info ${data.userId}`);
+
       const googleAccount = await prisma.account.findFirst({
         where: { userId: data.userId },
         include: {
@@ -203,16 +166,7 @@ export class EmailProcessor {
 
         // If in test mode, trigger the next email in sequence after a short delay
         if (true) {
-          logger.info(
-            "🧪 Test mode: Triggering next email in sequence in 10 seconds"
-          );
-
-          const { nextEmail } =
-            await emailSchedulingService.checkNextScheduledEmail();
-          if (nextEmail) {
-            logger.info("🧪 Test mode: Processing next email in sequence");
-            await emailSchedulingService.advanceToNextEmail();
-          }
+          await this.testEmailSequence();
         }
       }
 
@@ -230,6 +184,10 @@ export class EmailProcessor {
       throw error;
     }
   }
+
+  // -----------------------------------------
+  // -----------------------------------------
+  // -----------------------------------------
 
   /**
    * Check for email bounce
@@ -340,6 +298,10 @@ export class EmailProcessor {
     }
   }
 
+  // -----------------------------------------
+  // -----------------------------------------
+  // -----------------------------------------
+
   // Helper functions for processEmail
   private async validateRateLimits(data: EmailJob["data"]) {
     const { allowed, info } = await rateLimiter.checkRateLimit(
@@ -353,6 +315,10 @@ export class EmailProcessor {
       throw new Error("Rate limit exceeded");
     }
   }
+
+  // -----------------------------------------
+  // -----------------------------------------
+  // -----------------------------------------
 
   private async getAndValidateSequenceStep(stepId: string) {
     const step = await prisma.sequenceStep.findUnique({
@@ -373,6 +339,10 @@ export class EmailProcessor {
 
     return step;
   }
+
+  // -----------------------------------------
+  // -----------------------------------------
+  // -----------------------------------------
 
   private async handleSuccessfulEmail(
     data: EmailJob["data"],
@@ -396,6 +366,10 @@ export class EmailProcessor {
     );
   }
 
+  // -----------------------------------------
+  // -----------------------------------------
+  // -----------------------------------------
+
   private async handleEmailError(
     error: unknown,
     job: EmailJob,
@@ -417,6 +391,25 @@ export class EmailProcessor {
       },
       "❌ Error processing email"
     );
+  }
+
+  // -----------------------------------------
+  // -----------------------------------------
+  // -----------------------------------------
+
+  // Example testing flow
+  private async testEmailSequence() {
+    logger.info(
+      "🧪 Test mode: Triggering next email in sequence in 10 seconds"
+    );
+
+    const { nextEmail } =
+      await emailSchedulingService.checkNextScheduledEmail();
+    if (nextEmail) {
+      logger.info("🧪 Test mode: Processing next email in sequence");
+      await emailSchedulingService.advanceToNextEmail();
+      await schedulingService.resetTime();
+    }
   }
 }
 // Export singleton instance

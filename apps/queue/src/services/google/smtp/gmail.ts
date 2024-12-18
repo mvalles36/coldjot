@@ -180,20 +180,6 @@ export async function sendGmailSMTP({
   };
 }
 
-// export async function sendGmailSMTP({
-//   to,
-//   subject,
-//   content,
-//   threadId,
-//   originalContent,
-//   accessToken,
-// }: SendGmailOptions): Promise<GmailResponse> {
-//   return {
-//     messageId: "",
-//     threadId: "",
-//   };
-// }
-
 interface UpdateSentEmailOptions {
   to: string;
   subject: string;
@@ -228,13 +214,6 @@ export async function updateSentEmail({
   if (!account?.user?.id) {
     throw new Error("User ID or account not found");
   }
-
-  // // Create Gmail client
-  // const oauth2Client = createGmailOAuth2Client(
-  //   account?.access_token!,
-  //   account?.refresh_token!
-  // );
-  // const gmail = google.gmail({ version: "v1", auth: oauth2Client });
 
   const gmail = await gmailClientService.getClient(account.user.id!);
 

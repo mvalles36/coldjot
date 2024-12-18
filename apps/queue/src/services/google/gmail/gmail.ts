@@ -127,36 +127,13 @@ export class GmailClientService {
 // Export singleton instance
 export const gmailClientService = GmailClientService.getInstance();
 
+// -------------------------------------------------------
+// -------------------------------------------------------
+// -------------------------------------------------------
+
 /**
- * Legacy getGmailClient function for backward compatibility
- * @deprecated Use gmailClientService.getClient() instead
+ * @deprecated This method will be removed in the next major release.
  */
-export async function getGmailClient(userId: string, accessToken: string) {
-  const auth = new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    `${process.env.AUTH_URL}/api/auth/callback/google`
-  );
-
-  auth.setCredentials({
-    access_token: accessToken,
-    token_type: "Bearer",
-  });
-
-  return google.gmail({ version: "v1", auth });
-}
-
-// const gmail = await gmailClientService.getClient({
-//   userId: "user123",
-//   accessToken: currentToken,
-//   refreshToken: storedRefreshToken,
-//   expiryDate: tokenExpiryTime,
-//   tokenType: "Bearer"
-// });
-
-// -------------------------------------------------------
-// -------------------------------------------------------
-// -------------------------------------------------------
 
 export async function createGmailDraft({
   accessToken,
@@ -219,6 +196,10 @@ export async function createGmailDraft({
 // -------------------------------------------------------
 // -------------------------------------------------------
 // -------------------------------------------------------
+
+/**
+ * @deprecated This method will be removed in the next major release.
+ */
 
 export async function sendGmailDraft({
   accessToken,

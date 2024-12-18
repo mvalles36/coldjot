@@ -2,12 +2,9 @@ import { prisma } from "@mailjot/database";
 import { sleep } from "@/utils";
 import { google } from "googleapis";
 
-export interface GoogleAccount {
-  access_token: string;
-  refresh_token: string;
-  providerAccountId: string;
-  userId: string;
-}
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
 
 export async function getGoogleAccount(
   userId: string
@@ -41,17 +38,9 @@ export async function getGoogleAccount(
   };
 }
 
-// Configure Gmail OAuth2 client
-export const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  `${process.env.AUTH_URL}/api/auth/callback/google`
-);
-
-interface TokenRefreshError extends Error {
-  code?: string;
-  status?: number;
-}
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
 
 export async function refreshAccessToken(
   userId: string,
@@ -123,9 +112,6 @@ export async function refreshAccessToken(
 
       console.log(`🔄 Attempt ${attempt} failed`);
       console.log(userId);
-      console.log(refreshToken);
-      console.log(maxRetries);
-
       // If we've exhausted all retries, throw the error
       if (attempt === maxRetries) {
         console.error(`❌ Token refresh failed after ${maxRetries} attempts`);
@@ -140,4 +126,27 @@ export async function refreshAccessToken(
   }
 
   return null;
+}
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+// Configure Gmail OAuth2 client
+export const oauth2Client = new google.auth.OAuth2(
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET,
+  `${process.env.AUTH_URL}/api/auth/callback/google`
+);
+
+interface TokenRefreshError extends Error {
+  code?: string;
+  status?: number;
+}
+
+export interface GoogleAccount {
+  access_token: string;
+  refresh_token: string;
+  providerAccountId: string;
+  userId: string;
 }
