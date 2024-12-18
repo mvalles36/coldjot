@@ -3,20 +3,23 @@ import { createGmailTransport } from "./nodemailer";
 import { google } from "googleapis";
 import { generateMessageId } from "@/utils";
 import {
-  generateMimeBoundary,
   generateEmailHeaders,
   generateMimeParts,
-  convertToPlainText,
-  createGmailOAuth2Client,
-  formatSenderInfo,
   debeaconizeContent,
   processEmailParts,
+  createMailOptions,
+} from "./helper";
+
+import {
+  formatSenderInfo,
+  generateMimeBoundary,
+  convertToPlainText,
   generateDebeaconizedId,
   convertEmailToBase64Format,
   parseMimeBoundary,
   splitEmailContent,
-  createMailOptions,
-} from "./helper";
+} from "@/utils";
+
 import { gmailClientService } from "../gmail/gmail";
 import { getThreadInfo } from "../../email/helper";
 import { logger } from "@/services/log/logger";

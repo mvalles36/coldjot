@@ -1,5 +1,5 @@
 import type { MessagePartHeader } from "@mailjot/types";
-// import { Request } from "express";
+import crypto from "crypto";
 
 // Message ID generation
 export const generateMessageId = (): string => {
@@ -33,14 +33,19 @@ export const normalizeSubject = (
   const finalSubject = isReply ? `Re: ${cleanSubject}` : cleanSubject;
   return encodeMIMEWords(finalSubject);
 };
-// ----------------------------------------------------------------------------
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
 
 // Helper Functions
 export const extractEmailFromHeader = (fromHeader: string): string => {
   return fromHeader.match(/<(.+?)>|(.+)/)?.[1] || fromHeader;
 };
 
-// ----------------------------------------------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
 
 export const isSenderSequenceOwner = (
   senderEmail: string,
@@ -49,7 +54,9 @@ export const isSenderSequenceOwner = (
   return senderEmail.toLowerCase() === userId.toLowerCase();
 };
 
-// ----------------------------------------------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
 
 // Helper functions for bounce processing
 export const isBounceMessage = (
@@ -70,7 +77,9 @@ export const isBounceMessage = (
   );
 };
 
-// ----------------------------------------------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
 
 // Helper functions for reply processing
 export const shouldProcessMessage = (labelIds: string[]): boolean => {
@@ -81,7 +90,9 @@ export const shouldProcessMessage = (labelIds: string[]): boolean => {
   );
 };
 
-// ----------------------------------------------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
 
 export const extractPossibleMessageIds = (
   headers: MessagePartHeader[]
@@ -99,7 +110,9 @@ export const extractPossibleMessageIds = (
   );
 };
 
-// ----------------------------------------------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
 
 // Helper functions for POST handler
 // TODO : FIX IT
@@ -112,3 +125,102 @@ export const validateAuthorization = async (req: {
   }
   return authorization.replace("Bearer ", "");
 };
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+/**
+ * Generate a unique MIME boundary
+ */
+export function generateMimeBoundary(): string {
+  return `m${Math.random().toString(36).substring(2)}${Date.now().toString(36)}`;
+}
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+/**
+ * Convert HTML content to plain text
+ */
+export function convertToPlainText(content: string): string {
+  return content
+    .replace(/<[^>]+>/g, "") // Remove HTML tags
+    .replace(/&nbsp;/g, " ") // Replace &nbsp; with space
+    .trim();
+}
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+/**
+ * Format sender information
+ */
+export function formatSenderInfo(email: string, name?: string): string {
+  return name ? `${name} <${email}>` : email;
+}
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+/**
+ * Generate a debeaconized ID
+ */
+export function generateDebeaconizedId(): string {
+  return crypto.randomBytes(8).toString("hex");
+}
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+/**
+ * Convert email content to base64url format
+ */
+export function convertEmailToBase64Format(content: string): string {
+  return Buffer.from(content)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+/**
+ * Parse MIME boundary from headers
+ */
+export function parseMimeBoundary(headers: string): string {
+  const boundaryMatch = headers.match(/boundary="([^"]+)"/);
+  if (!boundaryMatch) {
+    throw new Error("Could not find boundary in email headers");
+  }
+  return boundaryMatch[1];
+}
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+/**
+ * Split email into headers and body parts
+ */
+export function splitEmailContent(emailContent: string): {
+  headers: string;
+  body: string;
+} {
+  const [headers, ...bodyParts] = emailContent.split("\r\n\r\n");
+  return {
+    headers,
+    body: bodyParts.join("\r\n\r\n"),
+  };
+}
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------

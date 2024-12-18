@@ -8,13 +8,6 @@ const quotedPrintableEncode = quotedPrintable.encode;
 const quotedPrintableDecode = quotedPrintable.decode;
 
 /**
- * Generate a unique MIME boundary
- */
-export function generateMimeBoundary(): string {
-  return `m${Math.random().toString(36).substring(2)}${Date.now().toString(36)}`;
-}
-
-/**
  * Generate email headers
  */
 export function generateEmailHeaders({
@@ -133,44 +126,6 @@ export function generateMimeParts({
 }
 
 /**
- * Convert HTML content to plain text
- */
-export function convertToPlainText(content: string): string {
-  return content
-    .replace(/<[^>]+>/g, "") // Remove HTML tags
-    .replace(/&nbsp;/g, " ") // Replace &nbsp; with space
-    .trim();
-}
-
-/**
- * Create Gmail OAuth2 client
- */
-export function createGmailOAuth2Client(
-  accessToken: string,
-  refreshToken: string
-) {
-  const oauth2Client = new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    process.env.NEXTAUTH_URL + "/api/auth/callback/google"
-  );
-
-  oauth2Client.setCredentials({
-    access_token: accessToken,
-    refresh_token: refreshToken,
-  });
-
-  return oauth2Client;
-}
-
-/**
- * Format sender information
- */
-export function formatSenderInfo(email: string, name?: string): string {
-  return name ? `${name} <${email}>` : email;
-}
-
-/**
  * Process email content for debeaconization
  */
 export async function debeaconizeContent(content: string): Promise<string> {
@@ -220,49 +175,6 @@ export async function processEmailParts(
       return `${partHeaders}\r\n\r\n${content}`;
     })
   );
-}
-
-/**
- * Generate a debeaconized ID
- */
-export function generateDebeaconizedId(): string {
-  return crypto.randomBytes(8).toString("hex");
-}
-
-/**
- * Convert email content to base64url format
- */
-export function convertEmailToBase64Format(content: string): string {
-  return Buffer.from(content)
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-}
-
-/**
- * Parse MIME boundary from headers
- */
-export function parseMimeBoundary(headers: string): string {
-  const boundaryMatch = headers.match(/boundary="([^"]+)"/);
-  if (!boundaryMatch) {
-    throw new Error("Could not find boundary in email headers");
-  }
-  return boundaryMatch[1];
-}
-
-/**
- * Split email into headers and body parts
- */
-export function splitEmailContent(emailContent: string): {
-  headers: string;
-  body: string;
-} {
-  const [headers, ...bodyParts] = emailContent.split("\r\n\r\n");
-  return {
-    headers,
-    body: bodyParts.join("\r\n\r\n"),
-  };
 }
 
 /**

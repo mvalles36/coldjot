@@ -233,7 +233,10 @@ export class EmailService {
         }
 
         // Create tracking records
-        await this.createEmailRecords(options, response.data);
+        // TODO : The emailId should be the messageId or something else
+        const emailId = randomUUID();
+        await this.createEmailTrackingRecord(emailId, options, response.data);
+        await this.createEmailEvent(emailId, options, response.data);
 
         logger.info(
           `✨ Email sending process completed successfully ${response.data.id} --- ${response.data.threadId}`
@@ -527,20 +530,6 @@ export class EmailService {
 
   // -----------------------------------------
   // -----------------------------------------
-  // -----------------------------------------
-
-  /**
-   * Create email tracking and event records
-   */
-  private async createEmailRecords(
-    options: SendEmailOptions,
-    trackedResponse: gmail_v1.Schema$Message
-  ): Promise<void> {
-    const emailId = randomUUID();
-    await this.createEmailTrackingRecord(emailId, options, trackedResponse);
-    await this.createEmailEvent(emailId, options, trackedResponse);
-  }
-
   // -----------------------------------------
 
   /**
