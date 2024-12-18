@@ -70,95 +70,95 @@ export async function getSenderInfoWithId(id: string): Promise<SenderInfo> {
 // -----------------------------------------
 // -----------------------------------------
 
-export async function getThreadInfo(
-  gmail: any,
-  threadId: string | undefined
-): Promise<{
-  threadHeaders: ThreadHeaders;
-  originalSubject?: string;
-}> {
-  let threadHeaders: ThreadHeaders = {
-    messageId: generateMessageId().replace(/@[^>]+>$/, "@mail.gmail.com>"),
-  };
-  let originalSubject: string | undefined;
+// export async function getEmailThreadInfo(
+//   gmail: any,
+//   threadId: string | undefined
+// ): Promise<{
+//   threadHeaders: ThreadHeaders;
+//   originalSubject?: string;
+// }> {
+//   let threadHeaders: ThreadHeaders = {
+//     messageId: generateMessageId().replace(/@[^>]+>$/, "@mail.gmail.com>"),
+//   };
+//   let originalSubject: string | undefined;
 
-  if (!threadId) {
-    return { threadHeaders };
-  }
+//   if (!threadId) {
+//     return { threadHeaders };
+//   }
 
-  try {
-    const thread = await gmail.users.threads.get({
-      userId: "me",
-      id: threadId,
-      format: "metadata",
-      metadataHeaders: ["Message-ID", "References", "In-Reply-To", "Subject"],
-    });
+//   try {
+//     const thread = await gmail.users.threads.get({
+//       userId: "me",
+//       id: threadId,
+//       format: "metadata",
+//       metadataHeaders: ["Message-ID", "References", "In-Reply-To", "Subject"],
+//     });
 
-    if (thread.data.messages && thread.data.messages.length > 0) {
-      const messages = thread.data.messages as GmailMessage[];
-      const firstMessage = messages[0];
-      const firstMessageHeaders = firstMessage.payload?.headers || [];
-      const rawOriginalSubject = firstMessageHeaders.find(
-        (h: MessageHeader) => h.name?.toLowerCase() === "subject"
-      )?.value;
+//     if (thread.data.messages && thread.data.messages.length > 0) {
+//       const messages = thread.data.messages as GmailMessage[];
+//       const firstMessage = messages[0];
+//       const firstMessageHeaders = firstMessage.payload?.headers || [];
+//       const rawOriginalSubject = firstMessageHeaders.find(
+//         (h: MessageHeader) => h.name?.toLowerCase() === "subject"
+//       )?.value;
 
-      if (rawOriginalSubject) {
-        originalSubject = rawOriginalSubject.replace(
-          /=\?UTF-8\?B\?(.*?)\?=/g,
-          (_match: string, p1: string) =>
-            Buffer.from(p1, "base64").toString("utf8")
-        );
-      }
+//       if (rawOriginalSubject) {
+//         originalSubject = rawOriginalSubject.replace(
+//           /=\?UTF-8\?B\?(.*?)\?=/g,
+//           (_match: string, p1: string) =>
+//             Buffer.from(p1, "base64").toString("utf8")
+//         );
+//       }
 
-      // Get the last message we're replying to
-      const lastMessage = messages[messages.length - 1];
-      const lastMessageHeaders = lastMessage.payload?.headers || [];
+//       // Get the last message we're replying to
+//       const lastMessage = messages[messages.length - 1];
+//       const lastMessageHeaders = lastMessage.payload?.headers || [];
 
-      // Get the Message-ID of the last message to use as In-Reply-To
-      const lastMessageId = lastMessageHeaders.find(
-        (h: MessageHeader) => h.name?.toLowerCase() === "message-id"
-      )?.value;
+//       // Get the Message-ID of the last message to use as In-Reply-To
+//       const lastMessageId = lastMessageHeaders.find(
+//         (h: MessageHeader) => h.name?.toLowerCase() === "message-id"
+//       )?.value;
 
-      // Build References chain by collecting all Message-IDs in order
-      const references = messages
-        .map((msg: GmailMessage) => {
-          const msgIdHeader = msg.payload?.headers?.find(
-            (h: MessageHeader) => h.name?.toLowerCase() === "message-id"
-          );
-          return msgIdHeader?.value;
-        })
-        .filter(Boolean) as string[];
+//       // Build References chain by collecting all Message-IDs in order
+//       const references = messages
+//         .map((msg: GmailMessage) => {
+//           const msgIdHeader = msg.payload?.headers?.find(
+//             (h: MessageHeader) => h.name?.toLowerCase() === "message-id"
+//           );
+//           return msgIdHeader?.value;
+//         })
+//         .filter(Boolean) as string[];
 
-      // Get existing References from the last message
-      const existingReferences = lastMessageHeaders
-        .find((h: MessageHeader) => h.name?.toLowerCase() === "references")
-        ?.value?.split(/\s+/)
-        .filter(Boolean);
+//       // Get existing References from the last message
+//       const existingReferences = lastMessageHeaders
+//         .find((h: MessageHeader) => h.name?.toLowerCase() === "references")
+//         ?.value?.split(/\s+/)
+//         .filter(Boolean);
 
-      // Combine existing references with new ones, maintaining order and removing duplicates
-      const allReferences = [
-        ...new Set([...(existingReferences || []), ...references]),
-      ];
+//       // Combine existing references with new ones, maintaining order and removing duplicates
+//       const allReferences = [
+//         ...new Set([...(existingReferences || []), ...references]),
+//       ];
 
-      // Ensure all Message-IDs have proper Gmail format
-      const formattedReferences = allReferences.map((ref) =>
-        ref.includes("@mail.gmail.com")
-          ? ref
-          : ref.replace(/@[^>]+>$/, "@mail.gmail.com>")
-      );
+//       // Ensure all Message-IDs have proper Gmail format
+//       const formattedReferences = allReferences.map((ref) =>
+//         ref.includes("@mail.gmail.com")
+//           ? ref
+//           : ref.replace(/@[^>]+>$/, "@mail.gmail.com>")
+//       );
 
-      threadHeaders = {
-        messageId: generateMessageId().replace(/@[^>]+>$/, "@mail.gmail.com>"),
-        inReplyTo: lastMessageId,
-        references: formattedReferences,
-      };
-    }
-  } catch (error) {
-    console.error("Error getting thread details:", error);
-  }
+//       threadHeaders = {
+//         messageId: generateMessageId().replace(/@[^>]+>$/, "@mail.gmail.com>"),
+//         inReplyTo: lastMessageId,
+//         references: formattedReferences,
+//       };
+//     }
+//   } catch (error) {
+//     console.error("Error getting thread details:", error);
+//   }
 
-  return { threadHeaders, originalSubject };
-}
+//   return { threadHeaders, originalSubject };
+// }
 
 // -----------------------------------------
 // -----------------------------------------

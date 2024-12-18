@@ -20,8 +20,8 @@ import {
   splitEmailContent,
 } from "@/utils";
 
-import { gmailClientService } from "../gmail/gmail";
-import { getThreadInfo } from "../../email/helper";
+import { gmailClientService } from "@/services/google";
+import { getEmailThreadInfo } from "@/services/google/helper";
 import { logger } from "@/services/log/logger";
 import {
   SendGmailOptions,
@@ -70,7 +70,7 @@ export async function sendGmailSMTP({
   const gmail = await gmailClientService.getClient(account.user.id!);
 
   // If threadId exists, fetch the original message headers
-  const { threadHeaders, originalSubject } = await getThreadInfo(
+  const { threadHeaders, originalSubject } = await getEmailThreadInfo(
     gmail,
     threadId
   );

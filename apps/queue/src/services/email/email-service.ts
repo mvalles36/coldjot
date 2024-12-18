@@ -20,13 +20,14 @@ import path from "path";
 import {
   getSenderInfo,
   getSenderInfoWithId,
-  getThreadInfo,
   createEmailMessage,
   createUntrackedMessage,
   logEmailHeadersToFile,
 } from "./helper";
 
-import { sendGmailSMTP } from "../google/smtp/gmail";
+import { getEmailThreadInfo } from "@/services/google/helper";
+
+import { sendGmailSMTP } from "@/services/google/smtp/gmail";
 
 export class EmailService {
   private readonly logsDir = "email_logs";
@@ -61,7 +62,7 @@ export class EmailService {
         const senderInfo = await getSenderInfoWithId(options.userId);
 
         // Get thread info exactly like SMTP version
-        const { threadHeaders, originalSubject } = await getThreadInfo(
+        const { threadHeaders, originalSubject } = await getEmailThreadInfo(
           gmail,
           options.threadId
         );
