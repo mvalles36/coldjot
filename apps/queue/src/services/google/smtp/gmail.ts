@@ -20,20 +20,11 @@ import {
 import { gmailClientService } from "../gmail/gmail";
 import { getThreadInfo } from "../../email/helper";
 import { logger } from "@/services/log/logger";
-
-interface SendGmailOptions {
-  to: string;
-  subject: string;
-  content: string;
-  threadId?: string;
-  originalContent?: string;
-  accessToken?: string;
-}
-
-interface GmailResponse {
-  messageId: string;
-  threadId?: string;
-}
+import {
+  SendGmailOptions,
+  GmailResponse,
+  UpdateSentEmailOptions,
+} from "@mailjot/types";
 
 export async function sendGmailSMTP({
   to,
@@ -178,15 +169,6 @@ export async function sendGmailSMTP({
     messageId: actualMessageId,
     threadId: messageDetails.data.threadId!,
   };
-}
-
-interface UpdateSentEmailOptions {
-  to: string;
-  subject: string;
-  accessToken: string;
-  messageId: string;
-  originalContent: string;
-  threadId?: string;
 }
 
 export async function updateSentEmail({

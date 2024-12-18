@@ -1,6 +1,7 @@
 import { prisma } from "@mailjot/database";
 import { sleep } from "@/utils";
 import { google } from "googleapis";
+import { GoogleAccount, TokenRefreshError } from "@mailjot/types";
 
 // -----------------------------------------
 // -----------------------------------------
@@ -31,10 +32,10 @@ export async function getGoogleAccount(
   }
 
   return {
-    access_token: account.access_token,
-    refresh_token: account.refresh_token,
-    providerAccountId: account.providerAccountId,
     userId: account.userId,
+    providerAccountId: account.providerAccountId,
+    accessToken: account.access_token,
+    refreshToken: account.refresh_token,
   };
 }
 
@@ -138,15 +139,3 @@ export const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_SECRET,
   `${process.env.AUTH_URL}/api/auth/callback/google`
 );
-
-interface TokenRefreshError extends Error {
-  code?: string;
-  status?: number;
-}
-
-export interface GoogleAccount {
-  access_token: string;
-  refresh_token: string;
-  providerAccountId: string;
-  userId: string;
-}

@@ -180,7 +180,7 @@ export class SequenceProcessor {
             stepId: currentStep.id,
             userId: data.userId,
             to: data.testMode
-              ? process.env.TEST_EMAIL || googleAccount.email
+              ? process.env.TEST_EMAIL || googleAccount.email || ""
               : contact.contact.email,
             subject: subject || "",
             threadId: contact.threadId || undefined,

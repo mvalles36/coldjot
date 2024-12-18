@@ -7,10 +7,10 @@ import { refreshAccessToken } from "@/services/google/account/google-account";
 import type { SendEmailOptions } from "@mailjot/types";
 import type { EmailTracking } from "@mailjot/types";
 import { trackEmailEvent } from "@/services/track/tracking-service";
-import type { GoogleAccount } from "@/services/google/account/google-account";
+
 import path from "path";
 import { logger } from "../log/logger";
-
+import type { SenderInfo, MessageHeader, GmailMessage } from "@mailjot/types";
 // -----------------------------------------
 // -----------------------------------------
 // -----------------------------------------
@@ -278,7 +278,30 @@ export async function createUntrackedMessage({
 // -----------------------------------------
 
 /**
- * Update tracking event with message and thread IDs
+ * Update sequence contact with thread ID
+ */
+export const updateSequenceContact = async (
+  tracking: EmailTracking,
+  threadId: string
+) => {
+  await prisma.sequenceContact.update({
+    where: {
+      sequenceId_contactId: {
+        sequenceId: tracking.metadata.sequenceId,
+        contactId: tracking.metadata.contactId,
+      },
+    },
+    data: {
+      threadId,
+    },
+  });
+};
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+/**
+ * @deprecated Update tracking event with message and thread IDs
  */
 export const updateTrackingEvent = async (
   tracking: EmailTracking,
@@ -300,65 +323,7 @@ export const updateTrackingEvent = async (
 // -----------------------------------------
 
 /**
- * Update sequence contact with thread ID
- */
-export const updateSequenceContact = async (
-  tracking: EmailTracking,
-  threadId: string
-) => {
-  await prisma.sequenceContact.update({
-    where: {
-      sequenceId_contactId: {
-        sequenceId: tracking.metadata.sequenceId,
-        contactId: tracking.metadata.contactId,
-      },
-    },
-    data: {
-      threadId,
-    },
-  });
-};
-
-// -----------------------------------------
-// -----------------------------------------
-// -----------------------------------------
-
-/**
- * Create or get email thread
- */
-export const createOrGetEmailThread = async (
-  tracking: EmailTracking,
-  result: EmailResult,
-  subject: string
-) => {
-  if (!result.threadId) return;
-
-  const existingThread = await prisma.emailThread.findUnique({
-    where: {
-      gmailThreadId: result.threadId,
-    },
-  });
-
-  if (!existingThread) {
-    await prisma.emailThread.create({
-      data: {
-        gmailThreadId: result.threadId,
-        sequenceId: tracking.metadata.sequenceId,
-        contactId: tracking.metadata.contactId,
-        userId: tracking.metadata.userId,
-        subject,
-        firstMessageId: result.messageId,
-      },
-    });
-  }
-};
-
-// -----------------------------------------
-// -----------------------------------------
-// -----------------------------------------
-
-/**
- * Track email sent event
+ * @deprecated Track email sent event
  */
 export const trackEmailSent = async (
   tracking: EmailTracking,
@@ -387,7 +352,7 @@ export const trackEmailSent = async (
 // -----------------------------------------
 
 /**
- * Track email bounce event
+ * @deprecated Track email bounce event
  */
 export const trackEmailBounce = async (
   tracking: EmailTracking,
@@ -463,21 +428,3 @@ export const logEmailHeadersToFile = (
 // -----------------------------------------
 // -----------------------------------------
 // -----------------------------------------
-
-// TODO: move this to types
-interface SenderInfo {
-  email: string;
-  name?: string;
-  header: string;
-}
-
-interface MessageHeader {
-  name?: string;
-  value?: string;
-}
-
-interface GmailMessage {
-  payload?: {
-    headers?: MessageHeader[];
-  };
-}

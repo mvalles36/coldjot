@@ -3,6 +3,7 @@ export * from "./search";
 export * from "./sequences";
 export * from "./email";
 export * from "./queue";
+export * from "./google";
 export * from "./gmail";
 
 export interface User {

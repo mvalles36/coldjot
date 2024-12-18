@@ -1,12 +1,5 @@
 import { BusinessHours, ProcessingWindow, RateLimits } from "./sequences";
 
-export interface GoogleAccount {
-  email: string;
-  accessToken: string;
-  refreshToken: string;
-  expiryDate: number;
-}
-
 // import {
 //   BusinessHours,
 //   SequenceStep,

@@ -18,3 +18,26 @@ export interface GmailCredentials {
   tokenType?: string;
   expiryDate?: number;
 }
+
+export interface SendGmailOptions {
+  to: string;
+  subject: string;
+  content: string;
+  threadId?: string;
+  originalContent?: string;
+  accessToken?: string;
+}
+
+export interface GmailResponse {
+  messageId: string;
+  threadId?: string;
+}
+
+export interface UpdateSentEmailOptions {
+  to: string;
+  subject: string;
+  accessToken: string;
+  messageId: string;
+  originalContent: string;
+  threadId?: string;
+}

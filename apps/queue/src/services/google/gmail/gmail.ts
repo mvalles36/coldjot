@@ -124,9 +124,6 @@ export class GmailClientService {
   }
 }
 
-// Export singleton instance
-export const gmailClientService = GmailClientService.getInstance();
-
 // -------------------------------------------------------
 // -------------------------------------------------------
 // -------------------------------------------------------
@@ -286,3 +283,10 @@ export async function getGmailThread(accessToken: string, threadId: string) {
 
   return response.data;
 }
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+// Export singleton instance
+export const gmailClientService = GmailClientService.getInstance();
