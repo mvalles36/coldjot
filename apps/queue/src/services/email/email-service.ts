@@ -12,11 +12,17 @@ import {
   getSenderInfoWithId,
   createEmailMessage,
   createUntrackedMessage,
-  logEmailHeadersToFile,
 } from "./helper";
 
 import { getEmailThreadInfo } from "@/services/google/helper";
 import { sendGmailSMTP, gmailClientService } from "@/services/google";
+
+interface SentMessageInfo {
+  messageId: string;
+  subject: string | undefined;
+  threadId: string | undefined;
+  headers: gmail_v1.Schema$MessagePartHeader[];
+}
 
 export class EmailService {
   private readonly logsDir = "email_logs";
@@ -85,53 +91,26 @@ export class EmailService {
         // Wait for Gmail to process the message and get the actual Message-ID
         await new Promise((resolve) => setTimeout(resolve, 1000));
 
-        // Get the sent message to ensure we have the correct Gmail-generated Message-ID
-        const sentMessage = await gmail.users.messages.get({
-          userId: "me",
-          id: response.data.id!,
-          format: "full",
-        });
-
-        // Extract the Gmail-generated Message-ID and Subject from headers
-        const sentMessageHeaders = sentMessage.data.payload?.headers || [];
-        const gmailMessageId = sentMessageHeaders.find(
-          (h) => h.name?.toLowerCase() === "message-id"
-        )?.value;
-        const sentSubject = sentMessageHeaders.find(
-          (h) => h.name?.toLowerCase() === "subject"
-        )?.value;
+        // Get the sent message details
+        const sentMessageDetails = await this.getSentMessageDetails(
+          gmail,
+          response.data.id!
+        );
 
         // Update threadHeaders with the actual Gmail-generated Message-ID
-        if (gmailMessageId) {
-          threadHeaders.messageId = gmailMessageId;
+        if (sentMessageDetails.messageId) {
+          threadHeaders.messageId = sentMessageDetails.messageId;
         }
 
         // Create untracked version for sender's sent folder
         if (options.html && response.data.id) {
-          // Get the sent message to ensure we have the correct thread ID and Message-ID
-          const sentMessage = await gmail.users.messages.get({
-            userId: "me",
-            id: response.data.id,
-            format: "full",
-          });
-
-          // Get the actual Gmail-generated Message-ID
-          const messageIdHeader = sentMessage.data.payload?.headers?.find(
-            (h) => h.name?.toLowerCase() === "message-id"
-          )?.value;
-
-          // Update threadHeaders with the actual Gmail Message-ID
-          if (messageIdHeader) {
-            threadHeaders.messageId = messageIdHeader;
-          }
-
           const encodedUntrackedMessage = await createUntrackedMessage({
             gmail,
             messageId: response.data.id,
             to: options.to,
-            subject: sentSubject || options.subject,
+            subject: sentMessageDetails.subject || options.subject,
             originalContent: options.html,
-            threadId: sentMessage.data.threadId || undefined,
+            threadId: sentMessageDetails.threadId,
             originalSubject: originalSubject || options.subject,
             threadHeaders,
           });
@@ -141,7 +120,7 @@ export class EmailService {
             userId: "me",
             requestBody: {
               raw: encodedUntrackedMessage,
-              threadId: sentMessage.data.threadId || undefined,
+              threadId: sentMessageDetails.threadId,
               labelIds: ["SENT"],
             },
           });
@@ -304,6 +283,39 @@ export class EmailService {
       },
       "��� Error sending email"
     );
+  }
+
+  // -----------------------------------------
+  // -----------------------------------------
+  // -----------------------------------------
+
+  /**
+   * Helper function to get sent message details from Gmail
+   */
+  private async getSentMessageDetails(
+    gmail: gmail_v1.Gmail,
+    messageId: string
+  ): Promise<SentMessageInfo> {
+    const sentMessage = await gmail.users.messages.get({
+      userId: "me",
+      id: messageId,
+      format: "full",
+    });
+
+    const headers = sentMessage.data.payload?.headers || [];
+    const messageIdHeader = headers.find(
+      (h) => h.name?.toLowerCase() === "message-id"
+    )?.value;
+    const subjectHeader = headers.find(
+      (h) => h.name?.toLowerCase() === "subject"
+    )?.value;
+
+    return {
+      messageId: messageIdHeader || messageId,
+      subject: subjectHeader || undefined,
+      threadId: sentMessage.data.threadId || undefined,
+      headers,
+    };
   }
 }
 
