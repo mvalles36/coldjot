@@ -29,11 +29,29 @@ export async function GET(
         startDate.setDate(startDate.getDate() - 30);
         break;
       case "all":
-        startDate.setFullYear(2000); // Effectively get all data
+        startDate.setFullYear(2000);
         break;
     }
 
-    // Get sequence contacts with their status and steps
+    // First, get the sequence with its steps to know total steps
+    const sequence = await prisma.sequence.findUnique({
+      where: { id },
+      include: {
+        steps: {
+          orderBy: {
+            order: "asc",
+          },
+        },
+      },
+    });
+
+    if (!sequence) {
+      return new NextResponse("Sequence not found", { status: 404 });
+    }
+
+    const totalSteps = sequence.steps.length;
+
+    // Get sequence contacts with their contact info
     const sequenceContacts = await prisma.sequenceContact.findMany({
       where: {
         sequenceId: id,
@@ -43,32 +61,77 @@ export async function GET(
       },
       include: {
         contact: true,
-        sequence: {
-          include: {
-            steps: {
-              orderBy: {
-                order: "asc",
-              },
-            },
-          },
-        },
       },
       orderBy: {
         updatedAt: "desc",
       },
     });
 
+    // Get the latest email events for each contact in this sequence
+    const emailEvents = await prisma.emailEvent.findMany({
+      where: {
+        sequenceId: id,
+        contactId: {
+          in: sequenceContacts.map((sc) => sc.contactId),
+        },
+      },
+      orderBy: {
+        timestamp: "desc",
+      },
+    });
+
+    // Create a map of contactId to their latest email event
+    const latestEventsByContact = emailEvents.reduce((acc, event) => {
+      if (
+        !acc.has(event.contactId!) ||
+        acc.get(event.contactId!)!.timestamp < event.timestamp
+      ) {
+        acc.set(event.contactId!, event);
+      }
+      return acc;
+    }, new Map<string, (typeof emailEvents)[0]>());
+
     // Format activities
     const activities = sequenceContacts.map((sc) => {
-      const currentStep = sc.sequence.steps[sc.currentStep];
+      const currentStep = sequence.steps[sc.currentStep];
+      const latestEvent = latestEventsByContact.get(sc.contactId);
+
+      // Determine status based on latest event and sequence contact status
+      let status: "not_started" | "in_progress" | "completed" | "failed";
+
+      if (latestEvent) {
+        switch (latestEvent.type.toLowerCase()) {
+          case "sent":
+            status = "completed";
+            break;
+          case "bounced":
+          case "failed":
+            status = "failed";
+            break;
+          case "sending":
+            status = "in_progress";
+            break;
+          default:
+            status = "not_started";
+        }
+      } else {
+        // Fallback to sequence contact status
+        status = sc.status === "not_sent" ? "not_started" : "in_progress";
+      }
+
       return {
         id: sc.id,
         contactName: sc.contact.name,
         contactEmail: sc.contact.email,
         subject: currentStep?.subject || "(No subject)",
-        status: sc.status,
+        status,
         timestamp: sc.updatedAt,
         stepNumber: sc.currentStep + 1,
+        totalSteps,
+        stepName:
+          currentStep?.stepType === "manual_email"
+            ? "Manual Email"
+            : currentStep?.subject || "Email",
       };
     });
 

@@ -1,29 +1,23 @@
-import { ProcessingJob, StepType } from "@mailjot/types";
+// Reintroducing imports from the original snippet
+import sinon from "sinon";
+
+// Importing Luxon and other necessary types
+import { DateTime } from "luxon";
 import {
-  ProcessingWindow,
+  ProcessingJob,
+  StepType,
   RateLimits,
   SequenceStep,
   TimingType,
   BusinessHours,
+  ProcessingWindow,
 } from "@mailjot/types";
 import { logger } from "@/services/log/logger";
-import {
-  addDays,
-  addHours,
-  addMinutes,
-  format,
-  parse,
-  isWeekend,
-  setHours,
-  setMinutes,
-  isSameDay,
-  isWithinInterval,
-} from "date-fns";
-import { formatInTimeZone, utcToZonedTime } from "date-fns-tz";
-import sinon from "sinon";
 
 // Development mode flag
-const isDevelopment = process.env.NODE_ENV === "development";
+const isDevelopment = process.env.NODE_ENV === "development" ? true : true;
+// Demo mode flag - will bypass business hours checks
+const DEMO_MODE = process.env.DEMO_MODE === "true" ? true : true;
 
 export interface ScheduleGenerator {
   calculateNextRun(
@@ -40,12 +34,14 @@ export interface ScheduleGenerator {
     limits: RateLimits
   ): ProcessingJob[];
 
-  // Add new methods for time manipulation
+  // Restored time manipulation methods
   advanceTimeTo?(targetDate: Date): void;
   resetTime?(): void;
 }
 
 export class SchedulingService implements ScheduleGenerator {
+  private readonly MIN_DELAY = 1; // Minimum delay in minutes
+  private readonly DEFAULT_DELAY = 30; // Default delay in minutes
   private clock?: sinon.SinonFakeTimers;
   private defaultRateLimits: RateLimits = {
     perMinute: 60,
@@ -60,6 +56,7 @@ export class SchedulingService implements ScheduleGenerator {
   };
 
   constructor() {
+    // If in development, use sinon fake timers to allow time manipulation
     if (isDevelopment) {
       this.clock = sinon.useFakeTimers({
         now: new Date(),
@@ -69,11 +66,10 @@ export class SchedulingService implements ScheduleGenerator {
     }
   }
 
-  //-------------------------------------------------------
-  //-------------------------------------------------------
-  //-------------------------------------------------------
-
-  // Method to advance time to a specific date (only in development)
+  /**
+   * Advances the current time to a specific target date/time (only in development mode).
+   * This uses the sinon fake timer to simulate time passing.
+   */
   public advanceTimeTo(targetDate: Date): void {
     if (!isDevelopment) {
       logger.warn("⚠️ Time manipulation is only available in development mode");
@@ -100,11 +96,10 @@ export class SchedulingService implements ScheduleGenerator {
     }
   }
 
-  //-------------------------------------------------------
-  //-------------------------------------------------------
-  //-------------------------------------------------------
-
-  // Method to reset time to real time (only in development)
+  /**
+   * Resets the time to real current time (only in development mode).
+   * Restores and reinitializes the fake timer to the new current real time.
+   */
   public resetTime(): void {
     if (!isDevelopment) {
       logger.warn("⚠️ Time manipulation is only available in development mode");
@@ -121,11 +116,10 @@ export class SchedulingService implements ScheduleGenerator {
     }
   }
 
-  //-------------------------------------------------------
-  //-------------------------------------------------------
-  //-------------------------------------------------------
-
-  // Method to get current time (handles both real and fake time)
+  /**
+   * Returns the current time. If we are in development mode and using fake timers,
+   * this will reflect the manipulated time. Otherwise, it returns the real current time.
+   */
   private getCurrentTime(): Date {
     return new Date();
   }
@@ -138,304 +132,100 @@ export class SchedulingService implements ScheduleGenerator {
     isDemoMode: boolean = false
   ): Date {
     try {
-      // Use getCurrentTime instead of new Date() for consistency
+      // If in development, prefer the possibly faked current time
       const effectiveCurrentTime = isDevelopment
         ? this.getCurrentTime()
         : currentTime;
 
-      logger.info("⏰ Calculating next run time", {
-        currentTime: effectiveCurrentTime.toISOString(),
-        stepType: step.stepType,
-        timing: step.timing,
-        isDemoMode,
-        hasBusinessHours: !!businessHours,
-        isDevelopment,
-      });
+      logger.info(
+        {
+          currentTime: effectiveCurrentTime.toISOString(),
+          stepType: step.stepType,
+          timing: step.timing,
+          delayAmount: step.delayAmount,
+          delayUnit: step.delayUnit,
+          isDemoMode,
+          hasBusinessHours: !!businessHours,
+          businessHoursTimezone: businessHours?.timezone,
+          isDevelopment,
+        },
+        "⏰ Starting next run calculation"
+      );
 
-      if (isDemoMode) {
-        return this.calculateDemoModeNextRun(effectiveCurrentTime, step);
-      }
+      const baseDelayMinutes = this.calculateBaseDelay(step, isDemoMode);
+      logger.info(
+        {
+          baseDelayMinutes,
+          inHours: baseDelayMinutes / 60,
+        },
+        "📊 Base delay calculated"
+      );
+
+      const utcNow = DateTime.fromJSDate(effectiveCurrentTime, { zone: "utc" });
+      let targetTime = utcNow.plus({ minutes: baseDelayMinutes });
+
+      logger.info(
+        {
+          utcNow: utcNow.toISO(),
+          targetTime: targetTime.toISO(),
+          addedMinutes: baseDelayMinutes,
+        },
+        "🎯 Initial target time calculated"
+      );
 
       if (!businessHours) {
-        return this.calculateNextRunWithoutBusinessHours(
-          effectiveCurrentTime,
-          step,
-          rateLimits
-        );
+        logger.info("⏭️ No business hours defined, returning UTC target time");
+        return targetTime.toJSDate();
       }
 
-      return this.calculateNextRunWithBusinessHours(
-        effectiveCurrentTime,
-        step,
-        businessHours,
-        rateLimits
+      // With business hours: Convert to local timezone and adjust
+      logger.info(
+        {
+          fromUTC: targetTime.toISO(),
+          toTimezone: businessHours.timezone,
+        },
+        "🌐 Converting to business hours timezone"
       );
+
+      const localTarget = this.adjustToBusinessHours(
+        targetTime.setZone(businessHours.timezone),
+        businessHours
+      );
+
+      logger.info(
+        {
+          beforeAdjustment: targetTime.setZone(businessHours.timezone).toISO(),
+          afterAdjustment: localTarget.toISO(),
+          timezone: businessHours.timezone,
+        },
+        "⚡ Adjusted to business hours"
+      );
+
+      // Convert back to UTC
+      const finalUtc = localTarget.toUTC();
+
+      logger.info(
+        {
+          originalTime: effectiveCurrentTime.toISOString(),
+          finalTimeUTC: finalUtc.toISO(),
+          totalDelayMinutes: finalUtc.diff(utcNow, "minutes").minutes,
+          businessHours: {
+            start: businessHours.workHoursStart,
+            end: businessHours.workHoursEnd,
+            timezone: businessHours.timezone,
+          },
+        },
+        "✅ Final calculation complete"
+      );
+
+      return finalUtc.toJSDate();
     } catch (error) {
-      logger.error("Error calculating next run:", error);
-      return addHours(currentTime, 1);
+      logger.error("❌ Error calculating next run:", error);
+      return DateTime.fromJSDate(currentTime, { zone: "utc" })
+        .plus({ hours: 1 })
+        .toJSDate();
     }
   }
-
-  //-------------------------------------------------------
-  //-------------------------------------------------------
-  //-------------------------------------------------------
-
-  private calculateDemoModeNextRun(
-    currentTime: Date,
-    step: SequenceStep
-  ): Date {
-    logger.debug("🎮 Demo mode: Calculating simplified delay");
-
-    // Convert to minutes for consistent handling
-    let delayMinutes = this.calculateBaseDelay(step);
-
-    // Cap the delay to stay within the same day (max 8 hours)
-    const maxDemoDelayMinutes = 8 * 60; // 8 hours in minutes
-    const cappedDelayMinutes = Math.min(delayMinutes, maxDemoDelayMinutes);
-
-    const demoResult = addMinutes(currentTime, cappedDelayMinutes);
-
-    logger.debug("🎮 Demo mode: Calculated time", {
-      originalDelay: delayMinutes,
-      cappedDelay: cappedDelayMinutes,
-      result: demoResult.toISOString(),
-    });
-
-    return demoResult;
-  }
-
-  //-------------------------------------------------------
-  //-------------------------------------------------------
-  //-------------------------------------------------------
-
-  private calculateNextRunWithoutBusinessHours(
-    currentTime: Date,
-    step: SequenceStep,
-    rateLimits: RateLimits
-  ): Date {
-    const baseDelay = this.calculateBaseDelay(step);
-    const nextRun = addMinutes(currentTime, baseDelay);
-
-    logger.debug("⏱️ Calculated next run without business hours", {
-      currentTime: currentTime.toISOString(),
-      baseDelay,
-      nextRun: nextRun.toISOString(),
-    });
-
-    return nextRun;
-  }
-
-  //-------------------------------------------------------
-  //-------------------------------------------------------
-  //-------------------------------------------------------
-
-  private calculateNextRunWithBusinessHours(
-    currentTime: Date,
-    step: SequenceStep,
-    businessHours: BusinessHours,
-    rateLimits: RateLimits
-  ): Date {
-    // Convert to business timezone
-    const zonedDate = utcToZonedTime(currentTime, businessHours.timezone);
-    logger.debug("🌐 Converted to business timezone", {
-      utcTime: currentTime.toISOString(),
-      zonedTime: zonedDate.toISOString(),
-      timezone: businessHours.timezone,
-    });
-
-    // Calculate initial delay
-    const baseDelay = this.calculateBaseDelay(step);
-    let nextTime = addMinutes(zonedDate, baseDelay);
-
-    // Adjust to business hours
-    nextTime = this.adjustToBusinessHours(nextTime, businessHours);
-
-    // Convert back to UTC
-    const utcResult = new Date(
-      formatInTimeZone(
-        nextTime,
-        businessHours.timezone,
-        "yyyy-MM-dd'T'HH:mm:ssXXX"
-      )
-    );
-
-    logger.info("✅ Next run time calculated", {
-      finalTime: utcResult.toISOString(),
-      originalTime: currentTime.toISOString(),
-      totalDelay: utcResult.getTime() - currentTime.getTime(),
-    });
-
-    return utcResult;
-  }
-
-  //-------------------------------------------------------
-  //-------------------------------------------------------
-  //-------------------------------------------------------
-
-  private adjustToBusinessHours(
-    date: Date,
-    businessHours: BusinessHours
-  ): Date {
-    logger.debug("🕒 Adjusting to business hours", {
-      initialDate: date.toISOString(),
-      workHours: {
-        start: businessHours.workHoursStart,
-        end: businessHours.workHoursEnd,
-      },
-      workDays: businessHours.workDays,
-    });
-
-    const [startHour, startMinute] = businessHours.workHoursStart
-      .split(":")
-      .map(Number);
-    const [endHour, endMinute] = businessHours.workHoursEnd
-      .split(":")
-      .map(Number);
-
-    let adjustedDate = date;
-    let iterations = 0;
-    const maxIterations = 14; // Prevent infinite loops
-
-    while (iterations < maxIterations) {
-      iterations++;
-      logger.debug(`🔄 Adjustment iteration ${iterations}`, {
-        currentDate: adjustedDate.toISOString(),
-      });
-
-      // Check if it's a holiday
-      const isHoliday = businessHours.holidays.some((holiday) =>
-        isSameDay(adjustedDate, holiday)
-      );
-
-      // Check if it's a work day
-      const isWorkDay = businessHours.workDays.includes(adjustedDate.getDay());
-
-      if (isHoliday || !isWorkDay) {
-        logger.debug("📅 Not a valid business day", {
-          date: adjustedDate.toISOString(),
-          isHoliday,
-          isWorkDay,
-          dayOfWeek: adjustedDate.getDay(),
-        });
-
-        // Move to next day at start time
-        adjustedDate = setHours(addDays(adjustedDate, 1), startHour);
-        adjustedDate = setMinutes(adjustedDate, startMinute);
-        continue;
-      }
-
-      // Create work hours interval for the current day
-      const dayStart = setHours(
-        setMinutes(adjustedDate, startMinute),
-        startHour
-      );
-      const dayEnd = setHours(setMinutes(adjustedDate, endMinute), endHour);
-
-      // Check if the time falls within business hours
-      if (isWithinInterval(adjustedDate, { start: dayStart, end: dayEnd })) {
-        break;
-      }
-
-      // If it's before business hours, set to start of current day
-      if (adjustedDate < dayStart) {
-        adjustedDate = dayStart;
-        break;
-      }
-
-      // If it's after business hours, move to next business day
-      adjustedDate = setHours(addDays(adjustedDate, 1), startHour);
-      adjustedDate = setMinutes(adjustedDate, startMinute);
-    }
-
-    if (iterations >= maxIterations) {
-      logger.warn("⚠️ Max iterations reached while adjusting business hours", {
-        initialDate: date.toISOString(),
-        finalDate: adjustedDate.toISOString(),
-        iterations,
-      });
-    }
-
-    return adjustedDate;
-  }
-
-  //-------------------------------------------------------
-  //-------------------------------------------------------
-  //-------------------------------------------------------
-
-  private isWithinBusinessHours(
-    date: Date,
-    businessHours: BusinessHours
-  ): boolean {
-    logger.debug("🔍 Checking if time is within business hours", {
-      date: date.toISOString(),
-      timezone: businessHours.timezone,
-    });
-
-    // Check if it's a holiday
-    const isHoliday = businessHours.holidays.some((holiday) =>
-      isSameDay(date, holiday)
-    );
-    if (isHoliday) {
-      return false;
-    }
-
-    // Check if it's a work day
-    const isWorkDay = businessHours.workDays.includes(date.getDay());
-    if (!isWorkDay) {
-      return false;
-    }
-
-    // Parse work hours
-    const [startHour, startMinute] = businessHours.workHoursStart
-      .split(":")
-      .map(Number);
-    const [endHour, endMinute] = businessHours.workHoursEnd
-      .split(":")
-      .map(Number);
-
-    const dayStart = setHours(setMinutes(date, startMinute), startHour);
-    const dayEnd = setHours(setMinutes(date, endMinute), endHour);
-
-    return isWithinInterval(date, { start: dayStart, end: dayEnd });
-  }
-
-  //-------------------------------------------------------
-  //-------------------------------------------------------
-  //-------------------------------------------------------
-
-  private getNextBusinessDay(date: Date, businessHours: BusinessHours): Date {
-    logger.debug("📅 Finding next business day", {
-      startDate: date.toISOString(),
-    });
-
-    let nextDay = addDays(date, 1);
-    let iterations = 0;
-    const maxIterations = 14; // Prevent infinite loops
-
-    while (
-      iterations < maxIterations &&
-      (isWeekend(nextDay) ||
-        !businessHours.workDays.includes(nextDay.getDay()) ||
-        businessHours.holidays.some((holiday) => isSameDay(nextDay, holiday)))
-    ) {
-      iterations++;
-      nextDay = addDays(nextDay, 1);
-    }
-
-    if (iterations >= maxIterations) {
-      logger.warn("⚠️ Max iterations reached while finding next business day", {
-        startDate: date.toISOString(),
-        endDate: nextDay.toISOString(),
-        iterations,
-      });
-    }
-
-    return nextDay;
-  }
-
-  //-------------------------------------------------------
-  //-------------------------------------------------------
-  //-------------------------------------------------------
 
   distributeLoad(
     jobs: ProcessingJob[],
@@ -453,26 +243,20 @@ export class SchedulingService implements ScheduleGenerator {
         },
       });
 
-      // Sort jobs by priority
+      // Sort by priority
       const sortedJobs = [...jobs].sort((a, b) => a.priority - b.priority);
 
-      // Calculate available capacity
       const windowDuration = window.end.getTime() - window.start.getTime();
       const maxJobsForWindow = Math.min(
         window.maxJobsPerWindow,
         Math.floor((windowDuration / (60 * 1000)) * limits.perMinute)
       );
 
-      // If we're already at or over capacity, return empty array
       if (window.currentLoad >= maxJobsForWindow) {
-        logger.debug("⚠️ Window at capacity", {
-          currentLoad: window.currentLoad,
-          maxJobs: maxJobsForWindow,
-        });
+        logger.debug("⚠️ Window at capacity");
         return [];
       }
 
-      // Calculate how many more jobs we can add
       const availableCapacity = maxJobsForWindow - window.currentLoad;
       const selectedJobs = sortedJobs.slice(0, availableCapacity);
 
@@ -488,61 +272,304 @@ export class SchedulingService implements ScheduleGenerator {
     }
   }
 
-  //-------------------------------------------------------
-  //-------------------------------------------------------
-  //-------------------------------------------------------
-
-  private calculateBaseDelay(step: SequenceStep): number {
-    logger.debug("⌛ Calculating base delay", {
+  private calculateBaseDelay(step: SequenceStep, isDemoMode: boolean): number {
+    logger.info("⌛ Starting base delay calculation", {
       stepType: step.stepType,
       timing: step.timing,
       delayAmount: step.delayAmount,
       delayUnit: step.delayUnit,
+      isDemoMode,
     });
 
     let delay: number;
 
-    switch (step.stepType) {
+    switch (step.stepType.toUpperCase()) {
       case StepType.WAIT:
         if (!step.delayAmount || !step.delayUnit) {
-          delay = 60; // Default 1 hour in minutes
+          delay = this.DEFAULT_DELAY;
+          logger.debug("Using default delay for WAIT step", { delay });
         } else {
-          switch (step.delayUnit) {
-            case "minutes":
-              delay = step.delayAmount;
-              break;
-            case "hours":
-              delay = step.delayAmount * 60;
-              break;
-            case "days":
-              delay = step.delayAmount * 24 * 60;
-              break;
-            default:
-              delay = 60;
-          }
+          delay = this.convertToMinutes(step.delayAmount, step.delayUnit);
+          logger.debug("⏳ Calculated WAIT delay", {
+            originalAmount: step.delayAmount,
+            originalUnit: step.delayUnit,
+            resultMinutes: delay,
+          });
         }
         break;
 
       case StepType.MANUAL_EMAIL:
       case StepType.AUTOMATED_EMAIL:
-        switch (step.timing) {
-          case TimingType.IMMEDIATE:
-            delay = 0;
-            break;
-          case TimingType.DELAY:
-            delay = step.delayAmount || 60;
-            break;
-          default:
-            delay = 30; // Default 30 minutes delay for emails
+        if (step.timing === TimingType.IMMEDIATE) {
+          delay = 0; // No delay for immediate
+          logger.debug("⚡ Immediate email, no delay");
+        } else if (step.timing === TimingType.DELAY && step.delayAmount) {
+          // Use exact delay if specified
+          delay = step.delayAmount;
+          logger.debug("⏰ Using exact specified delay", {
+            specifiedDelay: step.delayAmount,
+          });
+        } else {
+          delay = this.DEFAULT_DELAY;
+          logger.debug("⚠️ No timing specified, using default delay", {
+            delay,
+          });
         }
         break;
 
       default:
-        delay = 30; // Default 30 minutes for other step types
+        delay = this.DEFAULT_DELAY;
+        logger.debug("⚠️ Unknown step type, using default delay", { delay });
     }
 
-    logger.debug("✓ Base delay calculated", { delay });
+    // Only apply minimum delay if it's more than 30 minutes
+    if (delay > this.DEFAULT_DELAY) {
+      delay = Math.max(delay, this.DEFAULT_DELAY);
+      logger.debug("📊 Applied minimum delay threshold", {
+        finalDelay: delay,
+        reason: "Delay > 30 minutes",
+      });
+    } else {
+      logger.debug("📊 Using exact delay", {
+        delay,
+        reason: "Delay <= 30 minutes",
+      });
+    }
+
+    if (isDemoMode) {
+      const originalDelay = delay;
+      delay = Math.min(delay, 480); // Cap at 8 hours for demo mode
+      logger.info("🎮 Demo mode delay adjustment", {
+        originalDelay,
+        cappedDelay: delay,
+        wasAdjusted: originalDelay !== delay,
+      });
+    }
+
+    logger.info("✅ Final base delay calculated", {
+      finalDelayMinutes: delay,
+      inHours: delay / 60,
+      isDemoMode,
+    });
+
     return delay;
+  }
+
+  private convertToMinutes(amount: number, unit: string): number {
+    switch (unit) {
+      case "minutes":
+        return amount;
+      case "hours":
+        return amount * 60;
+      case "days":
+        return amount * 24 * 60;
+      default:
+        return 60; // default
+    }
+  }
+
+  private isValidBusinessTime(
+    dt: DateTime,
+    businessHours: BusinessHours
+  ): boolean {
+    // If in demo mode, always return true
+    if (DEMO_MODE) {
+      logger.debug("🎮 Demo mode: Bypassing business hours check");
+      return true;
+    }
+
+    const { workDays, holidays, timezone } = businessHours;
+
+    // Check if holiday
+    const isHoliday = holidays.some((h) =>
+      dt.hasSame(DateTime.fromJSDate(h, { zone: timezone }), "day")
+    );
+
+    // Check if workday
+    const isWorkDay = workDays.includes(dt.weekday % 7);
+
+    const [startHour, startMinute] = businessHours.workHoursStart
+      .split(":")
+      .map(Number);
+    const [endHour, endMinute] = businessHours.workHoursEnd
+      .split(":")
+      .map(Number);
+
+    const dayStart = dt.set({
+      hour: startHour,
+      minute: startMinute,
+      second: 0,
+    });
+    const dayEnd = dt.set({ hour: endHour, minute: endMinute, second: 0 });
+
+    const isWithinHours = dt >= dayStart && dt <= dayEnd;
+
+    logger.debug("🔍 Checking business time validity", {
+      dateTime: dt.toISO(),
+      isHoliday,
+      isWorkDay,
+      isWithinHours,
+      dayStart: dayStart.toISO(),
+      dayEnd: dayEnd.toISO(),
+      demoMode: DEMO_MODE,
+    });
+
+    return !isHoliday && isWorkDay && isWithinHours;
+  }
+
+  private adjustToBusinessHours(
+    date: DateTime,
+    businessHours: BusinessHours
+  ): DateTime {
+    logger.info("🕒 Starting business hours adjustment", {
+      inputDate: date.toISO(),
+      timezone: businessHours.timezone,
+      workHours: {
+        start: businessHours.workHoursStart,
+        end: businessHours.workHoursEnd,
+      },
+      workDays: businessHours.workDays,
+      demoMode: DEMO_MODE,
+    });
+
+    // If in demo mode, return the date as is
+    if (DEMO_MODE) {
+      logger.debug("�� Demo mode: Skipping business hours adjustment");
+      return date;
+    }
+
+    const { workHoursStart, workHoursEnd, workDays, holidays, timezone } =
+      businessHours;
+    const [startHour, startMinute] = workHoursStart.split(":").map(Number);
+    const [endHour, endMinute] = workHoursEnd.split(":").map(Number);
+
+    let adjusted = date;
+    let iteration = 0;
+    const maxIterations = 14;
+
+    while (
+      !this.isValidBusinessTime(adjusted, businessHours) &&
+      iteration < maxIterations
+    ) {
+      iteration++;
+      logger.debug(`🔄 Adjustment iteration ${iteration}`, {
+        currentDateTime: adjusted.toISO(),
+      });
+
+      const dayStart = adjusted.set({
+        hour: startHour,
+        minute: startMinute,
+        second: 0,
+      });
+      const dayEnd = adjusted.set({
+        hour: endHour,
+        minute: endMinute,
+        second: 0,
+      });
+
+      // If holiday/not a workday or before dayStart
+      if (
+        !workDays.includes(adjusted.weekday % 7) ||
+        holidays.some((h) =>
+          adjusted.hasSame(DateTime.fromJSDate(h, { zone: timezone }), "day")
+        ) ||
+        adjusted < dayStart
+      ) {
+        logger.debug("📅 Invalid business day or before hours", {
+          isWorkDay: workDays.includes(adjusted.weekday % 7),
+          isBeforeStart: adjusted < dayStart,
+          currentTime: adjusted.toISO(),
+          dayStart: dayStart.toISO(),
+        });
+        // Move to the start of the next valid day
+        adjusted = this.nextBusinessStart(adjusted, businessHours);
+        continue;
+      }
+
+      // If after business hours
+      if (adjusted > dayEnd) {
+        logger.debug("🌙 After business hours", {
+          currentTime: adjusted.toISO(),
+          dayEnd: dayEnd.toISO(),
+        });
+        adjusted = this.nextBusinessStart(
+          adjusted.plus({ days: 1 }),
+          businessHours
+        );
+      }
+    }
+
+    if (iteration >= maxIterations) {
+      logger.warn("⚠️ Max iterations reached while adjusting business hours", {
+        initialDate: date.toISO(),
+        finalDate: adjusted.toISO(),
+        iterations: iteration,
+      });
+    }
+
+    logger.info("✅ Business hours adjustment complete", {
+      inputDate: date.toISO(),
+      adjustedDate: adjusted.toISO(),
+      iterations: iteration,
+      timezone: businessHours.timezone,
+      demoMode: DEMO_MODE,
+    });
+
+    return adjusted;
+  }
+
+  private nextBusinessStart(
+    date: DateTime,
+    businessHours: BusinessHours
+  ): DateTime {
+    logger.debug("🔄 Finding next business day start", {
+      fromDate: date.toISO(),
+      timezone: businessHours.timezone,
+    });
+
+    const { workHoursStart, workDays, holidays, timezone } = businessHours;
+    const [startHour, startMinute] = workHoursStart.split(":").map(Number);
+
+    let candidate = date
+      .startOf("day")
+      .set({ hour: startHour, minute: startMinute });
+    let iteration = 0;
+    const maxIterations = 14;
+
+    while (iteration < maxIterations) {
+      iteration++;
+      const isHoliday = holidays.some((h) =>
+        candidate.hasSame(DateTime.fromJSDate(h, { zone: timezone }), "day")
+      );
+      const isWorkDay = workDays.includes(candidate.weekday % 7);
+
+      logger.debug(`📅 Checking candidate day (iteration ${iteration})`, {
+        candidateDate: candidate.toISO(),
+        isHoliday,
+        isWorkDay,
+        weekday: candidate.weekday,
+      });
+
+      if (!isHoliday && isWorkDay) {
+        logger.debug("✅ Valid business day found", {
+          date: candidate.toISO(),
+          iterations: iteration,
+        });
+        return candidate;
+      }
+
+      candidate = candidate
+        .plus({ days: 1 })
+        .set({ hour: startHour, minute: startMinute });
+    }
+
+    logger.warn("⚠️ Max iterations reached while finding next business day", {
+      startDate: date.toISO(),
+      finalCandidate: candidate.toISO(),
+      iterations: iteration,
+    });
+
+    return candidate;
   }
 }
 

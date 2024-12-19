@@ -165,7 +165,7 @@ export class EmailProcessor {
         );
 
         // If in test mode, trigger the next email in sequence after a short delay
-        if (true) {
+        if (false) {
           await this.testEmailSequence();
         }
       }

@@ -49,6 +49,8 @@ export class SequenceProcessor {
 
       // Get sequence and validate
       const sequence = await getSequenceWithDetails(data.sequenceId);
+      logger.info(sequence, "🎮 Sequence");
+
       if (!sequence) {
         throw new Error("Sequence not found");
       }
@@ -126,6 +128,15 @@ export class SequenceProcessor {
           continue;
         }
 
+        // Get next step
+        const nextStep = sequence.steps[currentStepIndex + 1];
+        if (!nextStep) {
+          logger.error(
+            `❌ Next step not found at index ${currentStepIndex + 1} for sequence ${sequence.name}`
+          );
+          continue;
+        }
+
         // Log step details
         logger.info(`📝 Processing step ${currentStepIndex + 1}:`, {
           step: currentStepIndex + 1,
@@ -144,9 +155,12 @@ export class SequenceProcessor {
         // );
 
         // Calculate next send time using the new timing service
+
+        logger.info(nextStep, "🎮 Sequence Step");
+
         const nextSendTime = schedulingService.calculateNextRun(
           new Date(), // current time
-          currentStep as SequenceStep,
+          nextStep as SequenceStep,
           sequence.businessHours || getDefaultBusinessHours()
         );
 

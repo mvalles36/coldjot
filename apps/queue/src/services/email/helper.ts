@@ -1,10 +1,7 @@
 import { encode as base64Encode } from "js-base64";
 import { prisma } from "@mailjot/database";
-import { generateMessageId, normalizeSubject } from "@/utils";
+import { normalizeSubject } from "@/utils";
 import type { EmailResult, ThreadHeaders } from "@mailjot/types";
-// import { sendEmail } from "./email-service";
-import { refreshAccessToken } from "@/services/google/account/google-account";
-import type { SendEmailOptions } from "@mailjot/types";
 import type { EmailTracking } from "@mailjot/types";
 import { trackEmailEvent } from "@/services/track/tracking-service";
 
@@ -65,100 +62,6 @@ export async function getSenderInfoWithId(id: string): Promise<SenderInfo> {
     header: header!,
   };
 }
-
-// -----------------------------------------
-// -----------------------------------------
-// -----------------------------------------
-
-// export async function getEmailThreadInfo(
-//   gmail: any,
-//   threadId: string | undefined
-// ): Promise<{
-//   threadHeaders: ThreadHeaders;
-//   originalSubject?: string;
-// }> {
-//   let threadHeaders: ThreadHeaders = {
-//     messageId: generateMessageId().replace(/@[^>]+>$/, "@mail.gmail.com>"),
-//   };
-//   let originalSubject: string | undefined;
-
-//   if (!threadId) {
-//     return { threadHeaders };
-//   }
-
-//   try {
-//     const thread = await gmail.users.threads.get({
-//       userId: "me",
-//       id: threadId,
-//       format: "metadata",
-//       metadataHeaders: ["Message-ID", "References", "In-Reply-To", "Subject"],
-//     });
-
-//     if (thread.data.messages && thread.data.messages.length > 0) {
-//       const messages = thread.data.messages as GmailMessage[];
-//       const firstMessage = messages[0];
-//       const firstMessageHeaders = firstMessage.payload?.headers || [];
-//       const rawOriginalSubject = firstMessageHeaders.find(
-//         (h: MessageHeader) => h.name?.toLowerCase() === "subject"
-//       )?.value;
-
-//       if (rawOriginalSubject) {
-//         originalSubject = rawOriginalSubject.replace(
-//           /=\?UTF-8\?B\?(.*?)\?=/g,
-//           (_match: string, p1: string) =>
-//             Buffer.from(p1, "base64").toString("utf8")
-//         );
-//       }
-
-//       // Get the last message we're replying to
-//       const lastMessage = messages[messages.length - 1];
-//       const lastMessageHeaders = lastMessage.payload?.headers || [];
-
-//       // Get the Message-ID of the last message to use as In-Reply-To
-//       const lastMessageId = lastMessageHeaders.find(
-//         (h: MessageHeader) => h.name?.toLowerCase() === "message-id"
-//       )?.value;
-
-//       // Build References chain by collecting all Message-IDs in order
-//       const references = messages
-//         .map((msg: GmailMessage) => {
-//           const msgIdHeader = msg.payload?.headers?.find(
-//             (h: MessageHeader) => h.name?.toLowerCase() === "message-id"
-//           );
-//           return msgIdHeader?.value;
-//         })
-//         .filter(Boolean) as string[];
-
-//       // Get existing References from the last message
-//       const existingReferences = lastMessageHeaders
-//         .find((h: MessageHeader) => h.name?.toLowerCase() === "references")
-//         ?.value?.split(/\s+/)
-//         .filter(Boolean);
-
-//       // Combine existing references with new ones, maintaining order and removing duplicates
-//       const allReferences = [
-//         ...new Set([...(existingReferences || []), ...references]),
-//       ];
-
-//       // Ensure all Message-IDs have proper Gmail format
-//       const formattedReferences = allReferences.map((ref) =>
-//         ref.includes("@mail.gmail.com")
-//           ? ref
-//           : ref.replace(/@[^>]+>$/, "@mail.gmail.com>")
-//       );
-
-//       threadHeaders = {
-//         messageId: generateMessageId().replace(/@[^>]+>$/, "@mail.gmail.com>"),
-//         inReplyTo: lastMessageId,
-//         references: formattedReferences,
-//       };
-//     }
-//   } catch (error) {
-//     console.error("Error getting thread details:", error);
-//   }
-
-//   return { threadHeaders, originalSubject };
-// }
 
 // -----------------------------------------
 // -----------------------------------------

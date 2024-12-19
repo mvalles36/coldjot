@@ -46,7 +46,6 @@ export async function POST(
       data: {
         sequenceId: sequence.id,
         stepType: type,
-        status: "not_sent",
         timing,
         priority,
         delayAmount,

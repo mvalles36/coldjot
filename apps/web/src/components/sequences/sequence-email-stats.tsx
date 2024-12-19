@@ -9,14 +9,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Mail, Send, Check, X, Clock, RefreshCw } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -27,17 +19,16 @@ interface SequenceEmailStatsProps {
   isActive: boolean;
 }
 
-interface EmailStats {
-  active: number;
-  paused: number;
-  finished: number;
-  bounced: number;
-  notSent: number;
-  scheduled: number;
-  delivered: number;
-  replied: number;
-  interested: number;
-  optedOut: number;
+interface Activity {
+  id: string;
+  contactName: string;
+  contactEmail: string;
+  subject: string;
+  stepNumber: number;
+  totalSteps: number;
+  stepName: string;
+  status: "not_started" | "in_progress" | "completed" | "failed";
+  timestamp: string;
 }
 
 export function SequenceEmailStats({
@@ -46,7 +37,7 @@ export function SequenceEmailStats({
 }: SequenceEmailStatsProps) {
   const [timeframe, setTimeframe] = useState("7d");
   const { stats, isLoading: statsLoading } = useSequenceStats(sequenceId);
-  const [activities, setActivities] = useState<any[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoadingActivities, setIsLoadingActivities] = useState(true);
 
   const fetchActivities = async () => {
@@ -79,36 +70,53 @@ export function SequenceEmailStats({
     };
   }, [sequenceId, timeframe, isActive]);
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: Activity["status"]) => {
     switch (status) {
       case "completed":
-        return <Badge variant="default">Completed</Badge>;
+        return (
+          <Badge
+            variant="default"
+            className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
+          >
+            <Check className="w-3 h-3 mr-1" />
+            Completed
+          </Badge>
+        );
       case "in_progress":
-        return <Badge variant="secondary">In Progress</Badge>;
+        return (
+          <Badge
+            variant="secondary"
+            className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100"
+          >
+            <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+            In Progress
+          </Badge>
+        );
       case "failed":
-        return <Badge variant="destructive">Failed</Badge>;
+        return (
+          <Badge
+            variant="destructive"
+            className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
+          >
+            <X className="w-3 h-3 mr-1" />
+            Failed
+          </Badge>
+        );
       default:
-        return <Badge variant="outline">Not Started</Badge>;
+        return (
+          <Badge
+            variant="outline"
+            className="bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-100"
+          >
+            <Clock className="w-3 h-3 mr-1" />
+            Not Started
+          </Badge>
+        );
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* <div className="flex justify-between items-center">
-        <h3 className="text-lg font-medium">Email Activity</h3>
-        <Select value={timeframe} onValueChange={setTimeframe}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Select timeframe" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="24h">Last 24 hours</SelectItem>
-            <SelectItem value="7d">Last 7 days</SelectItem>
-            <SelectItem value="30d">Last 30 days</SelectItem>
-            <SelectItem value="all">All time</SelectItem>
-          </SelectContent>
-        </Select>
-      </div> */}
-
       <div className="rounded-lg border">
         <Table>
           <TableHeader>
@@ -141,10 +149,18 @@ export function SequenceEmailStats({
                   <TableCell>{activity.subject}</TableCell>
                   <TableCell>
                     <div className="text-sm">
-                      Step {activity.stepNumber} of {activity.totalSteps}
-                      <div className="text-xs text-muted-foreground">
-                        {activity.stepName || "Manual Email"}
-                      </div>
+                      {activity.totalSteps > 0 ? (
+                        <>
+                          Step {activity.stepNumber} of {activity.totalSteps}
+                          <div className="text-xs text-muted-foreground">
+                            {activity.stepName}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-xs text-muted-foreground">
+                          {activity.stepName}
+                        </div>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>{getStatusBadge(activity.status)}</TableCell>
