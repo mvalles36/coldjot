@@ -44,7 +44,7 @@ export function SequenceEmailStats({
     try {
       setIsLoadingActivities(true);
       const response = await fetch(
-        `/api/sequences/${sequenceId}/activities?timeframe=${timeframe}`
+        `/api/sequences/${sequenceId}/emails?timeframe=${timeframe}`
       );
       if (!response.ok) throw new Error("Failed to fetch activities");
       const data = await response.json();

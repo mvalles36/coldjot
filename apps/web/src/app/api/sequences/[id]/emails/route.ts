@@ -33,7 +33,7 @@ export async function GET(
         break;
     }
 
-    // First, get the sequence with its steps to know total steps
+    // Get the sequence with its steps
     const sequence = await prisma.sequence.findUnique({
       where: { id },
       include: {
@@ -51,8 +51,8 @@ export async function GET(
 
     const totalSteps = sequence.steps.length;
 
-    // Get sequence contacts with their contact info
-    const sequenceContacts = await prisma.sequenceContact.findMany({
+    // Get sequence progress records with contact information
+    const progressRecords = await prisma.sequenceContactProgress.findMany({
       where: {
         sequenceId: id,
         updatedAt: {
@@ -60,19 +60,19 @@ export async function GET(
         },
       },
       include: {
-        contact: {},
+        contact: true,
       },
       orderBy: {
         updatedAt: "desc",
       },
     });
 
-    // Get the latest email events for each contact in this sequence
+    // Get the latest email events for reference
     const emailEvents = await prisma.emailEvent.findMany({
       where: {
         sequenceId: id,
         contactId: {
-          in: sequenceContacts.map((sc) => sc.contactId),
+          in: progressRecords.map((record) => record.contactId),
         },
       },
       orderBy: {
@@ -91,47 +91,39 @@ export async function GET(
       return acc;
     }, new Map<string, (typeof emailEvents)[0]>());
 
-    // Format activities
-    const activities = sequenceContacts.map((sc) => {
-      const currentStep = sequence.steps[sc.currentStep];
-      const latestEvent = latestEventsByContact.get(sc.contactId);
+    // Format activities using progress records
+    const activities = progressRecords.map((record) => {
+      const currentStep = sequence.steps[record.currentStepIndex];
+      const latestEvent = latestEventsByContact.get(record.contactId);
 
-      // Determine status based on latest event and sequence contact status
+      // Determine status based on progress record and latest event
       let status: "not_started" | "in_progress" | "completed" | "failed";
 
-      if (latestEvent) {
-        switch (latestEvent.type.toLowerCase()) {
-          case "sent":
-            status = "completed";
-            break;
-          case "bounced":
-          case "failed":
-            status = "failed";
-            break;
-          case "sending":
-            status = "in_progress";
-            break;
-          default:
-            status = "not_started";
-        }
+      if (record.completed) {
+        status = "completed";
+      } else if (latestEvent?.type.toLowerCase() === "bounced") {
+        status = "failed";
+      } else if (record.currentStepIndex > 0) {
+        status = "in_progress";
       } else {
-        // Fallback to sequence contact status
-        status = sc.status === "not_sent" ? "not_started" : "in_progress";
+        status = "not_started";
       }
 
       return {
-        id: sc.id,
-        contactName: sc.contact.name,
-        contactEmail: sc.contact.email,
+        id: record.id,
+        contactName: record.contact.name,
+        contactEmail: record.contact.email,
         subject: currentStep?.subject || "(No subject)",
         status,
-        timestamp: sc.updatedAt,
-        stepNumber: sc.currentStep + 1,
+        timestamp: record.updatedAt,
+        stepNumber: record.currentStepIndex,
         totalSteps,
         stepName:
           currentStep?.stepType === "manual_email"
             ? "Manual Email"
             : currentStep?.subject || "Email",
+        nextScheduledAt: record.nextScheduledAt,
+        lastProcessedAt: record.lastProcessedAt,
       };
     });
 
