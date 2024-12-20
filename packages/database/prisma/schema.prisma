@@ -129,20 +129,6 @@ model Draft {
     template Template @relation(fields: [templateId], references: [id])
 }
 
-model TestData {
-    id        String   @id @default(cuid())
-    userId    String
-    name      String
-    type      String // 'company', 'contact', 'template'
-    data      Json
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-
-    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-    @@index([userId])
-}
-
 model EmailList {
     id          String     @id @default(cuid())
     name        String
@@ -157,6 +143,10 @@ model EmailList {
 
     @@index([userId])
 }
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
 
 model Sequence {
     id              String                    @id @default(cuid())
@@ -181,39 +171,6 @@ model Sequence {
     progressRecords SequenceContactProgress[]
 
     @@index([userId])
-}
-
-model SequenceStats {
-    id              String   @id @default(cuid())
-    sequenceId      String   @unique
-    createdAt       DateTime @default(now())
-    updatedAt       DateTime @updatedAt
-    contactId       String?
-    totalEmails     Int?     @default(0)
-    sentEmails      Int?     @default(0)
-    openedEmails    Int?     @default(0)
-    uniqueOpens     Int?     @default(0)
-    clickedEmails   Int?     @default(0)
-    repliedEmails   Int?     @default(0)
-    bouncedEmails   Int?     @default(0)
-    failedEmails    Int?     @default(0)
-    unsubscribed    Int?     @default(0)
-    interested      Int?     @default(0)
-    peopleContacted Int?     @default(0)
-    openRate        Float?   @default(0)
-    clickRate       Float?   @default(0)
-    replyRate       Float?   @default(0)
-    bounceRate      Float?   @default(0)
-    avgOpenTime     Float?
-    avgClickTime    Float?
-    avgReplyTime    Float?
-    avgResponseTime Float?
-
-    // Relations
-    sequence Sequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
-    contact  Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
-
-    @@index([sequenceId])
 }
 
 model SequenceStep {
@@ -259,45 +216,144 @@ model SequenceContact {
     @@index([contactId])
 }
 
-model DevSettings {
-    id             String   @id @default(cuid())
-    userId         String   @unique
-    user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-    disableSending Boolean  @default(false)
-    testEmails     String[] // Store emails as an array
-    updatedAt      DateTime @updatedAt
-    createdAt      DateTime @default(now())
+model SequenceContactProgress {
+    id               String    @id @default(cuid())
+    sequenceId       String
+    contactId        String
+    currentStepIndex Int       @default(0)
+    lastProcessedAt  DateTime?
+    nextScheduledAt  DateTime?
+    completed        Boolean   @default(false)
+    completedAt      DateTime?
+    createdAt        DateTime  @default(now())
+    updatedAt        DateTime  @updatedAt
 
+    // Add relations
+    sequence Sequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+    contact  Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+    @@unique([sequenceId, contactId])
+    @@index([sequenceId])
+    @@index([contactId])
+}
+
+model SequenceStats {
+    id              String   @id @default(cuid())
+    sequenceId      String   @unique
+    createdAt       DateTime @default(now())
+    updatedAt       DateTime @updatedAt
+    contactId       String?
+    totalEmails     Int?     @default(0)
+    sentEmails      Int?     @default(0)
+    openedEmails    Int?     @default(0)
+    uniqueOpens     Int?     @default(0)
+    clickedEmails   Int?     @default(0)
+    repliedEmails   Int?     @default(0)
+    bouncedEmails   Int?     @default(0)
+    failedEmails    Int?     @default(0)
+    unsubscribed    Int?     @default(0)
+    interested      Int?     @default(0)
+    peopleContacted Int?     @default(0)
+    openRate        Float?   @default(0)
+    clickRate       Float?   @default(0)
+    replyRate       Float?   @default(0)
+    bounceRate      Float?   @default(0)
+    avgOpenTime     Float?
+    avgClickTime    Float?
+    avgReplyTime    Float?
+    avgResponseTime Float?
+
+    // Relations
+    sequence Sequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+    contact  Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+    @@index([sequenceId])
+}
+
+model SequenceHealth {
+    id         String   @id @default(cuid())
+    sequenceId String   @unique
+    sequence   Sequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+    status     String   @default("healthy")
+    errorCount Int      @default(0)
+    lastCheck  DateTime @default(now())
+    lastError  String?
+    metrics    Json
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
+
+    @@index([sequenceId])
+}
+
+// Step status
+model StepStatus {
+    id          String    @id @default(cuid())
+    sequenceId  String
+    stepId      String
+    contactId   String
+    status      String    @default("pending") // pending, scheduled, sent, failed, bounced
+    scheduledAt DateTime?
+    sentAt      DateTime?
+    error       String?
+    messageId   String?
+    threadId    String?
+    bounceInfo  Json?
+    createdAt   DateTime  @default(now())
+    updatedAt   DateTime  @updatedAt
+
+    @@unique([sequenceId, stepId, contactId])
+}
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+model EmailTracking {
+    id         String    @id @default(cuid())
+    messageId  String?   @unique
+    threadId   String?
+    hash       String    @unique
+    status     String    @default("pending")
+    metadata   Json
+    sequenceId String?
+    stepId     String?
+    contactId  String?
+    userId     String
+    openCount  Int       @default(0)
+    sentAt     DateTime?
+    openedAt   DateTime?
+    clickedAt  DateTime?
+    createdAt  DateTime  @default(now())
+    updatedAt  DateTime  @updatedAt
+
+    links  TrackedLink[]
+    events EmailEvent[]
+
+    @@index([messageId])
+    @@index([threadId])
+    @@index([hash])
+    @@index([status])
+    @@index([sequenceId])
     @@index([userId])
 }
 
-model EmailTrackingEvent {
-    id            String   @id @default(cuid())
-    hash          String   @unique
-    email         String
-    userId        String
-    sequenceId    String
-    stepId        String
-    contactId     String
-    type          String // CREATED, OPENED, REPLIED
-    openCount     Int      @default(0)
-    messageId     String? // Gmail message ID
-    gmailThreadId String? // Add this field
-    timestamp     DateTime @default(now())
-    createdAt     DateTime @default(now())
+model EmailEvent {
+    id         String   @id @default(cuid())
+    trackingId String
+    type       String
+    metadata   Json?
+    timestamp  DateTime @default(now())
 
-    // Add relation to track links in the email
-    links TrackedLink[]
+    tracking EmailTracking @relation(fields: [trackingId], references: [id])
 
+    @@index([trackingId])
     @@index([type])
     @@index([timestamp])
-    @@index([hash])
-    @@index([userId])
-    @@index([sequenceId])
-    @@index([email])
-    @@index([messageId])
-    @@index([gmailThreadId])
 }
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
 
 // New model to store links that need to be tracked
 model TrackedLink {
@@ -329,33 +385,9 @@ model LinkClick {
     @@index([timestamp])
 }
 
-// Add this model to your schema
-model EmailEvent {
-    id        String   @id @default(cuid())
-    emailId   String
-    type      String // sent, opened, clicked, replied, bounced
-    timestamp DateTime @default(now())
-    metadata  Json? // Additional tracking data
-
-    sequence   Sequence @relation(fields: [sequenceId], references: [id])
-    sequenceId String
-    Contact    Contact? @relation(fields: [contactId], references: [id])
-    contactId  String?
-
-    @@index([emailId, type])
-    @@index([sequenceId, type])
-}
-
-enum EmailEventType {
-    SENT
-    OPENED
-    CLICKED
-    REPLIED
-    BOUNCED
-    SPAM
-    UNSUBSCRIBED
-    INTERESTED
-}
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
 
 // Add a new model to track email threads
 model EmailThread {
@@ -414,68 +446,6 @@ model QueueAlert {
     timestamp DateTime @default(now())
 }
 
-// Step status
-model StepStatus {
-    id          String    @id @default(cuid())
-    sequenceId  String
-    stepId      String
-    contactId   String
-    status      String    @default("pending") // pending, scheduled, sent, failed, bounced
-    scheduledAt DateTime?
-    sentAt      DateTime?
-    error       String?
-    messageId   String?
-    threadId    String?
-    bounceInfo  Json?
-    createdAt   DateTime  @default(now())
-    updatedAt   DateTime  @updatedAt
-
-    @@unique([sequenceId, stepId, contactId])
-}
-
-// Sequence progress
-model SequenceContactProgress {
-    id               String    @id @default(cuid())
-    sequenceId       String
-    contactId        String
-    currentStepIndex Int       @default(0)
-    lastProcessedAt  DateTime?
-    nextScheduledAt  DateTime?
-    completed        Boolean   @default(false)
-    completedAt      DateTime?
-    createdAt        DateTime  @default(now())
-    updatedAt        DateTime  @updatedAt
-
-    // Add relations
-    sequence Sequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
-    contact  Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
-
-    @@unique([sequenceId, contactId])
-    @@index([sequenceId])
-    @@index([contactId])
-}
-
-// Email tracking
-model EmailTracking {
-    id         String    @id @default(cuid())
-    messageId  String?   @unique
-    threadId   String?
-    hash       String    @unique
-    status     String    @default("pending") // pending, sent, opened, clicked, bounced
-    metadata   Json
-    sentAt     DateTime?
-    openedAt   DateTime?
-    clickedAt  DateTime?
-    bounceInfo Json?
-    createdAt  DateTime  @default(now())
-    updatedAt  DateTime  @updatedAt
-
-    @@index([messageId])
-    @@index([threadId])
-    @@index([hash])
-    @@index([status])
-}
-
 model QueueError {
     id        String   @id @default(cuid())
     jobId     String
@@ -500,17 +470,28 @@ model Notification {
     users User[]
 }
 
-model SequenceHealth {
-    id         String   @id @default(cuid())
-    sequenceId String   @unique
-    sequence   Sequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
-    status     String   @default("healthy")
-    errorCount Int      @default(0)
-    lastCheck  DateTime @default(now())
-    lastError  String?
-    metrics    Json
-    createdAt  DateTime @default(now())
-    updatedAt  DateTime @updatedAt
+model TestData {
+    id        String   @id @default(cuid())
+    userId    String
+    name      String
+    type      String // 'company', 'contact', 'template'
+    data      Json
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
 
-    @@index([sequenceId])
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@index([userId])
+}
+
+model DevSettings {
+    id             String   @id @default(cuid())
+    userId         String   @unique
+    user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    disableSending Boolean  @default(false)
+    testEmails     String[] // Store emails as an array
+    updatedAt      DateTime @updatedAt
+    createdAt      DateTime @default(now())
+
+    @@index([userId])
 }

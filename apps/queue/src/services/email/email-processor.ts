@@ -261,13 +261,13 @@ export class EmailProcessor {
         );
 
         // Update tracking status
-        await prisma.emailTracking.update({
-          where: { id: data.messageId },
-          data: {
-            status: "BOUNCED",
-            updatedAt: new Date(),
-          },
-        });
+        // await prisma.emailTracking.update({
+        //   where: { id: data.messageId },
+        //   data: {
+        //     status: "BOUNCED",
+        //     updatedAt: new Date(),
+        //   },
+        // });
 
         // Update sequence contact status
         await prisma.sequenceContact.update({

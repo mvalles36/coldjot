@@ -134,7 +134,7 @@ export class SequenceProcessor {
           logger.error(
             `❌ Next step not found at index ${currentStepIndex + 1} for sequence ${sequence.name}`
           );
-          continue;
+          // continue;
         }
 
         // Log step details
