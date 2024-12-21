@@ -171,13 +171,17 @@ export class EmailSchedulingService {
       // Process each email
       for (const email of dueEmails) {
         try {
-          logger.debug("🔄 Processing email", {
-            id: email.id,
-            sequenceId: email.sequenceId,
-            contactId: email.contactId,
-            currentStep: email.currentStepIndex,
-            email: email.contact.email,
-          });
+          logger.debug(
+            {
+              id: email.id,
+              sequenceId: email.sequenceId,
+              contactId: email.contactId,
+              currentStep: email.currentStepIndex,
+              email: email.contact.email,
+              step: email.sequence.steps[email.currentStepIndex],
+            },
+            "🔄 Processing email"
+          );
 
           await this.processEmail(
             email as SequenceContactProgressWithRelations

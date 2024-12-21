@@ -2,7 +2,7 @@ import type { gmail_v1 } from "googleapis";
 export type MessagePartHeader = gmail_v1.Schema$MessagePartHeader;
 export type Gmail = gmail_v1.Gmail;
 export type Message = gmail_v1.Schema$Message;
-import type { EmailTracking } from "./sequences";
+import type { EmailTracking } from "./events";
 import { GoogleAccount } from "./google";
 
 // export interface SendEmailOptions {

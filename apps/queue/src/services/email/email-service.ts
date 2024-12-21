@@ -207,6 +207,10 @@ export class EmailService {
         threadId: options.threadId || undefined,
         hash: emailId,
         status: "sent",
+        userId: options.userId,
+        sequenceId: options.sequenceId,
+        stepId: options.stepId,
+        contactId: options.contactId,
         metadata: {
           email: options.to,
           userId: options.userId,
@@ -215,6 +219,16 @@ export class EmailService {
           stepId: options.stepId,
         },
         sentAt: new Date(),
+        events: {
+          create: {
+            type: "sent",
+            metadata: {
+              messageId: trackedResponse.id || "",
+              threadId: options.threadId || "",
+              stepId: options.stepId,
+            },
+          },
+        },
       },
     });
 
@@ -232,21 +246,6 @@ export class EmailService {
     trackedResponse: gmail_v1.Schema$Message
   ): Promise<void> {
     logger.info("📝 Creating email event");
-
-    // Create the email event
-    await prisma.emailEvent.create({
-      data: {
-        emailId,
-        type: "sent",
-        sequenceId: options.sequenceId,
-        contactId: options.contactId,
-        metadata: {
-          stepId: options.stepId,
-          messageId: trackedResponse.id || "",
-          userId: options.userId,
-        },
-      },
-    });
 
     // Update sequence stats for the sent event
     if (options.sequenceId && options.contactId) {

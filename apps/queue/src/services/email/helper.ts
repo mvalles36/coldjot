@@ -190,8 +190,8 @@ export const updateSequenceContact = async (
   await prisma.sequenceContact.update({
     where: {
       sequenceId_contactId: {
-        sequenceId: tracking.metadata.sequenceId,
-        contactId: tracking.metadata.contactId,
+        sequenceId: tracking.metadata.sequenceId!,
+        contactId: tracking.metadata.contactId!,
       },
     },
     data: {
@@ -212,11 +212,11 @@ export const updateTrackingEvent = async (
 ) => {
   if (!result.messageId) return;
 
-  await prisma.emailTrackingEvent.update({
+  await prisma.emailTracking.update({
     where: { hash: tracking.hash },
     data: {
       messageId: result.messageId,
-      gmailThreadId: result.threadId,
+      threadId: result.threadId,
     },
   });
 };

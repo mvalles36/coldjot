@@ -293,53 +293,46 @@ export interface EmailData {
   templateId?: string;
 }
 
-export interface EmailTrackingMetadata {
-  email: string;
-  userId: string;
-  sequenceId: string;
-  stepId: string;
-  contactId: string;
-  hash?: string;
-  trackingId?: string;
-}
+// export interface EmailTrackingMetadata {
+//   email: string;
+//   userId: string;
+//   sequenceId: string;
+//   stepId: string;
+//   contactId: string;
+//   hash?: string;
+//   trackingId?: string;
+// }
 
-export interface EmailTracking {
-  id: string;
-  hash: string;
-  type: string;
-  wrappedLinks: boolean;
-  metadata: EmailTrackingMetadata;
-  pixel?: string;
-  trackingId?: string;
-}
+// export interface EmailTracking {
+//   id: string;
+//   hash: string;
+//   type: string;
+//   wrappedLinks: boolean;
+//   metadata: EmailTrackingMetadata;
+//   pixel?: string;
+//   trackingId?: string;
+// }
 
-export interface SequenceEmailTracking {
-  emailId: string;
-  userId: string;
-  sequenceId: string;
-  metadata: EmailTrackingMetadata;
-}
+// export interface EmailEventMetadata {
+//   messageId?: string;
+//   threadId?: string;
+//   from?: string;
+//   snippet?: string;
+//   timestamp?: string;
+//   replyMessageId?: string;
+//   bounceReason?: string;
+//   userAgent?: string;
+//   ipAddress?: string;
+//   location?: string;
+//   deviceType?: string;
+// }
 
-export interface EmailEventMetadata {
-  messageId?: string;
-  threadId?: string;
-  from?: string;
-  snippet?: string;
-  timestamp?: string;
-  replyMessageId?: string;
-  bounceReason?: string;
-  userAgent?: string;
-  ipAddress?: string;
-  location?: string;
-  deviceType?: string;
-}
-
-export interface EmailEventMetadata {
-  [key: string]: string | number | boolean | null | undefined;
-  userAgent?: string;
-  ipAddress?: string;
-  location?: string;
-  deviceType?: string;
-  replyMessageId?: string;
-  bounceReason?: string;
-}
+// export interface EmailEventMetadata {
+//   [key: string]: string | number | boolean | null | undefined;
+//   userAgent?: string;
+//   ipAddress?: string;
+//   location?: string;
+//   deviceType?: string;
+//   replyMessageId?: string;
+//   bounceReason?: string;
+// }

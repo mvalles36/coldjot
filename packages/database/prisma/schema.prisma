@@ -344,7 +344,11 @@ model EmailEvent {
     metadata   Json?
     timestamp  DateTime @default(now())
 
-    tracking EmailTracking @relation(fields: [trackingId], references: [id])
+    tracking   EmailTracking @relation(fields: [trackingId], references: [id])
+    Contact    Contact?      @relation(fields: [contactId], references: [id])
+    contactId  String?
+    Sequence   Sequence?     @relation(fields: [sequenceId], references: [id])
+    sequenceId String?
 
     @@index([trackingId])
     @@index([type])
@@ -365,7 +369,7 @@ model TrackedLink {
     updatedAt       DateTime @updatedAt
 
     // Relation to the email tracking event
-    emailTracking EmailTrackingEvent @relation(fields: [emailTrackingId], references: [id], onDelete: Cascade)
+    emailTracking EmailTracking @relation(fields: [emailTrackingId], references: [id], onDelete: Cascade)
     // Store click history
     clicks        LinkClick[]
 

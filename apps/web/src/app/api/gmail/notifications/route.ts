@@ -112,7 +112,7 @@ async function processMessageForOpens(
 
     if (!originalMessageId) return;
 
-    const trackingEvent = await prisma.emailTrackingEvent.findFirst({
+    const trackingEvent = await prisma.emailTracking.findFirst({
       where: { messageId: originalMessageId, userId },
     });
 
@@ -298,7 +298,7 @@ const hasBounceEvent = async (emailThread: any) => {
 // ----------------------------------------------------------------------------
 
 const findTrackingEvent = async (messageId: string, userId: string) => {
-  return prisma.emailTrackingEvent.findFirst({
+  return prisma.emailTracking.findFirst({
     where: {
       messageId,
       userId,
@@ -396,14 +396,15 @@ const processThreadBasedReply = async (
   );
   if (existingReplyEvent) return false;
 
-  await processReplyEvent(
-    trackingEvent,
-    messageId,
-    threadId,
-    fromHeader,
-    messageDetails,
-    emailThread
-  );
+  // TODO: fix this
+  // await processReplyEvent(
+  //   trackingEvent,
+  //   messageId,
+  //   threadId,
+  //   fromHeader,
+  //   messageDetails,
+  //   emailThread
+  // );
 
   return true;
 };
@@ -423,7 +424,7 @@ const processReferenceBasedReply = async (
   const possibleMessageIds = extractPossibleMessageIds(headers);
   if (possibleMessageIds.length === 0) return;
 
-  const trackingEvent = await prisma.emailTrackingEvent.findFirst({
+  const trackingEvent = await prisma.emailTracking.findFirst({
     where: {
       messageId: { in: possibleMessageIds },
       userId,
@@ -436,13 +437,15 @@ const processReferenceBasedReply = async (
   if (existingReply) return;
 
   console.log("📨 Found reply through message references");
-  await trackReplyEvent(
-    trackingEvent,
-    messageId,
-    threadId,
-    fromHeader,
-    messageDetails
-  );
+
+  // TODO: fix this
+  // await trackReplyEvent(
+  //   trackingEvent,
+  //   messageId,
+  //   threadId,
+  //   fromHeader,
+  //   messageDetails
+  // );
 };
 
 // ----------------------------------------------------------------------------
@@ -463,10 +466,10 @@ const hasExistingReplyEvent = async (sequenceId: string, contactId: string) => {
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
 
-const hasExistingReply = async (hash: string, messageId: string) => {
+const hasExistingReply = async (trackingId: string, messageId: string) => {
   return prisma.emailEvent.findFirst({
     where: {
-      emailId: hash,
+      trackingId: trackingId,
       type: "REPLIED",
       metadata: {
         path: ["replyMessageId"],

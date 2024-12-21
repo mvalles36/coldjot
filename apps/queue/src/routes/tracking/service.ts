@@ -9,53 +9,43 @@ import {
 export class TrackingService {
   async handleEmailOpen(hash: string): Promise<void> {
     try {
-      const event = await prisma.emailTrackingEvent.findUnique({
+      const tracking = await prisma.emailTracking.findUnique({
         where: { hash },
       });
 
-      if (!event) {
-        logger.warn(`No tracking event found for hash: ${hash}`);
+      if (!tracking) {
+        logger.warn(`No tracking record found for hash: ${hash}`);
         return;
       }
 
-      // Check for existing open event
-      const existingOpenEvent = await prisma.emailEvent.findFirst({
-        where: {
-          emailId: event.id,
-          type: "opened",
-          sequenceId: event.sequenceId,
-        },
-      });
-
-      // Always increment the open count on the tracking event
-      await prisma.emailTrackingEvent.update({
+      // Always increment the open count and update timestamps
+      await prisma.emailTracking.update({
         where: { hash },
         data: {
-          type: "opened",
           openCount: {
             increment: 1,
           },
-          timestamp: new Date(),
+          openedAt: tracking.openedAt ?? new Date(), // Only set openedAt if it hasn't been set before
+          status: "opened",
+          events: {
+            create: {
+              type: "opened",
+              timestamp: new Date(),
+              metadata: {
+                openCount: tracking.openCount + 1,
+              },
+            },
+          },
         },
       });
 
-      // Update sequence stats
-      if (event.sequenceId && event.contactId) {
-        await updateSequenceStats(event.sequenceId, "opened", event.contactId);
-      }
-
-      // Only update stats if this is the first open for this email
-      const isFirstOpen = !existingOpenEvent;
-
-      if (isFirstOpen) {
-        await prisma.emailEvent.create({
-          data: {
-            emailId: event.id,
-            type: "opened",
-            sequenceId: event.sequenceId,
-            contactId: event.contactId,
-          },
-        });
+      // Update sequence stats if this is a sequence email
+      if (tracking.sequenceId && tracking.contactId) {
+        await updateSequenceStats(
+          tracking.sequenceId,
+          "opened",
+          tracking.contactId
+        );
       }
 
       logger.info(`Recorded email open for hash: ${hash}`);
@@ -67,26 +57,23 @@ export class TrackingService {
 
   async handleLinkClick(hash: string, linkId: string): Promise<string> {
     try {
-      // First get the tracking event
-      const event = await prisma.emailTrackingEvent.findUnique({
+      const tracking = await prisma.emailTracking.findUnique({
         where: { hash },
-      });
-
-      if (!event) {
-        logger.warn(`No tracking event found for hash: ${hash}`);
-        throw new Error("Invalid tracking data");
-      }
-
-      // Then get the tracked link
-      const link = await prisma.trackedLink.findUnique({
-        where: { id: linkId },
         include: {
-          // TODO: fix this as this is emailTrackingEvent not emailTracking
-          // We are already getting the emailTrackingEvent at the top
-          // emailTracking: true,
+          links: {
+            where: {
+              id: linkId,
+            },
+          },
         },
       });
 
+      if (!tracking) {
+        logger.warn(`No tracking record found for hash: ${hash}`);
+        throw new Error("Invalid tracking data");
+      }
+
+      const link = tracking.links[0];
       if (!link) {
         logger.warn(`No link found for id: ${linkId}`);
         throw new Error("Invalid link data");
@@ -102,7 +89,7 @@ export class TrackingService {
           },
         });
 
-        // Increment click count
+        // Increment click count and update tracking
         await prisma.trackedLink.update({
           where: { id: linkId },
           data: {
@@ -112,11 +99,34 @@ export class TrackingService {
             updatedAt: new Date(),
           },
         });
+
+        // Update tracking record
+        await prisma.emailTracking.update({
+          where: { id: tracking.id },
+          data: {
+            clickedAt: tracking.clickedAt ?? new Date(), // Only set clickedAt if it hasn't been set before
+            status: "clicked",
+            events: {
+              create: {
+                type: "clicked",
+                timestamp: new Date(),
+                metadata: {
+                  linkId: linkId,
+                  originalUrl: link.originalUrl,
+                },
+              },
+            },
+          },
+        });
       });
 
       // Update sequence stats
-      if (event.sequenceId && event.contactId) {
-        await updateSequenceStats(event.sequenceId, "clicked", event.contactId);
+      if (tracking.sequenceId && tracking.contactId) {
+        await updateSequenceStats(
+          tracking.sequenceId,
+          "clicked",
+          tracking.contactId
+        );
       }
 
       logger.info(`Recorded link click for hash: ${hash}, linkId: ${linkId}`);
@@ -128,48 +138,49 @@ export class TrackingService {
   }
 
   async trackEmailEvent(data: {
-    emailId: string;
+    trackingId: string;
     eventType: EmailEventType;
     metadata?: any;
   }): Promise<void> {
     try {
-      const { emailId, eventType, metadata } = data;
+      const { trackingId, eventType, metadata } = data;
 
-      // TODO: This is a temporary solution to get the sequence ID from the email
-      // Get the sequence ID from the email
-      // const emailData = await prisma.email.findUnique({
-      //   where: { id: emailId },
-      //   select: {
-      //     sequenceId: true,
-      //     contactId: true,
-      //   },
-      // });
+      const tracking = await prisma.emailTracking.findUnique({
+        where: { id: trackingId },
+      });
 
-      // if (!emailData?.sequenceId) {
-      //   throw new Error("Email or sequence not found");
-      // }
+      if (!tracking) {
+        throw new Error("Email tracking record not found");
+      }
 
-      // // Record the event
-      // await prisma.emailEvent.create({
-      //   data: {
-      //     type: eventType,
-      //     metadata: metadata || {},
-      //     timestamp: new Date(),
-      //     sequenceId: emailData.sequenceId,
-      //     emailId: emailId,
-      //   },
-      // });
+      // Create the event
+      await prisma.emailEvent.create({
+        data: {
+          trackingId: tracking.id,
+          type: eventType,
+          metadata: metadata || {},
+          timestamp: new Date(),
+        },
+      });
 
-      // // Update sequence stats if we have a contact
-      // if (emailData.contactId) {
-      //   await updateSequenceStats(
-      //     emailData.sequenceId,
-      //     eventType,
-      //     emailData.contactId
-      //   );
-      // }
+      // Update tracking status
+      await prisma.emailTracking.update({
+        where: { id: tracking.id },
+        data: {
+          status: eventType,
+        },
+      });
 
-      logger.info(`Tracked email event: ${eventType} for email: ${emailId}`);
+      // Update sequence stats if applicable
+      if (tracking.sequenceId && tracking.contactId) {
+        await updateSequenceStats(
+          tracking.sequenceId,
+          eventType,
+          tracking.contactId
+        );
+      }
+
+      logger.info(`Tracked email event: ${eventType} for email: ${trackingId}`);
     } catch (error) {
       logger.error("Error tracking email event:", error);
       throw error;
