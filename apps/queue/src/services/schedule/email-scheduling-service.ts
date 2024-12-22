@@ -1,12 +1,19 @@
 import { logger } from "@/services/log/logger";
 import { QueueService } from "@/services/queue/queue-service";
 import { prisma } from "@mailjot/database";
-import { StepStatus } from "@mailjot/types";
+import {
+  StepStatus,
+  StepType,
+  StepPriority,
+  StepTiming,
+  type EmailJob,
+  type Sequence,
+  type SequenceStep,
+  type BusinessHours,
+} from "@mailjot/types";
 import { randomUUID } from "crypto";
 import { schedulingService } from "./scheduling-service";
 import { rateLimiter } from "@/services/rate-limit/rate-limiter";
-import type { EmailJob } from "@mailjot/types";
-import type { Sequence, SequenceStep, BusinessHours } from "@mailjot/types";
 import type { Prisma } from "@prisma/client";
 
 // Define the type for what we actually need from the sequence
@@ -18,11 +25,11 @@ type SequenceWithRelations = {
 };
 
 // Define our email processing type
-interface SequenceContactProgressWithRelations {
+interface SequenceContactWithRelations {
   id: string;
   sequenceId: string;
   contactId: string;
-  currentStepIndex: number;
+  currentStep: number;
   lastProcessedAt: Date | null;
   nextScheduledAt: Date | null;
   completed: boolean;
@@ -109,15 +116,25 @@ export class EmailSchedulingService {
         timestamp: new Date().toISOString(),
       });
 
-      // Find emails that are due to be sent
-      const dueEmails = await prisma.sequenceContactProgress.findMany({
+      // Find emails that are due to be sent with the correct structure
+      const dueEmails = await prisma.sequenceContact.findMany({
         where: {
           nextScheduledAt: {
             lte: new Date(),
           },
           completed: false,
         },
-        include: {
+        select: {
+          id: true,
+          sequenceId: true,
+          contactId: true,
+          currentStep: true,
+          lastProcessedAt: true,
+          nextScheduledAt: true,
+          completed: true,
+          completedAt: true,
+          createdAt: true,
+          updatedAt: true,
           sequence: {
             select: {
               id: true,
@@ -126,8 +143,35 @@ export class EmailSchedulingService {
                 orderBy: {
                   order: "asc",
                 },
+                select: {
+                  id: true,
+                  sequenceId: true,
+                  stepType: true,
+                  priority: true,
+                  timing: true,
+                  delayAmount: true,
+                  delayUnit: true,
+                  subject: true,
+                  content: true,
+                  includeSignature: true,
+                  note: true,
+                  order: true,
+                  previousStepId: true,
+                  replyToThread: true,
+                  createdAt: true,
+                  updatedAt: true,
+                  templateId: true,
+                },
               },
-              businessHours: true,
+              businessHours: {
+                select: {
+                  timezone: true,
+                  workDays: true,
+                  workHoursStart: true,
+                  workHoursEnd: true,
+                  holidays: true,
+                },
+              },
             },
           },
           contact: {
@@ -149,7 +193,7 @@ export class EmailSchedulingService {
               id: email.id,
               nextScheduledAt: email.nextScheduledAt?.toISOString(),
               email: email.contact.email,
-              stepIndex: email.currentStepIndex,
+              stepIndex: email.currentStep,
             })),
           },
           "🔧 Development mode: Scheduled emails"
@@ -162,7 +206,7 @@ export class EmailSchedulingService {
           id: e.id,
           sequenceId: e.sequenceId,
           contactId: e.contactId,
-          currentStep: e.currentStepIndex,
+          currentStep: e.currentStep,
           email: e.contact.email,
           scheduledTime: e.nextScheduledAt?.toISOString(),
         })),
@@ -171,21 +215,34 @@ export class EmailSchedulingService {
       // Process each email
       for (const email of dueEmails) {
         try {
+          // Add the required status field to each step
+          const emailWithStatus: SequenceContactWithRelations = {
+            ...email,
+            sequence: {
+              ...email.sequence,
+              steps: email.sequence.steps.map((step) => ({
+                ...step,
+                status: StepStatus.ACTIVE,
+                stepType: step.stepType as StepType,
+                priority: step.priority as StepPriority,
+                timing: step.timing as StepTiming,
+              })),
+            },
+          };
+
           logger.debug(
             {
               id: email.id,
               sequenceId: email.sequenceId,
               contactId: email.contactId,
-              currentStep: email.currentStepIndex,
+              currentStep: email.currentStep,
               email: email.contact.email,
-              step: email.sequence.steps[email.currentStepIndex],
+              step: emailWithStatus.sequence.steps[email.currentStep],
             },
             "🔄 Processing email"
           );
 
-          await this.processEmail(
-            email as SequenceContactProgressWithRelations
-          );
+          await this.processEmail(emailWithStatus);
         } catch (error) {
           logger.error("❌ Error processing email", {
             id: email.id,
@@ -218,7 +275,7 @@ export class EmailSchedulingService {
    * Process an individual email
    */
   private async processEmail(
-    email: SequenceContactProgressWithRelations
+    email: SequenceContactWithRelations
   ): Promise<void> {
     const { sequence, contact } = email;
 
@@ -227,7 +284,7 @@ export class EmailSchedulingService {
       sequenceId: sequence.id,
       contactId: contact.id,
       email: contact.email,
-      currentStep: email.currentStepIndex,
+      currentStep: email.currentStep,
       totalSteps: sequence.steps.length,
     });
 
@@ -256,12 +313,12 @@ export class EmailSchedulingService {
       }
 
       // 2. Get current step
-      const currentStep = sequence.steps[email.currentStepIndex];
+      const currentStep = sequence.steps[email.currentStep];
 
       if (!currentStep) {
         logger.error("❌ Step not found", {
           sequenceId: sequence.id,
-          currentStepIndex: email.currentStepIndex,
+          currentStep: email.currentStep,
           totalSteps: sequence.steps.length,
         });
         throw new Error("Step not found");
@@ -327,7 +384,7 @@ export class EmailSchedulingService {
         {
           sequenceId: sequence.id,
           contactId: contact.id,
-          currentStepIndex: email.currentStepIndex,
+          currentStep: email.currentStep,
           stepId: currentStep.id,
           replyToThread: currentStep.replyToThread,
           existingThreadId: sequenceContact?.threadId,
@@ -407,23 +464,23 @@ export class EmailSchedulingService {
       );
 
       // 6. Update sequence progress
-      const isLastStep = email.currentStepIndex + 1 >= sequence.steps.length;
+      const isLastStep = email.currentStep + 1 >= sequence.steps.length;
       logger.debug(
         {
           id: email.id,
-          currentStep: email.currentStepIndex,
+          currentStep: email.currentStep,
           isLastStep,
           nextScheduledAt: isLastStep ? null : nextSendTime,
         },
         "📝 Updating sequence progress"
       );
 
-      await prisma.sequenceContactProgress.update({
+      await prisma.sequenceContact.update({
         where: { id: email.id },
         data: {
           lastProcessedAt: new Date(),
           nextScheduledAt: isLastStep ? null : nextSendTime,
-          currentStepIndex: email.currentStepIndex + 1,
+          currentStep: email.currentStep + 1,
           completed: isLastStep,
           completedAt: isLastStep ? new Date() : null,
         },
@@ -465,7 +522,7 @@ export class EmailSchedulingService {
           sequenceId: sequence.id,
           contactId: contact.id,
           email: contact.email,
-          nextStep: email.currentStepIndex + 1,
+          nextStep: email.currentStep + 1,
           isComplete: isLastStep,
         },
         "✅ Successfully processed email"
@@ -487,7 +544,7 @@ export class EmailSchedulingService {
       logger.debug(
         {
           sequenceId: sequence.id,
-          stepId: sequence.steps[email.currentStepIndex]?.id,
+          stepId: sequence.steps[email.currentStep]?.id,
           contactId: contact.id,
         },
         "📝 Creating failed step status"
@@ -496,7 +553,7 @@ export class EmailSchedulingService {
       await prisma.stepStatus.create({
         data: {
           sequenceId: sequence.id,
-          stepId: sequence.steps[email.currentStepIndex]?.id || "",
+          stepId: sequence.steps[email.currentStep]?.id || "",
           contactId: contact.id,
           status: "failed",
           error: error instanceof Error ? error.message : "Unknown error",
@@ -515,7 +572,7 @@ export class EmailSchedulingService {
         "🔄 Scheduling retry"
       );
 
-      await prisma.sequenceContactProgress.update({
+      await prisma.sequenceContact.update({
         where: { id: email.id },
         data: {
           nextScheduledAt: new Date(Date.now() + this.scheduler.retryDelay),
@@ -544,7 +601,7 @@ export class EmailSchedulingService {
       return { currentTime: new Date() };
     }
 
-    const nextEmail = await prisma.sequenceContactProgress.findFirst({
+    const nextEmail = await prisma.sequenceContact.findFirst({
       where: {
         completed: false,
         nextScheduledAt: {
@@ -557,7 +614,7 @@ export class EmailSchedulingService {
       select: {
         id: true,
         nextScheduledAt: true,
-        currentStepIndex: true,
+        currentStep: true,
         contact: {
           select: {
             email: true,
@@ -575,7 +632,7 @@ export class EmailSchedulingService {
       id: nextEmail.id,
       scheduledTime: nextEmail.nextScheduledAt?.toISOString(),
       contact: nextEmail.contact.email,
-      step: nextEmail.currentStepIndex,
+      step: nextEmail.currentStep,
       timeUntilSend: nextEmail.nextScheduledAt
         ? `${Math.round((nextEmail.nextScheduledAt.getTime() - Date.now()) / 1000 / 60)} minutes`
         : "unknown",
@@ -587,7 +644,7 @@ export class EmailSchedulingService {
             id: nextEmail.id,
             scheduledTime: nextEmail.nextScheduledAt,
             contact: nextEmail.contact.email,
-            step: nextEmail.currentStepIndex,
+            step: nextEmail.currentStep,
           }
         : undefined,
       currentTime: new Date(),

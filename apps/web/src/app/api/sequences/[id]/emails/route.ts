@@ -52,7 +52,7 @@ export async function GET(
     const totalSteps = sequence.steps.length;
 
     // Get sequence progress records with contact information
-    const progressRecords = await prisma.sequenceContactProgress.findMany({
+    const progressRecords = await prisma.sequenceContact.findMany({
       where: {
         sequenceId: id,
         updatedAt: {
@@ -93,7 +93,7 @@ export async function GET(
 
     // Format activities using progress records
     const activities = progressRecords.map((record) => {
-      const currentStep = sequence.steps[record.currentStepIndex];
+      const currentStep = sequence.steps[record.currentStep];
       const latestEvent = latestEventsByContact.get(record.contactId);
 
       // Determine status based on progress record and latest event
@@ -103,7 +103,7 @@ export async function GET(
         status = "completed";
       } else if (latestEvent?.type.toLowerCase() === "bounced") {
         status = "failed";
-      } else if (record.currentStepIndex > 0) {
+      } else if (record.currentStep > 0) {
         status = "in_progress";
       } else {
         status = "not_started";
@@ -116,7 +116,7 @@ export async function GET(
         subject: currentStep?.subject || "(No subject)",
         status,
         timestamp: record.updatedAt,
-        stepNumber: record.currentStepIndex,
+        stepNumber: record.currentStep,
         totalSteps,
         stepName:
           currentStep?.stepType === "manual_email"

@@ -186,11 +186,11 @@ export class ContactProcessingService {
             currentStep: 1,
           },
         }),
-        prisma.sequenceContactProgress.create({
+        prisma.sequenceContact.create({
           data: {
             sequenceId: sequence.id,
             contactId: contactDetails.id,
-            currentStepIndex: 0,
+            currentStep: 0,
             nextScheduledAt: sendTime,
             completed: false,
           },

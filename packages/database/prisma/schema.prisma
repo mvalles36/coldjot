@@ -75,13 +75,12 @@ model Contact {
     contacts    SequenceContact[] @relation("ContactToSequence")
     stats       SequenceStats[]
 
-    user            User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
-    drafts          Draft[]
-    company         Company?                  @relation(fields: [companyId], references: [id])
-    emailLists      EmailList[]               @relation("EmailListContacts")
-    EmailEvent      EmailEvent[]
-    EmailThread     EmailThread[]
-    progressRecords SequenceContactProgress[]
+    user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+    drafts      Draft[]
+    company     Company?      @relation(fields: [companyId], references: [id])
+    emailLists  EmailList[]   @relation("EmailListContacts")
+    EmailEvent  EmailEvent[]
+    EmailThread EmailThread[]
 
     @@index([userId])
     @@index([companyId])
@@ -149,26 +148,25 @@ model EmailList {
 // -----------------------------------------
 
 model Sequence {
-    id              String                    @id @default(cuid())
-    name            String
-    accessLevel     String                    @default("team")
-    scheduleType    String                    @default("business")
-    status          String                    @default("draft")
-    testMode        Boolean                   @default(false)
-    userId          String
-    createdAt       DateTime                  @default(now())
-    updatedAt       DateTime                  @updatedAt
-    steps           SequenceStep[]
-    user            User                      @relation(fields: [userId], references: [id])
-    EmailList       EmailList?                @relation(fields: [emailListId], references: [id])
-    emailListId     String?
-    stats           SequenceStats[]
-    contacts        SequenceContact[]         @relation("SequenceToContact")
-    EmailEvent      EmailEvent[]
-    EmailThread     EmailThread[]
-    businessHours   BusinessHours?
-    SequenceHealth  SequenceHealth?
-    progressRecords SequenceContactProgress[]
+    id             String            @id @default(cuid())
+    name           String
+    accessLevel    String            @default("team")
+    scheduleType   String            @default("business")
+    status         String            @default("draft")
+    testMode       Boolean           @default(false)
+    userId         String
+    createdAt      DateTime          @default(now())
+    updatedAt      DateTime          @updatedAt
+    steps          SequenceStep[]
+    user           User              @relation(fields: [userId], references: [id])
+    EmailList      EmailList?        @relation(fields: [emailListId], references: [id])
+    emailListId    String?
+    stats          SequenceStats[]
+    contacts       SequenceContact[] @relation("SequenceToContact")
+    EmailEvent     EmailEvent[]
+    EmailThread    EmailThread[]
+    businessHours  BusinessHours?
+    SequenceHealth SequenceHealth?
 
     @@index([userId])
 }
@@ -200,37 +198,20 @@ model SequenceStep {
 model SequenceContact {
     id              String    @id @default(cuid())
     sequenceId      String
-    sequence        Sequence  @relation("SequenceToContact", fields: [sequenceId], references: [id])
     contactId       String
-    contact         Contact   @relation("ContactToSequence", fields: [contactId], references: [id])
     status          String    @default("not_sent")
     currentStep     Int       @default(0)
+    nextScheduledAt DateTime?
+    completed       Boolean   @default(false)
     startedAt       DateTime  @default(now())
-    updatedAt       DateTime  @updatedAt
     lastProcessedAt DateTime?
     completedAt     DateTime?
     threadId        String?
+    createdAt       DateTime  @default(now())
+    updatedAt       DateTime  @updatedAt
 
-    @@unique([sequenceId, contactId])
-    @@index([sequenceId])
-    @@index([contactId])
-}
-
-model SequenceContactProgress {
-    id               String    @id @default(cuid())
-    sequenceId       String
-    contactId        String
-    currentStepIndex Int       @default(0)
-    lastProcessedAt  DateTime?
-    nextScheduledAt  DateTime?
-    completed        Boolean   @default(false)
-    completedAt      DateTime?
-    createdAt        DateTime  @default(now())
-    updatedAt        DateTime  @updatedAt
-
-    // Add relations
-    sequence Sequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
-    contact  Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+    sequence Sequence @relation("SequenceToContact", fields: [sequenceId], references: [id])
+    contact  Contact  @relation("ContactToSequence", fields: [contactId], references: [id])
 
     @@unique([sequenceId, contactId])
     @@index([sequenceId])
