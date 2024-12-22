@@ -264,10 +264,6 @@ export class EmailService {
         stepId: options.stepId,
         metadata: {
           email: options.to,
-          userId: options.userId,
-          sequenceId: options.sequenceId,
-          contactId: options.contactId,
-          stepId: options.stepId,
         },
         sentAt: new Date(),
         events: {
@@ -299,6 +295,8 @@ export class EmailService {
     trackedResponse: gmail_v1.Schema$Message
   ): Promise<void> {
     logger.info("📝 Creating email event");
+
+    logger.info({ options });
 
     // Update sequence stats for the sent event
     if (options.sequenceId && options.contactId) {

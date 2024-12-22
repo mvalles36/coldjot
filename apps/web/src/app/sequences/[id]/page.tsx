@@ -135,7 +135,7 @@ export default async function SequencePage({
         failedEmails: stats.failedEmails ?? 0,
         unsubscribed: 0, // These fields are not in the database schema
         interested: 0, // but are required by the type
-        peopleContacted: stats.totalEmails!,
+        peopleContacted: stats.peopleContacted!,
         openRate: stats.openedEmails! / stats.sentEmails!,
         clickRate: stats.clickedEmails! / stats.sentEmails!,
         replyRate: stats.repliedEmails! / stats.sentEmails!,

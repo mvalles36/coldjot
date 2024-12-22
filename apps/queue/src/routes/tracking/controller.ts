@@ -1,8 +1,6 @@
 import { Request, Response } from "express";
 import { logger } from "@/services/log/logger";
-import { TrackingService } from "./service";
-
-const trackingService = new TrackingService();
+import { trackingService } from "@/services/track/tracking-service";
 
 // Transparent pixel for email tracking
 const TRANSPARENT_PIXEL = Buffer.from(
