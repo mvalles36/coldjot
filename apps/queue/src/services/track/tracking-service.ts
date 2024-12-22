@@ -79,20 +79,20 @@ export async function createEmailTracking(
 
 export async function recordEmailOpen(hash: string): Promise<void> {
   try {
-    const trackingEvent = await prisma.emailTracking.findUnique({
+    const emailTracking = await prisma.emailTracking.findUnique({
       where: { hash },
     });
 
-    if (!trackingEvent) {
+    if (!emailTracking) {
       throw new Error("No tracking event found");
     }
 
     // Check for existing open event
     const existingOpenEvent = await prisma.emailEvent.findFirst({
       where: {
-        trackingId: trackingEvent.id,
+        trackingId: emailTracking.id,
         type: "opened",
-        sequenceId: trackingEvent.sequenceId,
+        sequenceId: emailTracking.sequenceId,
       },
     });
 
@@ -112,20 +112,20 @@ export async function recordEmailOpen(hash: string): Promise<void> {
     if (!existingOpenEvent) {
       await prisma.emailEvent.create({
         data: {
-          trackingId: trackingEvent.id,
+          trackingId: emailTracking.id,
           type: "opened",
-          sequenceId: trackingEvent.sequenceId,
-          contactId: trackingEvent.contactId,
+          sequenceId: emailTracking.sequenceId,
+          contactId: emailTracking.contactId,
         },
       });
     }
 
     // Update sequence stats only for unique opens
-    if (trackingEvent.sequenceId && trackingEvent.contactId) {
+    if (emailTracking.sequenceId && emailTracking.contactId) {
       await updateSequenceStats(
-        trackingEvent.sequenceId,
+        emailTracking.sequenceId,
         "opened",
-        trackingEvent.contactId
+        emailTracking.contactId
       );
     }
   } catch (error) {

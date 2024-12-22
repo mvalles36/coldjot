@@ -94,15 +94,15 @@ export async function handleLinkClick(req: Request, res: Response) {
 
 export async function trackEmailEvent(req: Request, res: Response) {
   try {
-    const { emailId, eventType, metadata } = req.body;
+    const { trackingId, eventType, metadata } = req.body;
 
-    if (!emailId || !eventType) {
+    if (!trackingId || !eventType) {
       return res
         .status(400)
         .json({ error: "Email ID and event type are required" });
     }
 
-    await trackingService.trackEmailEvent({ emailId, eventType, metadata });
+    await trackingService.trackEmailEvent({ trackingId, eventType, metadata });
     res.json({ success: true });
   } catch (error) {
     logger.error("Error tracking email event:", error);

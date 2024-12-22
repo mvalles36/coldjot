@@ -29,6 +29,9 @@ export class TrackingService {
           status: "opened",
           events: {
             create: {
+              id: tracking.id,
+              sequenceId: tracking.sequenceId,
+              contactId: tracking.contactId,
               type: "opened",
               timestamp: new Date(),
               metadata: {

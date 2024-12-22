@@ -139,9 +139,20 @@ export class EmailService {
 
         // Create tracking records
         // TODO : The emailId should be the messageId or something else
+        // TODO : Update createEmailTrackingRecord with trackingId, sequenceId, contactId, stepId etc
         const emailId = randomUUID();
-        await this.createEmailTrackingRecord(emailId, options, response.data);
-        await this.createEmailEvent(emailId, options, response.data);
+
+        await this.updateEmailTracking(
+          options.tracking.id,
+          options,
+          response.data
+        );
+        // await this.createEmailTrackingRecord(emailId, options, response.data);
+        await this.createEmailEvent(
+          options.tracking.id,
+          options,
+          response.data
+        );
 
         logger.info(
           `✨ Email sending process completed successfully ${response.data.id} --- ${response.data.threadId}`
@@ -193,6 +204,46 @@ export class EmailService {
   /**
    * Create email tracking record
    */
+  private async updateEmailTracking(
+    trackingId: string,
+    options: SendEmailOptions,
+    trackedResponse: gmail_v1.Schema$Message
+  ): Promise<void> {
+    logger.info("📝 Updating email tracking record");
+
+    await prisma.emailTracking.update({
+      where: {
+        id: trackingId,
+      },
+      data: {
+        messageId: trackedResponse.id || undefined,
+        threadId: trackedResponse.threadId || undefined,
+        status: "sent",
+        events: {
+          create: {
+            type: "sent",
+            sequenceId: options.sequenceId,
+            contactId: options.contactId,
+            metadata: {
+              messageId: trackedResponse.id || "",
+              threadId: trackedResponse.threadId || "",
+              stepId: options.stepId,
+            },
+          },
+        },
+      },
+    });
+
+    logger.info("✅ Email tracking record updated");
+  }
+
+  // -----------------------------------------
+  // -----------------------------------------
+  // -----------------------------------------
+
+  /**
+   * Create email tracking record
+   */
   private async createEmailTrackingRecord(
     emailId: string,
     options: SendEmailOptions,
@@ -209,8 +260,8 @@ export class EmailService {
         status: "sent",
         userId: options.userId,
         sequenceId: options.sequenceId,
-        stepId: options.stepId,
         contactId: options.contactId,
+        stepId: options.stepId,
         metadata: {
           email: options.to,
           userId: options.userId,
@@ -222,6 +273,8 @@ export class EmailService {
         events: {
           create: {
             type: "sent",
+            sequenceId: options.sequenceId,
+            contactId: options.contactId,
             metadata: {
               messageId: trackedResponse.id || "",
               threadId: options.threadId || "",

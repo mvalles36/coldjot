@@ -344,7 +344,7 @@ model EmailEvent {
     metadata   Json?
     timestamp  DateTime @default(now())
 
-    tracking   EmailTracking @relation(fields: [trackingId], references: [id])
+    tracking   EmailTracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
     Contact    Contact?      @relation(fields: [contactId], references: [id])
     contactId  String?
     Sequence   Sequence?     @relation(fields: [sequenceId], references: [id])
