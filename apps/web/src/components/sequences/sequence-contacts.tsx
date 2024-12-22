@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ContactSearch } from "@/components/search/contact-search-dropdown";
 import {
@@ -13,8 +13,10 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "react-hot-toast";
-import { Loader2, UserPlus, X } from "lucide-react";
+import { Loader2, UserPlus, X, Check, Clock, RefreshCw } from "lucide-react";
 import { ListSelector } from "@/components/lists/list-selector";
+import { formatDistanceToNow } from "date-fns";
+import { useSequenceStats } from "@/hooks/use-sequence-stats";
 import type { SequenceContact } from "@mailjot/types";
 
 interface ContactWithCompany {
@@ -43,16 +45,21 @@ interface ContactWithCompany {
 interface SequenceContactsProps {
   sequenceId: string;
   initialContacts: SequenceContact[];
+  isActive: boolean;
 }
 
 export function SequenceContacts({
   sequenceId,
   initialContacts,
+  isActive,
 }: SequenceContactsProps) {
   const [contacts, setContacts] = useState<SequenceContact[]>(initialContacts);
   const [selectedContact, setSelectedContact] =
     useState<ContactWithCompany | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  const [totalSteps, setTotalSteps] = useState(0);
+  const { stats, isLoading: statsLoading } = useSequenceStats(sequenceId);
 
   const handleAddContact = async (contact: ContactWithCompany) => {
     try {
@@ -99,13 +106,78 @@ export function SequenceContacts({
 
   const refreshContacts = async () => {
     try {
+      setIsLoading(true);
       const response = await fetch(`/api/sequences/${sequenceId}/contacts`);
       if (response.ok) {
         const data = await response.json();
-        setContacts(data);
+        setContacts(data.contacts);
+        setTotalSteps(data.totalSteps);
       }
     } catch (error) {
       console.error("Failed to refresh contacts:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshContacts();
+
+    // If sequence is active, poll for updates every 30 seconds
+    let interval: NodeJS.Timeout;
+    if (isActive) {
+      interval = setInterval(refreshContacts, 30000);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [sequenceId, isActive]);
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "completed":
+        return (
+          <Badge
+            variant="default"
+            className="bg-green-100 text-green-800 shadow-none hover:bg-green-100"
+          >
+            <Check className="w-3 h-3 mr-1" />
+            Completed
+          </Badge>
+        );
+      case "in_progress":
+        return (
+          <Badge
+            variant="secondary"
+            className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100"
+          >
+            <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+            In Progress
+          </Badge>
+        );
+      case "failed":
+        return (
+          <Badge
+            variant="destructive"
+            className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
+          >
+            <X className="w-3 h-3 mr-1" />
+            Failed
+          </Badge>
+        );
+      case "not_started":
+        return (
+          <Badge
+            variant="outline"
+            className="bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-100"
+          >
+            <Clock className="w-3 h-3 mr-1" />
+            Not Started
+          </Badge>
+        );
+      default:
+        return <Badge variant="outline">{status}</Badge>;
     }
   };
 
@@ -139,47 +211,85 @@ export function SequenceContacts({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
+              <TableHead>Contact</TableHead>
               <TableHead>Company</TableHead>
+              <TableHead>Current Step</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Last Activity</TableHead>
               <TableHead className="w-[50px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {contacts.map((sequenceContact) => (
-              <TableRow key={sequenceContact.id}>
-                <TableCell>{sequenceContact.contact.name}</TableCell>
-                <TableCell>{sequenceContact.contact.email}</TableCell>
-                <TableCell>
-                  {sequenceContact.contact.company?.name || "-"}
-                </TableCell>
-                <TableCell>
-                  <Badge variant="outline">{sequenceContact.status}</Badge>
-                </TableCell>
-                <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() =>
-                      handleRemoveContact(sequenceContact.contactId)
-                    }
-                    disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <X className="h-4 w-4" />
-                    )}
-                  </Button>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center">
+                  <RefreshCw className="h-4 w-4 animate-spin mx-auto" />
                 </TableCell>
               </TableRow>
-            ))}
-            {contacts.length === 0 && (
+            ) : contacts.length > 0 ? (
+              contacts.map((sequenceContact) => (
+                <TableRow key={sequenceContact.id}>
+                  <TableCell>
+                    <div>
+                      <div className="font-medium">
+                        {sequenceContact.contact.name}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {sequenceContact.contact.email}
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {sequenceContact.contact.company?.name || "-"}
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm">
+                      Step {sequenceContact.currentStep} of {totalSteps}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {getStatusBadge(sequenceContact.status)}
+                  </TableCell>
+                  <TableCell>
+                    {sequenceContact.lastProcessedAt
+                      ? formatDistanceToNow(
+                          new Date(sequenceContact.lastProcessedAt),
+                          {
+                            addSuffix: true,
+                          }
+                        )
+                      : "-"}
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() =>
+                        handleRemoveContact(sequenceContact.contactId)
+                      }
+                      disabled={isLoading}
+                    >
+                      {isLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <X className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8">
+                <TableCell colSpan={6} className="text-center py-8">
                   <div className="text-muted-foreground">
-                    No contacts added to this sequence yet
+                    {isActive ? (
+                      <>
+                        <RefreshCw className="h-8 w-8 mx-auto mb-2 animate-spin" />
+                        Waiting for contact activity...
+                      </>
+                    ) : (
+                      "No contacts added to this sequence yet"
+                    )}
                   </div>
                 </TableCell>
               </TableRow>

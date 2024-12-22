@@ -20,7 +20,6 @@ import {
 import { SequenceEmailEditor } from "@/components/sequences/editor/sequence-email-editor";
 import { SequenceStepEditor } from "@/components/sequences/steps/sequence-step-editor";
 import { toast } from "react-hot-toast";
-import { SequenceEmailStats } from "@/components/sequences/sequence-email-stats";
 import { LaunchSequenceModal } from "@/components/sequences/launch-sequence-modal";
 import { SequenceStatusBadge } from "@/components/sequences/sequence-status-badge";
 import { SequenceControls } from "@/components/sequences/sequence-controls";
@@ -290,13 +289,7 @@ export default function SequencePageClient({
         <TabsContent value="contacts" className="mt-6">
           <SequenceContacts
             sequenceId={sequence.id}
-            initialContacts={sequence.contacts}
-          />
-        </TabsContent>
-
-        <TabsContent value="emails" className="mt-6">
-          <SequenceEmailStats
-            sequenceId={sequence.id}
+            initialContacts={initialContacts}
             isActive={sequence.status === "active"}
           />
         </TabsContent>

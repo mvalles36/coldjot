@@ -486,27 +486,6 @@ export class EmailSchedulingService {
         },
       });
 
-      // 7. Create step status
-      logger.debug(
-        {
-          sequenceId: sequence.id,
-          stepId: currentStep.id,
-          contactId: contact.id,
-          status: "scheduled",
-        },
-        "📝 Creating step status"
-      );
-
-      await prisma.stepStatus.create({
-        data: {
-          sequenceId: sequence.id,
-          stepId: currentStep.id,
-          contactId: contact.id,
-          status: "scheduled",
-          scheduledAt: nextSendTime,
-        },
-      });
-
       // 8. Increment rate limit counters
       logger.debug("🔄 Incrementing rate limit counters");
 
@@ -549,17 +528,6 @@ export class EmailSchedulingService {
         },
         "📝 Creating failed step status"
       );
-
-      await prisma.stepStatus.create({
-        data: {
-          sequenceId: sequence.id,
-          stepId: sequence.steps[email.currentStep]?.id || "",
-          contactId: contact.id,
-          status: "failed",
-          error: error instanceof Error ? error.message : "Unknown error",
-        },
-      });
-
       // Schedule retry
       logger.debug(
         {

@@ -210,22 +210,6 @@ export async function resetSequence(sequenceId: string): Promise<void> {
     });
     logger.info(`✓ Email events deleted`);
 
-    // Delete all step statuses
-    await prisma.stepStatus.deleteMany({
-      where: {
-        sequenceId,
-      },
-    });
-    logger.info(`✓ Step statuses deleted`);
-
-    // Delete sequence progress
-    await prisma.sequenceContact.deleteMany({
-      where: {
-        sequenceId,
-      },
-    });
-    logger.info(`✓ Sequence progress deleted`);
-
     // Reset sequence contacts status
     await prisma.sequenceContact.updateMany({
       where: {
@@ -236,6 +220,9 @@ export async function resetSequence(sequenceId: string): Promise<void> {
         lastProcessedAt: null,
         completedAt: null,
         threadId: null,
+        currentStep: 0,
+        nextScheduledAt: null,
+        completed: false,
       },
     });
     logger.info(`✓ Sequence contacts reset`);

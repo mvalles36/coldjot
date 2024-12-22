@@ -13,6 +13,26 @@ export async function GET(
     }
 
     const { id } = await params;
+
+    // Get the sequence with its steps
+    const sequence = await prisma.sequence.findUnique({
+      where: { id },
+      include: {
+        steps: {
+          orderBy: {
+            order: "asc",
+          },
+        },
+      },
+    });
+
+    if (!sequence) {
+      return new NextResponse("Sequence not found", { status: 404 });
+    }
+
+    const totalSteps = sequence.steps.length;
+
+    // Get sequence contacts with their latest status and events
     const sequenceContacts = await prisma.sequenceContact.findMany({
       where: {
         sequenceId: id,
@@ -26,10 +46,74 @@ export async function GET(
             company: true,
           },
         },
+        // sequence: {
+        // include: {
+        // steps: {
+        //   orderBy: {
+        //     order: "asc",
+        //   },
+        // },
+        // },
+        // },
+      },
+      orderBy: {
+        updatedAt: "desc",
       },
     });
 
-    return NextResponse.json(sequenceContacts);
+    // Get the latest email events for all contacts
+    // const emailEvents = await prisma.emailEvent.findMany({
+    //   where: {
+    //     sequenceId: id,
+    //     contactId: {
+    //       in: sequenceContacts.map((contact) => contact.contactId),
+    //     },
+    //   },
+    //   orderBy: {
+    //     timestamp: "desc",
+    //   },
+    // });
+
+    // Create a map of contactId to their latest email event
+    // const latestEventsByContact = emailEvents.reduce((acc, event) => {
+    //   if (
+    //     !acc.has(event.contactId!) ||
+    //     acc.get(event.contactId!)!.timestamp < event.timestamp
+    //   ) {
+    //     acc.set(event.contactId!, event);
+    //   }
+    //   return acc;
+    // }, new Map<string, (typeof emailEvents)[0]>());
+
+    // Format contacts with their latest status and activity
+    const enrichedContacts = sequenceContacts.map((contact) => {
+      const currentStep = sequence.steps[contact.currentStep];
+      // const latestEvent = latestEventsByContact.get(contact.contactId);
+
+      // Determine status based on contact record and latest event
+      let status: "not_started" | "in_progress" | "completed" | "failed";
+
+      if (contact.completed) {
+        status = "completed";
+        // } else if (latestEvent?.type.toLowerCase() === "bounced") {
+      } else if (contact.status === "bounced") {
+        status = "failed";
+      } else if (contact.currentStep > 0) {
+        status = "in_progress";
+      } else {
+        status = "not_started";
+      }
+
+      return {
+        ...contact,
+        status,
+      };
+    });
+
+    return NextResponse.json({
+      contacts: enrichedContacts,
+      totalSteps: sequence.steps.length,
+    });
   } catch (error) {
     console.error("[SEQUENCE_CONTACTS_GET]", error);
     return new NextResponse("Internal Error", { status: 500 });
@@ -64,7 +148,8 @@ export async function POST(
       data: {
         sequenceId: id,
         contactId,
-        status: "not_sent",
+        status: "not_started",
+        currentStep: 0,
       },
       include: {
         contact: {
@@ -72,10 +157,28 @@ export async function POST(
             company: true,
           },
         },
+        sequence: {
+          include: {
+            steps: {
+              orderBy: {
+                order: "asc",
+              },
+            },
+          },
+        },
       },
     });
 
-    return NextResponse.json(sequenceContact);
+    // Return the contact with the same enriched format as GET
+    const enrichedContact = {
+      ...sequenceContact,
+      status: "not_started" as const,
+      currentStepName: sequenceContact.sequence.steps[0]?.subject || "Email",
+      totalSteps: sequenceContact.sequence.steps.length,
+      latestEvent: null,
+    };
+
+    return NextResponse.json(enrichedContact);
   } catch (error) {
     console.error("[SEQUENCE_CONTACTS_POST]", error);
     return new NextResponse("Internal Error", { status: 500 });

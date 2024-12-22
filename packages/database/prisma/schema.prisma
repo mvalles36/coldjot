@@ -266,25 +266,6 @@ model SequenceHealth {
     @@index([sequenceId])
 }
 
-// Step status
-model StepStatus {
-    id          String    @id @default(cuid())
-    sequenceId  String
-    stepId      String
-    contactId   String
-    status      String    @default("pending") // pending, scheduled, sent, failed, bounced
-    scheduledAt DateTime?
-    sentAt      DateTime?
-    error       String?
-    messageId   String?
-    threadId    String?
-    bounceInfo  Json?
-    createdAt   DateTime  @default(now())
-    updatedAt   DateTime  @updatedAt
-
-    @@unique([sequenceId, stepId, contactId])
-}
-
 // -----------------------------------------
 // -----------------------------------------
 // -----------------------------------------
