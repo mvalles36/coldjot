@@ -92,41 +92,44 @@ export async function recordEmailOpen(hash: string): Promise<void> {
       where: {
         trackingId: emailTracking.id,
         type: "opened",
-        sequenceId: emailTracking.sequenceId,
       },
     });
 
     // Always increment the open count on the tracking event
-    await prisma.emailTracking.update({
-      where: { hash },
-      data: {
-        status: "opened",
-        openCount: {
-          increment: 1,
-        },
-        openedAt: new Date(),
-      },
-    });
+    // await prisma.emailTracking.update({
+    //   where: { hash },
+    //   data: {
+    //     status: "opened",
+    //     openCount: {
+    //       increment: 1,
+    //     },
+    //     openedAt: existingOpenEvent ? undefined : new Date(), // Only set openedAt for first open
+    //   },
+    // });
 
     // Only create an email event and update stats if this is the first open
     if (!existingOpenEvent) {
-      await prisma.emailEvent.create({
-        data: {
-          trackingId: emailTracking.id,
-          type: "opened",
-          sequenceId: emailTracking.sequenceId,
-          contactId: emailTracking.contactId,
-        },
-      });
-    }
-
-    // Update sequence stats only for unique opens
-    if (emailTracking.sequenceId && emailTracking.contactId) {
-      await updateSequenceStats(
-        emailTracking.sequenceId,
-        "opened",
-        emailTracking.contactId
-      );
+      // await prisma.emailEvent.create({
+      //   data: {
+      //     trackingId: emailTracking.id,
+      //     type: "opened",
+      //     sequenceId: emailTracking.sequenceId,
+      //     contactId: emailTracking.contactId,
+      //     metadata: {
+      //       isFirstOpen: true,
+      //       openCount: 1,
+      //     },
+      //   },
+      // });
+      //   // Update sequence stats only for unique opens
+      //   if (emailTracking.sequenceId && emailTracking.contactId) {
+      //     await updateSequenceStats(
+      //       emailTracking.sequenceId,
+      //       "opened",
+      //       emailTracking.contactId,
+      //       { isUniqueOpen: true }
+      //     );
+      //   }
     }
   } catch (error) {
     console.error("Error recording email open:", error);

@@ -53,7 +53,8 @@ const getExistingEventCount = async (params: {
 export const updateSequenceStats = async (
   sequenceId: string,
   type: EmailEventType,
-  contactId?: string
+  contactId?: string,
+  options?: { isUniqueOpen?: boolean }
 ) => {
   // Start a transaction to ensure data consistency
   return prisma.$transaction(async (tx) => {
@@ -132,35 +133,24 @@ export const updateSequenceStats = async (
         // Always increment total opens
         updates.openedEmails = { increment: 1 };
 
-        if (contactId) {
-          // Check if this is the first open for this contact
-          const existingOpens = await getExistingEventCount({
-            sequenceId,
-            contactId,
-            type: "opened",
-          });
-
-          logger.info(
-            { existingOpens },
-            `Found ${existingOpens} existing opens for contact ${contactId}`
-          );
-
-          // Only increment unique opens if this is the first open for this contact
-          if (existingOpens === 0) {
-            updates.uniqueOpens = { increment: 1 };
-            // Recalculate open rate based on unique opens
-            const newRates = calculateRates({
-              ...stats,
-              sentEmails: stats.sentEmails ?? 0,
-              openedEmails: stats.openedEmails ?? 0,
-              uniqueOpens: (stats.uniqueOpens ?? 0) + 1,
-              clickedEmails: stats.clickedEmails ?? 0,
-              repliedEmails: stats.repliedEmails ?? 0,
-              bouncedEmails: stats.bouncedEmails ?? 0,
-            });
-            updates.openRate = newRates.openRate;
-          }
+        // Handle unique opens
+        if (contactId && options?.isUniqueOpen) {
+          updates.uniqueOpens = { increment: 1 };
         }
+
+        // Recalculate open rate based on unique opens
+        const newRates = calculateRates({
+          ...stats,
+          sentEmails: stats.sentEmails ?? 0,
+          openedEmails: (stats.openedEmails ?? 0) + 1,
+          uniqueOpens: options?.isUniqueOpen
+            ? (stats.uniqueOpens ?? 0) + 1
+            : (stats.uniqueOpens ?? 0),
+          clickedEmails: stats.clickedEmails ?? 0,
+          repliedEmails: stats.repliedEmails ?? 0,
+          bouncedEmails: stats.bouncedEmails ?? 0,
+        });
+        updates.openRate = newRates.openRate;
         break;
       }
 

@@ -11,12 +11,21 @@ export class TrackingService {
     try {
       const tracking = await prisma.emailTracking.findUnique({
         where: { hash },
+        include: {
+          events: {
+            where: {
+              type: "opened",
+            },
+          },
+        },
       });
 
       if (!tracking) {
         logger.warn(`No tracking record found for hash: ${hash}`);
         return;
       }
+
+      const isFirstOpen = tracking.events.length === 0;
 
       // Always increment the open count and update timestamps
       await prisma.emailTracking.update({
@@ -29,13 +38,12 @@ export class TrackingService {
           status: "opened",
           events: {
             create: {
-              id: tracking.id,
+              type: "opened",
               sequenceId: tracking.sequenceId,
               contactId: tracking.contactId,
-              type: "opened",
-              timestamp: new Date(),
               metadata: {
                 openCount: tracking.openCount + 1,
+                isFirstOpen,
               },
             },
           },
@@ -47,11 +55,14 @@ export class TrackingService {
         await updateSequenceStats(
           tracking.sequenceId,
           "opened",
-          tracking.contactId
+          tracking.contactId,
+          { isUniqueOpen: isFirstOpen }
         );
       }
 
-      logger.info(`Recorded email open for hash: ${hash}`);
+      logger.info(
+        `Recorded email open for hash: ${hash}, isFirstOpen: ${isFirstOpen}`
+      );
     } catch (error) {
       logger.error("Error handling email open:", error);
       throw error;
