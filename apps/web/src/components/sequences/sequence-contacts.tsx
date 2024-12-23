@@ -13,11 +13,28 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "react-hot-toast";
-import { Loader2, UserPlus, X, Check, Clock, RefreshCw } from "lucide-react";
+import {
+  Loader2,
+  UserPlus,
+  X,
+  Check,
+  Clock,
+  RefreshCw,
+  Calendar,
+  CheckCircle2,
+  AlertCircle,
+  PlayCircle,
+} from "lucide-react";
 import { ListSelector } from "@/components/lists/list-selector";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import { useSequenceStats } from "@/hooks/use-sequence-stats";
-import type { SequenceContact } from "@mailjot/types";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import type { SequenceContact, StepStatus } from "@mailjot/types";
 
 interface ContactWithCompany {
   id: string;
@@ -42,6 +59,42 @@ interface ContactWithCompany {
   } | null;
 }
 
+// Add extended SequenceContact type with all required properties
+interface ExtendedSequenceContact {
+  id: string;
+  sequenceId: string;
+  contactId: string;
+  status:
+    | "not_sent"
+    | "draft"
+    | "active"
+    | "paused"
+    | "completed"
+    | "error"
+    | "pending"
+    | "scheduled"
+    | "sent"
+    | "bounced";
+  currentStep: number;
+  nextScheduledAt: Date | null;
+  completed: boolean;
+  startedAt: Date;
+  lastProcessedAt: Date | null;
+  completedAt: Date | null;
+  threadId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  contact: {
+    id: string;
+    name: string;
+    email: string;
+    company?: {
+      id: string;
+      name: string;
+    } | null;
+  };
+}
+
 interface SequenceContactsProps {
   sequenceId: string;
   initialContacts: SequenceContact[];
@@ -53,11 +106,12 @@ export function SequenceContacts({
   initialContacts,
   isActive,
 }: SequenceContactsProps) {
-  const [contacts, setContacts] = useState<SequenceContact[]>(initialContacts);
+  const [contacts, setContacts] = useState<ExtendedSequenceContact[]>(
+    initialContacts as ExtendedSequenceContact[]
+  );
   const [selectedContact, setSelectedContact] =
     useState<ContactWithCompany | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-
   const [totalSteps, setTotalSteps] = useState(0);
   const { stats, isLoading: statsLoading } = useSequenceStats(sequenceId);
 
@@ -73,7 +127,10 @@ export function SequenceContacts({
       if (!response.ok) throw new Error("Failed to add contact");
 
       const newSequenceContact = await response.json();
-      setContacts((prev) => [...prev, newSequenceContact]);
+      setContacts((prev) => [
+        ...prev,
+        newSequenceContact as ExtendedSequenceContact,
+      ]);
       setSelectedContact(null);
       toast.success("Contact added to sequence");
     } catch (error) {
@@ -110,7 +167,7 @@ export function SequenceContacts({
       const response = await fetch(`/api/sequences/${sequenceId}/contacts`);
       if (response.ok) {
         const data = await response.json();
-        setContacts(data.contacts);
+        setContacts(data.contacts as ExtendedSequenceContact[]);
         setTotalSteps(data.totalSteps);
       }
     } catch (error) {
@@ -134,51 +191,92 @@ export function SequenceContacts({
     };
   }, [sequenceId, isActive]);
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "completed":
-        return (
-          <Badge
-            variant="default"
-            className="bg-green-100 text-green-800 shadow-none hover:bg-green-100"
-          >
-            <Check className="w-3 h-3 mr-1" />
-            Completed
-          </Badge>
-        );
-      case "in_progress":
-        return (
-          <Badge
-            variant="secondary"
-            className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100"
-          >
-            <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
-            In Progress
-          </Badge>
-        );
-      case "failed":
-        return (
-          <Badge
-            variant="destructive"
-            className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
-          >
-            <X className="w-3 h-3 mr-1" />
-            Failed
-          </Badge>
-        );
-      case "not_started":
-        return (
-          <Badge
-            variant="outline"
-            className="bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-100"
-          >
-            <Clock className="w-3 h-3 mr-1" />
-            Not Started
-          </Badge>
-        );
-      default:
-        return <Badge variant="outline">{status}</Badge>;
+  const getStatusDetails = (contact: ExtendedSequenceContact) => {
+    if (contact.completedAt) {
+      return (
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-green-600">
+            <CheckCircle2 className="w-4 h-4" />
+            <span>Completed</span>
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {format(new Date(contact.completedAt), "MMM d, yyyy 'at' h:mm a")}
+          </div>
+        </div>
+      );
     }
+
+    if (contact.status === "bounced" || contact.status === "error") {
+      return (
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-red-600">
+            <AlertCircle className="w-4 h-4" />
+            <span>Failed</span>
+          </div>
+          {contact.lastProcessedAt && (
+            <div className="text-xs text-muted-foreground">
+              Last attempt:{" "}
+              {format(
+                new Date(contact.lastProcessedAt),
+                "MMM d, yyyy 'at' h:mm a"
+              )}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    if (contact.status === "active" || contact.status === "scheduled") {
+      return (
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-yellow-600">
+            <PlayCircle className="w-4 h-4" />
+            <span>In Progress</span>
+          </div>
+          {contact.nextScheduledAt && (
+            <div className="text-xs text-muted-foreground">
+              Next step:{" "}
+              {format(
+                new Date(contact.nextScheduledAt),
+                "MMM d, yyyy 'at' h:mm a"
+              )}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    if (contact.status === "paused") {
+      return (
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-orange-600">
+            <Clock className="w-4 h-4" />
+            <span>Paused</span>
+          </div>
+          <div className="text-xs text-muted-foreground">
+            Started{" "}
+            {formatDistanceToNow(new Date(contact.startedAt), {
+              addSuffix: true,
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-1">
+        <div className="flex items-center gap-2 text-gray-600">
+          <Clock className="w-4 h-4" />
+          <span>Not Started</span>
+        </div>
+        <div className="text-xs text-muted-foreground">
+          Added{" "}
+          {formatDistanceToNow(new Date(contact.startedAt), {
+            addSuffix: true,
+          })}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -213,9 +311,9 @@ export function SequenceContacts({
             <TableRow>
               <TableHead>Contact</TableHead>
               <TableHead>Company</TableHead>
-              <TableHead>Current Step</TableHead>
+              <TableHead>Progress</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Last Activity</TableHead>
+              <TableHead>Timeline</TableHead>
               <TableHead className="w-[50px]"></TableHead>
             </TableRow>
           </TableHeader>
@@ -243,22 +341,67 @@ export function SequenceContacts({
                     {sequenceContact.contact.company?.name || "-"}
                   </TableCell>
                   <TableCell>
-                    <div className="text-sm">
-                      Step {sequenceContact.currentStep} of {totalSteps}
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <div className="flex items-center gap-2">
+                            <div className="text-sm font-medium">
+                              Step {sequenceContact.currentStep + 1} of{" "}
+                              {totalSteps}
+                            </div>
+                            {sequenceContact.nextScheduledAt && (
+                              <Calendar className="w-4 h-4 text-muted-foreground" />
+                            )}
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {sequenceContact.nextScheduledAt
+                            ? `Next step scheduled for ${format(
+                                new Date(sequenceContact.nextScheduledAt),
+                                "MMM d, yyyy 'at' h:mm a"
+                              )}`
+                            : "No next step scheduled"}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <div className="text-xs text-muted-foreground">
+                      Started{" "}
+                      {formatDistanceToNow(
+                        new Date(sequenceContact.startedAt),
+                        { addSuffix: true }
+                      )}
                     </div>
                   </TableCell>
+                  <TableCell>{getStatusDetails(sequenceContact)}</TableCell>
                   <TableCell>
-                    {getStatusBadge(sequenceContact.status)}
-                  </TableCell>
-                  <TableCell>
-                    {sequenceContact.lastProcessedAt
-                      ? formatDistanceToNow(
-                          new Date(sequenceContact.lastProcessedAt),
-                          {
-                            addSuffix: true,
-                          }
-                        )
-                      : "-"}
+                    <div className="space-y-1">
+                      <div className="text-sm">
+                        {sequenceContact.lastProcessedAt ? (
+                          <>
+                            Last activity{" "}
+                            {formatDistanceToNow(
+                              new Date(sequenceContact.lastProcessedAt),
+                              {
+                                addSuffix: true,
+                              }
+                            )}
+                          </>
+                        ) : (
+                          "No activity yet"
+                        )}
+                      </div>
+                      {sequenceContact.completedAt && (
+                        <div className="text-xs text-muted-foreground">
+                          Completed in{" "}
+                          {formatDistanceToNow(
+                            new Date(sequenceContact.startedAt),
+                            {
+                              addSuffix: false,
+                            }
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Button
