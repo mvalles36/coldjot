@@ -7,7 +7,7 @@ import { emailService } from "./email-service";
 import { QueueService } from "../queue/queue-service";
 import { prisma } from "@mailjot/database";
 
-import { SequenceStep, StepStatus } from "@prisma/client";
+import { SequenceStep } from "@prisma/client";
 import { sendGmailSMTP } from "../google/smtp/gmail";
 import { createEmailTracking } from "../track/tracking-service";
 import { EmailTrackingMetadata } from "@mailjot/types";
@@ -156,6 +156,19 @@ export class EmailProcessor {
         );
 
         await this.handleSuccessfulEmail(data, emailResult, step);
+
+        //TODO:  Write a function to save information in EmailThread
+        // Save information in EmailThread
+        await prisma.emailThread.create({
+          data: {
+            gmailThreadId: emailResult.threadId,
+            sequenceId: data.sequenceId,
+            contactId: data.contactId,
+            userId: data.userId,
+            firstMessageId: emailResult.messageId,
+            subject: data.subject || step.subject || "",
+          },
+        });
 
         // Update contact threadId
         await updateSequenceContactThreadId(

@@ -46,642 +46,9 @@ interface TrackingEvent {
   contactId: string;
 }
 
-// ----------------------------------------------------------------------------
-
-const getMessageHeaders = async (
-  gmail: Gmail,
-  messageId: string,
-  headers: string[]
-): Promise<GaxiosResponse<Message>> => {
-  return gmail.users.messages.get({
-    userId: "me",
-    id: messageId,
-    format: "metadata",
-    metadataHeaders: headers,
-  });
-};
-
-// ----------------------------------------------------------------------------
-
-const updateSequenceContactStatus = async (
-  sequenceId: string,
-  contactId: string,
-  status: string
-) => {
-  await prisma.sequenceContact.updateMany({
-    where: {
-      sequenceId,
-      contactId,
-      status: {
-        notIn: ["completed", status, "opted_out"],
-      },
-    },
-    data: {
-      status,
-      updatedAt: new Date(),
-    },
-  });
-};
-
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-
-// Email Event Processing Functions
-async function processMessageForOpens(
-  gmail: Gmail,
-  messageId: string,
-  userId: string
-) {
-  try {
-    console.log("📧 Processing message for opens:", messageId);
-    const messageDetails = await gmail.users.messages.get({
-      userId: "me",
-      id: messageId,
-      format: "full",
-    });
-
-    const headers = messageDetails.data.payload?.headers || [];
-    const references = headers
-      .find((h: MessagePartHeader) => h.name === "References")
-      ?.value?.split(/\s+/);
-    const originalMessageId = references?.[references.length - 1]?.replace(
-      /[<>]/g,
-      ""
-    );
-
-    if (!originalMessageId) return;
-
-    const trackingEvent = await prisma.emailTracking.findFirst({
-      where: { messageId: originalMessageId, userId },
-    });
-
-    if (trackingEvent) {
-      // TODO: fix this
-      // await trackEmailEvent(
-      //   trackingEvent.hash,
-      //   "opened",
-      //   {
-      //     messageId,
-      //     threadId: messageDetails.data.threadId!,
-      //   },
-      //   {
-      //     email: trackingEvent.email,
-      //     userId: trackingEvent.userId,
-      //     sequenceId: trackingEvent.sequenceId,
-      //     stepId: trackingEvent.stepId,
-      //     contactId: trackingEvent.contactId,
-      //   }
-      // );
-      console.log(`✅ Tracked open event for email: ${trackingEvent.hash}`);
-    }
-  } catch (error) {
-    console.error("Error processing message for opens:", error);
-  }
-}
-
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-
-async function processMessageForReplies(
-  gmail: Gmail,
-  messageId: string,
-  userId: string
-) {
-  try {
-    const messageDetails = await getMessageHeaders(gmail, messageId, [
-      "From",
-      "References",
-      "In-Reply-To",
-      "Subject",
-      "To",
-    ]);
-
-    const messageData = messageDetails.data;
-    const headers = messageData.payload?.headers || [];
-    const threadId = messageData.threadId;
-    const labelIds = messageData.labelIds || [];
-
-    // Early return conditions
-    if (!threadId || !shouldProcessMessage(labelIds)) {
-      return;
-    }
-
-    const fromHeader =
-      headers.find((h: MessagePartHeader) => h.name === "From")?.value || "";
-    const senderEmail = extractEmailFromHeader(fromHeader);
-
-    if (isSenderSequenceOwner(senderEmail, userId)) {
-      return;
-    }
-
-    // Try thread-based reply first
-    const threadBasedResult = await processThreadBasedReply(
-      gmail,
-      messageId,
-      threadId,
-      userId,
-      headers,
-      fromHeader,
-      messageDetails
-    );
-
-    // Only try reference-based if thread-based didn't find anything
-    if (!threadBasedResult) {
-      await processReferenceBasedReply(
-        gmail,
-        messageId,
-        userId,
-        headers,
-        fromHeader,
-        threadId,
-        messageDetails
-      );
-    }
-  } catch (error) {
-    console.error("Error processing message for replies:", error);
-  }
-}
-
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-
-async function processMessageForBounces(
-  gmail: Gmail,
-  messageId: string,
-  userId: string
-) {
-  try {
-    const messageDetails = await getMessageHeaders(gmail, messageId, [
-      "From",
-      "To",
-      "Subject",
-      "X-Failed-Recipients",
-      "Content-Type",
-      "Message-ID",
-    ]);
-
-    const messageData = messageDetails.data;
-    const headers = messageData.payload?.headers || [];
-    const labelIds = messageData.labelIds || [];
-    const threadId = messageData.threadId;
-
-    if (!isBounceMessage(headers, labelIds)) {
-      return;
-    }
-
-    console.log("📨 Potential bounced email detected:", messageId);
-
-    const emailThread = await findEmailThread(threadId!, userId);
-    if (!emailThread) {
-      return;
-    }
-
-    if (await hasBounceEvent(emailThread)) {
-      return;
-    }
-
-    const trackingEvent = await findTrackingEvent(
-      emailThread.firstMessageId,
-      userId
-    );
-    if (!trackingEvent) {
-      return;
-    }
-
-    await processBounceEvent(trackingEvent, emailThread, messageId, headers);
-  } catch (error) {
-    console.error("Error processing message for bounces:", error);
-  }
-}
-
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-
-const findEmailThread = async (threadId: string, userId: string) => {
-  return prisma.emailThread.findFirst({
-    where: {
-      gmailThreadId: threadId,
-      userId,
-    },
-    include: {
-      sequence: true,
-      contact: true,
-    },
-  });
-};
-
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-
-const hasBounceEvent = async (emailThread: any) => {
-  const existingBounceEvent = await prisma.emailEvent.findFirst({
-    where: {
-      sequenceId: emailThread.sequenceId,
-      contactId: emailThread.contactId,
-      type: "BOUNCED",
-    },
-  });
-  return !!existingBounceEvent;
-};
-
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-
-const findTrackingEvent = async (messageId: string, userId: string) => {
-  return prisma.emailTracking.findFirst({
-    where: {
-      messageId,
-      userId,
-    },
-  });
-};
-
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-
-const processBounceEvent = async (
-  trackingEvent: any,
-  emailThread: any,
-  messageId: string,
-  headers: MessagePartHeader[]
-) => {
-  const failedRecipient = headers.find(
-    (h) => h.name === "X-Failed-Recipients"
-  )?.value;
-
-  // TODO: fix this
-  // await trackEmailEvent(
-  //   trackingEvent.hash,
-  //   "bounced",
-  //   {
-  //     bounceReason: failedRecipient!,
-  //     messageId,
-  //     threadId: emailThread.gmailThreadId,
-  //   },
-  //   {
-  //     email: emailThread.contact.email,
-  //     userId: emailThread.userId,
-  //     sequenceId: emailThread.sequenceId,
-  //     stepId: trackingEvent.stepId,
-  //     contactId: emailThread.contactId,
-  //   }
-  // );
-
-  // TODO: fix this
-  // await updateSequenceStats(
-  //   emailThread.sequenceId,
-  //   "bounced",
-  //   emailThread.contactId
-  // );
-
-  await updateSequenceContactStatus(
-    emailThread.sequenceId,
-    emailThread.contactId,
-    "bounced"
-  );
-
-  console.log(
-    "✅ Tracked first bounce event for sequence:",
-    emailThread.sequenceId
-  );
-};
-
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-
-const processThreadBasedReply = async (
-  gmail: Gmail,
-  messageId: string,
-  threadId: string,
-  userId: string,
-  headers: MessagePartHeader[],
-  fromHeader: string,
-  messageDetails: GaxiosResponse<Message>
-) => {
-  const emailThread = await prisma.emailThread.findUnique({
-    where: { gmailThreadId: threadId },
-    include: {
-      sequence: true,
-      contact: true,
-    },
-  });
-
-  if (!emailThread) return false;
-
-  const trackingEvent = await findTrackingEvent(
-    emailThread.firstMessageId,
-    userId
-  );
-  if (!trackingEvent) return false;
-
-  const existingReplyEvent = await hasExistingReplyEvent(
-    emailThread.sequenceId,
-    emailThread.contactId
-  );
-  if (existingReplyEvent) return false;
-
-  // TODO: fix this
-  // await processReplyEvent(
-  //   trackingEvent,
-  //   messageId,
-  //   threadId,
-  //   fromHeader,
-  //   messageDetails,
-  //   emailThread
-  // );
-
-  return true;
-};
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-
-const processReferenceBasedReply = async (
-  gmail: Gmail,
-  messageId: string,
-  userId: string,
-  headers: MessagePartHeader[],
-  fromHeader: string,
-  threadId: string,
-  messageDetails: GaxiosResponse<Message>
-) => {
-  const possibleMessageIds = extractPossibleMessageIds(headers);
-  if (possibleMessageIds.length === 0) return;
-
-  const trackingEvent = await prisma.emailTracking.findFirst({
-    where: {
-      messageId: { in: possibleMessageIds },
-      userId,
-    },
-  });
-
-  if (!trackingEvent) return;
-
-  const existingReply = await hasExistingReply(trackingEvent.hash, messageId);
-  if (existingReply) return;
-
-  console.log("📨 Found reply through message references");
-
-  // TODO: fix this
-  // await trackReplyEvent(
-  //   trackingEvent,
-  //   messageId,
-  //   threadId,
-  //   fromHeader,
-  //   messageDetails
-  // );
-};
-
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-
-const hasExistingReplyEvent = async (sequenceId: string, contactId: string) => {
-  return prisma.emailEvent.findFirst({
-    where: {
-      sequenceId,
-      contactId,
-      type: "REPLIED",
-    },
-  });
-};
-
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-
-const hasExistingReply = async (trackingId: string, messageId: string) => {
-  return prisma.emailEvent.findFirst({
-    where: {
-      trackingId: trackingId,
-      type: "REPLIED",
-      metadata: {
-        path: ["replyMessageId"],
-        equals: messageId,
-      },
-    },
-  });
-};
-
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-
-const processReplyEvent = async (
-  trackingEvent: TrackingEvent,
-  messageId: string,
-  threadId: string,
-  fromHeader: string,
-  messageDetails: GaxiosResponse<Message>,
-  emailThread: EmailThread
-) => {
-  const snippet = messageDetails.data.snippet || undefined;
-
-  // TODO: fix this
-  // await trackEmailEvent(
-  //   trackingEvent.hash,
-  //   "replied",
-  //   {
-  //     replyMessageId: messageId,
-  //     threadId,
-  //     from: fromHeader,
-  //     ...(snippet && { snippet }),
-  //     timestamp: new Date().toISOString(),
-  //   },
-  //   {
-  //     email: emailThread.contact.email,
-  //     userId: emailThread.userId,
-  //     sequenceId: emailThread.sequenceId,
-  //     stepId: trackingEvent.stepId,
-  //     contactId: emailThread.contactId,
-  //   }
-  // );
-
-  // TODO: fix this
-  // await updateSequenceStats(
-  //   emailThread.sequenceId,
-  //   "replied",
-  //   emailThread.contactId
-  // );
-
-  await updateSequenceContactStatus(
-    emailThread.sequenceId,
-    emailThread.contactId,
-    "replied"
-  );
-
-  console.log("✅ Tracked reply event for sequence:", emailThread.sequenceId);
-};
-
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-
-const trackReplyEvent = async (
-  trackingEvent: TrackingEvent,
-  messageId: string,
-  threadId: string,
-  fromHeader: string,
-  messageDetails: GaxiosResponse<Message>
-) => {
-  const snippet = messageDetails.data.snippet || undefined;
-
-  // TODO: fix this
-  // await trackEmailEvent(
-  //   trackingEvent.hash,
-  //   "replied",
-  //   {
-  //     replyMessageId: messageId,
-  //     threadId,
-  //     from: fromHeader,
-  //     ...(snippet && { snippet }),
-  //     timestamp: new Date().toISOString(),
-  //   },
-  //   {
-  //     email: trackingEvent.email,
-  //     userId: trackingEvent.userId,
-  //     sequenceId: trackingEvent.sequenceId,
-  //     stepId: trackingEvent.stepId,
-  //     contactId: trackingEvent.contactId,
-  //   }
-  // );
-
-  console.log("✅ Tracked reply event through references");
-};
-
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-
-const parseNotificationData = async (
-  req: NextRequest
-): Promise<NotificationData> => {
-  const body = await req.json();
-  return JSON.parse(Buffer.from(body.message.data, "base64").toString());
-};
-
-const getUserAndAccount = async (emailAddress: string) => {
-  const user = await prisma.user.findUnique({
-    where: { email: emailAddress },
-    include: {
-      accounts: {
-        where: { provider: "google" },
-        select: {
-          id: true,
-          providerAccountId: true,
-          access_token: true,
-          refresh_token: true,
-          expires_at: true,
-        },
-      },
-    },
-  });
-
-  return { user, account: user?.accounts?.[0] };
-};
-
-const handleAccessTokenRefresh = async (
-  userId: string,
-  account: any
-): Promise<string | null> => {
-  const now = Math.floor(Date.now() / 1000);
-  let accessToken = account.access_token;
-
-  if (account.expires_at && account.expires_at < now && account.refresh_token) {
-    try {
-      accessToken = await refreshAccessToken(userId, account.refresh_token);
-      if (!accessToken) {
-        throw new Error("Failed to refresh token");
-      }
-    } catch (error) {
-      console.error("Failed to refresh token:", error);
-      return null;
-    }
-  }
-
-  return accessToken;
-};
-
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-
-const initializeGmailClient = async (
-  accessToken: string,
-  refreshToken: string
-): Promise<Gmail> => {
-  oauth2Client.setCredentials({
-    access_token: accessToken,
-    refresh_token: refreshToken,
-  });
-
-  return google.gmail({ version: "v1", auth: oauth2Client });
-};
-
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-
-const getGmailHistory = async (gmail: Gmail, historyId: string) => {
-  return gmail.users.history.list({
-    userId: "me",
-    startHistoryId: historyId,
-    historyTypes: ["messageAdded", "labelAdded"],
-  });
-};
-
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-
-const processHistoryRecords = async (
-  gmail: Gmail,
-  history: any,
-  userId: string
-) => {
-  for (const record of history.data?.history || []) {
-    for (const message of record.messages || []) {
-      if (!message.id) continue;
-
-      await processMessageForOpens(gmail, message.id, userId);
-      await processMessageForReplies(gmail, message.id, userId);
-      await processMessageForBounces(gmail, message.id, userId);
-    }
-  }
-};
-
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-
-const updateHistoryId = async (accountId: string, historyId?: string) => {
-  if (historyId) {
-    await prisma.account.update({
-      where: { id: accountId },
-      data: { watchHistoryId: historyId },
-    });
-  }
-};
-
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
 
 // Main POST handler
 export async function POST(req: NextRequest) {
@@ -739,7 +106,7 @@ export async function POST(req: NextRequest) {
     const history = await getGmailHistory(gmail, historyId);
 
     // TOOD : uncomment this
-    // await processHistoryRecords(gmail, history, user.id);
+    await processHistoryRecords(gmail, history, user.id);
 
     // Update history ID
     await updateHistoryId(account.id, history.data.historyId?.toString());
@@ -754,3 +121,694 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+const parseNotificationData = async (
+  req: NextRequest
+): Promise<NotificationData> => {
+  const body = await req.json();
+  return JSON.parse(Buffer.from(body.message.data, "base64").toString());
+};
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+const getUserAndAccount = async (emailAddress: string) => {
+  const user = await prisma.user.findUnique({
+    where: { email: emailAddress },
+    include: {
+      accounts: {
+        where: { provider: "google" },
+        select: {
+          id: true,
+          providerAccountId: true,
+          access_token: true,
+          refresh_token: true,
+          expires_at: true,
+        },
+      },
+    },
+  });
+
+  return { user, account: user?.accounts?.[0] };
+};
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+const handleAccessTokenRefresh = async (
+  userId: string,
+  account: any
+): Promise<string | null> => {
+  const now = Math.floor(Date.now() / 1000);
+  let accessToken = account.access_token;
+
+  if (account.expires_at && account.expires_at < now && account.refresh_token) {
+    try {
+      accessToken = await refreshAccessToken(userId, account.refresh_token);
+      if (!accessToken) {
+        throw new Error("Failed to refresh token");
+      }
+    } catch (error) {
+      console.error("Failed to refresh token:", error);
+      return null;
+    }
+  }
+
+  return accessToken;
+};
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+const initializeGmailClient = async (
+  accessToken: string,
+  refreshToken: string
+): Promise<Gmail> => {
+  oauth2Client.setCredentials({
+    access_token: accessToken,
+    refresh_token: refreshToken,
+  });
+
+  return google.gmail({ version: "v1", auth: oauth2Client });
+};
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+const getGmailHistory = async (gmail: Gmail, historyId: string) => {
+  return gmail.users.history.list({
+    userId: "me",
+    startHistoryId: historyId,
+    historyTypes: ["messageAdded", "labelAdded"],
+  });
+};
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+const processHistoryRecords = async (
+  gmail: Gmail,
+  history: any,
+  userId: string
+) => {
+  console.log("history", history.data);
+  for (const record of history.data?.history || []) {
+    for (const message of record.messages || []) {
+      if (!message.id) continue;
+
+      // await processMessageForOpens(gmail, message.id, userId);
+      await processMessageForReplies(gmail, message.id, userId);
+      // await processMessageForBounces(gmail, message.id, userId);
+    }
+  }
+};
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+// Email Event Processing Functions
+async function processMessageForOpens(
+  gmail: Gmail,
+  messageId: string,
+  userId: string
+) {
+  try {
+    console.log("📧 Processing message for opens:", messageId);
+    const messageDetails = await gmail.users.messages.get({
+      userId: "me",
+      id: messageId,
+      format: "full",
+    });
+
+    const headers = messageDetails.data.payload?.headers || [];
+    const references = headers
+      .find((h: MessagePartHeader) => h.name === "References")
+      ?.value?.split(/\s+/);
+    const originalMessageId = references?.[references.length - 1]?.replace(
+      /[<>]/g,
+      ""
+    );
+
+    if (!originalMessageId) return;
+
+    const trackingEvent = await prisma.emailTracking.findFirst({
+      where: { messageId: originalMessageId, userId },
+    });
+
+    if (trackingEvent) {
+      // TODO: fix this
+      // await trackEmailEvent(
+      //   trackingEvent.hash,
+      //   "opened",
+      //   {
+      //     messageId,
+      //     threadId: messageDetails.data.threadId!,
+      //   },
+      //   {
+      //     email: trackingEvent.email,
+      //     userId: trackingEvent.userId,
+      //     sequenceId: trackingEvent.sequenceId,
+      //     stepId: trackingEvent.stepId,
+      //     contactId: trackingEvent.contactId,
+      //   }
+      // );
+      console.log(`✅ Tracked open event for email: ${trackingEvent.hash}`);
+    }
+  } catch (error) {
+    console.error("Error processing message for opens:", error);
+  }
+}
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+async function processMessageForReplies(
+  gmail: Gmail,
+  messageId: string,
+  userId: string
+) {
+  try {
+    const messageDetails = await getMessageHeaders(gmail, messageId, [
+      "From",
+      "References",
+      "In-Reply-To",
+      "Subject",
+      "To",
+    ]);
+    console.log("Message Details", messageDetails.data);
+
+    const messageData = messageDetails.data;
+    console.log("Message Data", messageData);
+    const headers = messageData.payload?.headers || [];
+    console.log("Headers", headers);
+    const threadId = messageData.threadId;
+    console.log("Thread Id", threadId);
+    const labelIds = messageData.labelIds || [];
+    console.log("Label Ids", labelIds);
+
+    // Early return conditions
+    if (!threadId || !shouldProcessMessage(labelIds)) {
+      return;
+    }
+
+    const fromHeader =
+      headers.find((h: MessagePartHeader) => h.name === "From")?.value || "";
+    const senderEmail = extractEmailFromHeader(fromHeader);
+
+    console.log("Sender Email", senderEmail);
+
+    if (isSenderSequenceOwner(senderEmail, userId)) {
+      return;
+    }
+
+    // Try thread-based reply first
+    const threadBasedResult = await processThreadBasedReply(
+      gmail,
+      messageId,
+      threadId,
+      userId,
+      headers,
+      fromHeader,
+      messageDetails
+    );
+
+    console.log("Thread Based Result", threadBasedResult);
+
+    // Only try reference-based if thread-based didn't find anything
+    if (!threadBasedResult) {
+      await processReferenceBasedReply(
+        gmail,
+        messageId,
+        userId,
+        headers,
+        fromHeader,
+        threadId,
+        messageDetails
+      );
+    }
+  } catch (error) {
+    console.error("Error processing message for replies:", error);
+  }
+}
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+async function processMessageForBounces(
+  gmail: Gmail,
+  messageId: string,
+  userId: string
+) {
+  try {
+    const messageDetails = await getMessageHeaders(gmail, messageId, [
+      "From",
+      "To",
+      "Subject",
+      "X-Failed-Recipients",
+      "Content-Type",
+      "Message-ID",
+    ]);
+
+    const messageData = messageDetails.data;
+    const headers = messageData.payload?.headers || [];
+    const labelIds = messageData.labelIds || [];
+    const threadId = messageData.threadId;
+
+    if (!isBounceMessage(headers, labelIds)) {
+      return;
+    }
+
+    console.log("📨 Potential bounced email detected:", messageId);
+
+    const emailThread = await findEmailThread(threadId!, userId);
+    if (!emailThread) {
+      return;
+    }
+
+    if (await hasBounceEvent(emailThread)) {
+      return;
+    }
+
+    const trackingEvent = await findTrackingEvent(
+      emailThread.firstMessageId,
+      userId
+    );
+    if (!trackingEvent) {
+      return;
+    }
+
+    await processBounceEvent(trackingEvent, emailThread, messageId, headers);
+  } catch (error) {
+    console.error("Error processing message for bounces:", error);
+  }
+}
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+const getMessageHeaders = async (
+  gmail: Gmail,
+  messageId: string,
+  headers: string[]
+): Promise<GaxiosResponse<Message>> => {
+  return gmail.users.messages.get({
+    userId: "me",
+    id: messageId,
+    format: "metadata",
+    metadataHeaders: headers,
+  });
+};
+
+// -----------------------------------------
+
+const updateSequenceContactStatus = async (
+  sequenceId: string,
+  contactId: string,
+  status: string
+) => {
+  await prisma.sequenceContact.updateMany({
+    where: {
+      sequenceId,
+      contactId,
+      status: {
+        notIn: ["completed", status, "opted_out"],
+      },
+    },
+    data: {
+      status,
+      updatedAt: new Date(),
+    },
+  });
+};
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+const findEmailThread = async (threadId: string, userId: string) => {
+  return prisma.emailThread.findFirst({
+    where: {
+      gmailThreadId: threadId,
+      userId,
+    },
+    include: {
+      sequence: true,
+      contact: true,
+    },
+  });
+};
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+const hasBounceEvent = async (emailThread: any) => {
+  const existingBounceEvent = await prisma.emailEvent.findFirst({
+    where: {
+      sequenceId: emailThread.sequenceId,
+      contactId: emailThread.contactId,
+      type: "BOUNCED",
+    },
+  });
+  return !!existingBounceEvent;
+};
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+const findTrackingEvent = async (messageId: string, userId: string) => {
+  return prisma.emailTracking.findFirst({
+    where: {
+      messageId,
+      userId,
+    },
+  });
+};
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+const processBounceEvent = async (
+  trackingEvent: any,
+  emailThread: any,
+  messageId: string,
+  headers: MessagePartHeader[]
+) => {
+  const failedRecipient = headers.find(
+    (h) => h.name === "X-Failed-Recipients"
+  )?.value;
+
+  // TODO: fix this
+  // await trackEmailEvent(
+  //   trackingEvent.hash,
+  //   "bounced",
+  //   {
+  //     bounceReason: failedRecipient!,
+  //     messageId,
+  //     threadId: emailThread.gmailThreadId,
+  //   },
+  //   {
+  //     email: emailThread.contact.email,
+  //     userId: emailThread.userId,
+  //     sequenceId: emailThread.sequenceId,
+  //     stepId: trackingEvent.stepId,
+  //     contactId: emailThread.contactId,
+  //   }
+  // );
+
+  // TODO: fix this
+  // await updateSequenceStats(
+  //   emailThread.sequenceId,
+  //   "bounced",
+  //   emailThread.contactId
+  // );
+
+  await updateSequenceContactStatus(
+    emailThread.sequenceId,
+    emailThread.contactId,
+    "bounced"
+  );
+
+  console.log(
+    "✅ Tracked first bounce event for sequence:",
+    emailThread.sequenceId
+  );
+};
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+const processThreadBasedReply = async (
+  gmail: Gmail,
+  messageId: string,
+  threadId: string,
+  userId: string,
+  headers: MessagePartHeader[],
+  fromHeader: string,
+  messageDetails: GaxiosResponse<Message>
+) => {
+  const emailThread = await prisma.emailThread.findUnique({
+    where: { gmailThreadId: threadId },
+    include: {
+      sequence: true,
+      contact: true,
+    },
+  });
+
+  if (!emailThread) return false;
+
+  const trackingEvent = await findTrackingEvent(
+    emailThread.firstMessageId,
+    userId
+  );
+  if (!trackingEvent) return false;
+
+  const existingReplyEvent = await hasExistingReplyEvent(
+    emailThread.sequenceId,
+    emailThread.contactId
+  );
+  if (existingReplyEvent) return false;
+
+  // TODO: fix this
+  // await processReplyEvent(
+  //   trackingEvent,
+  //   messageId,
+  //   threadId,
+  //   fromHeader,
+  //   messageDetails,
+  //   emailThread
+  // );
+
+  return true;
+};
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+const processReferenceBasedReply = async (
+  gmail: Gmail,
+  messageId: string,
+  userId: string,
+  headers: MessagePartHeader[],
+  fromHeader: string,
+  threadId: string,
+  messageDetails: GaxiosResponse<Message>
+) => {
+  const possibleMessageIds = extractPossibleMessageIds(headers);
+  if (possibleMessageIds.length === 0) return;
+
+  const trackingEvent = await prisma.emailTracking.findFirst({
+    where: {
+      messageId: { in: possibleMessageIds },
+      userId,
+    },
+  });
+
+  if (!trackingEvent) return;
+
+  const existingReply = await hasExistingReply(trackingEvent.hash, messageId);
+  if (existingReply) return;
+
+  console.log("📨 Found reply through message references");
+
+  // TODO: fix this
+  // await trackReplyEvent(
+  //   trackingEvent,
+  //   messageId,
+  //   threadId,
+  //   fromHeader,
+  //   messageDetails
+  // );
+};
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+const hasExistingReplyEvent = async (sequenceId: string, contactId: string) => {
+  return prisma.emailEvent.findFirst({
+    where: {
+      sequenceId,
+      contactId,
+      type: "REPLIED",
+    },
+  });
+};
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+const hasExistingReply = async (trackingId: string, messageId: string) => {
+  return prisma.emailEvent.findFirst({
+    where: {
+      trackingId: trackingId,
+      type: "REPLIED",
+      metadata: {
+        path: ["replyMessageId"],
+        equals: messageId,
+      },
+    },
+  });
+};
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+const processReplyEvent = async (
+  trackingEvent: TrackingEvent,
+  messageId: string,
+  threadId: string,
+  fromHeader: string,
+  messageDetails: GaxiosResponse<Message>,
+  emailThread: EmailThread
+) => {
+  const snippet = messageDetails.data.snippet || undefined;
+
+  // TODO: fix this
+  // await trackEmailEvent(
+  //   trackingEvent.hash,
+  //   "replied",
+  //   {
+  //     replyMessageId: messageId,
+  //     threadId,
+  //     from: fromHeader,
+  //     ...(snippet && { snippet }),
+  //     timestamp: new Date().toISOString(),
+  //   },
+  //   {
+  //     email: emailThread.contact.email,
+  //     userId: emailThread.userId,
+  //     sequenceId: emailThread.sequenceId,
+  //     stepId: trackingEvent.stepId,
+  //     contactId: emailThread.contactId,
+  //   }
+  // );
+
+  // TODO: fix this
+  // await updateSequenceStats(
+  //   emailThread.sequenceId,
+  //   "replied",
+  //   emailThread.contactId
+  // );
+
+  await updateSequenceContactStatus(
+    emailThread.sequenceId,
+    emailThread.contactId,
+    "replied"
+  );
+
+  console.log("✅ Tracked reply event for sequence:", emailThread.sequenceId);
+};
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+const trackReplyEvent = async (
+  trackingEvent: TrackingEvent,
+  messageId: string,
+  threadId: string,
+  fromHeader: string,
+  messageDetails: GaxiosResponse<Message>
+) => {
+  const snippet = messageDetails.data.snippet || undefined;
+
+  // TODO: fix this
+  // await trackEmailEvent(
+  //   trackingEvent.hash,
+  //   "replied",
+  //   {
+  //     replyMessageId: messageId,
+  //     threadId,
+  //     from: fromHeader,
+  //     ...(snippet && { snippet }),
+  //     timestamp: new Date().toISOString(),
+  //   },
+  //   {
+  //     email: trackingEvent.email,
+  //     userId: trackingEvent.userId,
+  //     sequenceId: trackingEvent.sequenceId,
+  //     stepId: trackingEvent.stepId,
+  //     contactId: trackingEvent.contactId,
+  //   }
+  // );
+
+  console.log("✅ Tracked reply event through references");
+};
+
+// -----------------------------------------
+// -----------------------------------------
+// -----------------------------------------
+
+const updateHistoryId = async (accountId: string, historyId?: string) => {
+  if (historyId) {
+    await prisma.account.update({
+      where: { id: accountId },
+      data: { watchHistoryId: historyId },
+    });
+  }
+};
+
+// For future reference
+// async function processMessageForReplies(gmail: Gmail, messageId: string, userId: string) {
+//   try {
+//     const messageDetails = await getMessageHeaders(gmail, messageId, [
+//       "From",
+//       "References",
+//       "In-Reply-To",
+//       "Subject",
+//       "To",
+//       "Date",  // Add date header
+//     ]);
+
+//     // ... existing validation ...
+
+//     // Add subject-based validation
+//     const subject = headers.find(h => h.name === "Subject")?.value || "";
+//     const isReplySubject = subject.toLowerCase().startsWith("re:") ||
+//                           subject.toLowerCase().startsWith("reply:");
+
+//     // Add participant validation
+//     const to = headers.find(h => h.name === "To")?.value || "";
+//     const toEmails = extractEmailFromHeader(to);
+
+//     if (!isReplySubject && !references && !inReplyTo) {
+//       console.log("Not a reply - missing reply indicators");
+//       return;
+//     }
+
+//     // Continue with existing logic...
+//   } catch (error) {
+//     console.error("Error processing message for replies:", error);
+//   }
+// }
