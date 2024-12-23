@@ -24,6 +24,8 @@ import {
   CheckCircle2,
   AlertCircle,
   PlayCircle,
+  Building2,
+  ExternalLink,
 } from "lucide-react";
 import { ListSelector } from "@/components/lists/list-selector";
 import { formatDistanceToNow, format } from "date-fns";
@@ -74,6 +76,7 @@ interface ExtendedSequenceContact {
     | "pending"
     | "scheduled"
     | "sent"
+    | "in_progress"
     | "bounced";
   currentStep: number;
   nextScheduledAt: Date | null;
@@ -194,87 +197,48 @@ export function SequenceContacts({
   const getStatusDetails = (contact: ExtendedSequenceContact) => {
     if (contact.completedAt) {
       return (
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-green-600">
-            <CheckCircle2 className="w-4 h-4" />
-            <span>Completed</span>
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {format(new Date(contact.completedAt), "MMM d, yyyy 'at' h:mm a")}
-          </div>
+        <div className="flex items-center gap-2 text-green-600">
+          <CheckCircle2 className="w-4 h-4" />
+          <span>Completed</span>
         </div>
       );
     }
 
     if (contact.status === "bounced" || contact.status === "error") {
       return (
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-red-600">
-            <AlertCircle className="w-4 h-4" />
-            <span>Failed</span>
-          </div>
-          {contact.lastProcessedAt && (
-            <div className="text-xs text-muted-foreground">
-              Last attempt:{" "}
-              {format(
-                new Date(contact.lastProcessedAt),
-                "MMM d, yyyy 'at' h:mm a"
-              )}
-            </div>
-          )}
+        <div className="flex items-center gap-2 text-red-600">
+          <AlertCircle className="w-4 h-4" />
+          <span>Failed</span>
         </div>
       );
     }
 
-    if (contact.status === "active" || contact.status === "scheduled") {
+    if (
+      contact.status === "active" ||
+      contact.status === "scheduled" ||
+      contact.status === "in_progress"
+    ) {
       return (
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-yellow-600">
-            <PlayCircle className="w-4 h-4" />
-            <span>In Progress</span>
-          </div>
-          {contact.nextScheduledAt && (
-            <div className="text-xs text-muted-foreground">
-              Next step:{" "}
-              {format(
-                new Date(contact.nextScheduledAt),
-                "MMM d, yyyy 'at' h:mm a"
-              )}
-            </div>
-          )}
+        <div className="flex items-center gap-2 text-yellow-600">
+          <PlayCircle className="w-4 h-4" />
+          <span>In Progress</span>
         </div>
       );
     }
 
     if (contact.status === "paused") {
       return (
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-orange-600">
-            <Clock className="w-4 h-4" />
-            <span>Paused</span>
-          </div>
-          <div className="text-xs text-muted-foreground">
-            Started{" "}
-            {formatDistanceToNow(new Date(contact.startedAt), {
-              addSuffix: true,
-            })}
-          </div>
+        <div className="flex items-center gap-2 text-orange-600">
+          <Clock className="w-4 h-4" />
+          <span>Paused</span>
         </div>
       );
     }
 
     return (
-      <div className="space-y-1">
-        <div className="flex items-center gap-2 text-gray-600">
-          <Clock className="w-4 h-4" />
-          <span>Not Started</span>
-        </div>
-        <div className="text-xs text-muted-foreground">
-          Added{" "}
-          {formatDistanceToNow(new Date(contact.startedAt), {
-            addSuffix: true,
-          })}
-        </div>
+      <div className="flex items-center gap-2 text-gray-600">
+        <Clock className="w-4 h-4" />
+        <span>Not Started</span>
       </div>
     );
   };
@@ -310,9 +274,10 @@ export function SequenceContacts({
           <TableHeader>
             <TableRow>
               <TableHead>Contact</TableHead>
-              <TableHead>Company</TableHead>
               <TableHead>Progress</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Started At</TableHead>
+              <TableHead>Next Run</TableHead>
               <TableHead>Timeline</TableHead>
               <TableHead className="w-[50px]"></TableHead>
             </TableRow>
@@ -320,7 +285,7 @@ export function SequenceContacts({
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center">
+                <TableCell colSpan={7} className="text-center">
                   <RefreshCw className="h-4 w-4 animate-spin mx-auto" />
                 </TableCell>
               </TableRow>
@@ -328,17 +293,36 @@ export function SequenceContacts({
               contacts.map((sequenceContact) => (
                 <TableRow key={sequenceContact.id}>
                   <TableCell>
-                    <div>
-                      <div className="font-medium">
-                        {sequenceContact.contact.name}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {sequenceContact.contact.email}
+                    <div className="flex items-center gap-2">
+                      <div>
+                        <div className="font-medium flex items-center gap-2">
+                          {sequenceContact.contact.name}
+                          {sequenceContact.contact.company && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <a
+                                    href={`/companies/${sequenceContact.contact.company.id}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-muted-foreground hover:text-primary"
+                                  >
+                                    <Building2 className="h-4 w-4" />
+                                  </a>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {sequenceContact.contact.company.name}
+                                  <ExternalLink className="h-3 w-3 ml-1 inline" />
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {sequenceContact.contact.email}
+                        </div>
                       </div>
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    {sequenceContact.contact.company?.name || "-"}
                   </TableCell>
                   <TableCell>
                     <TooltipProvider>
@@ -349,9 +333,6 @@ export function SequenceContacts({
                               Step {sequenceContact.currentStep + 1} of{" "}
                               {totalSteps}
                             </div>
-                            {sequenceContact.nextScheduledAt && (
-                              <Calendar className="w-4 h-4 text-muted-foreground" />
-                            )}
                           </div>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -364,15 +345,37 @@ export function SequenceContacts({
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
-                    <div className="text-xs text-muted-foreground">
-                      Started{" "}
-                      {formatDistanceToNow(
-                        new Date(sequenceContact.startedAt),
-                        { addSuffix: true }
-                      )}
-                    </div>
                   </TableCell>
                   <TableCell>{getStatusDetails(sequenceContact)}</TableCell>
+                  <TableCell>
+                    <div className="text-sm">
+                      {format(
+                        new Date(sequenceContact.startedAt),
+                        "MMM d, yyyy"
+                      )}
+                      <div className="text-xs text-muted-foreground">
+                        {format(new Date(sequenceContact.startedAt), "h:mm a")}
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {sequenceContact.nextScheduledAt ? (
+                      <div className="text-sm">
+                        {format(
+                          new Date(sequenceContact.nextScheduledAt),
+                          "MMM d, yyyy"
+                        )}
+                        <div className="text-xs text-muted-foreground">
+                          {format(
+                            new Date(sequenceContact.nextScheduledAt),
+                            "h:mm a"
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">-</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <div className="space-y-1">
                       <div className="text-sm">
@@ -394,7 +397,7 @@ export function SequenceContacts({
                         <div className="text-xs text-muted-foreground">
                           Completed in{" "}
                           {formatDistanceToNow(
-                            new Date(sequenceContact.startedAt),
+                            new Date(sequenceContact.completedAt),
                             {
                               addSuffix: false,
                             }
@@ -423,7 +426,7 @@ export function SequenceContacts({
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8">
+                <TableCell colSpan={7} className="text-center py-8">
                   <div className="text-muted-foreground">
                     {isActive ? (
                       <>
