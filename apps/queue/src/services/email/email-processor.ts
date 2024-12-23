@@ -19,11 +19,11 @@ import { updateSequenceContactThreadId } from "../sequence/helper";
 import { updateSequenceContactStatus } from "../sequence/helper";
 
 export class EmailProcessor {
-  private queueService: QueueService;
+  // private queueService: QueueService;
 
   constructor() {
     // TODO: check this and see if it is required anywhere
-    this.queueService = QueueService.getInstance();
+    // this.queueService = QueueService.getInstance();
   }
 
   // -----------------------------------------

@@ -96,7 +96,7 @@ export class SequenceProcessor {
           data.sequenceId,
           contact.contact.id
         );
-        const currentStepIndex = progress?.currentStepIndex ?? 0;
+        const currentStepIndex = progress?.currentStep ?? 0;
 
         // Log progress status
         logger.info(`📊 Contact progress:`, {

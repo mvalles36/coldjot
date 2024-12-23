@@ -5,6 +5,7 @@ export * from "./email";
 export * from "./queue";
 export * from "./google";
 export * from "./gmail";
+export * from "./thread";
 
 export interface User {
   id: string;

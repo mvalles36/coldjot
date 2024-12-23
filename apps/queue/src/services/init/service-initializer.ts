@@ -1,10 +1,17 @@
+// Services
 import { QueueService } from "../queue/queue-service";
 import { sequenceProcessor } from "../sequence/sequence-processor";
+import { threadProcessor } from "../thread/thread-processor";
 import { emailProcessor } from "../email/email-processor";
-import { contactProcessingService } from "../sequence/contact-processing-service";
+
+// Services
 import { emailSchedulingService } from "../schedule/email-scheduling-service";
+import { contactProcessingService } from "../sequence/contact-processing-service";
+
+// Monitors
 import { memoryMonitor } from "../memory/memory-monitor";
 import { emailThreadMonitor } from "../thread/thread-monitor";
+
 import { logger } from "../log/logger";
 import Redis from "ioredis";
 import { prisma } from "@mailjot/database";
@@ -45,7 +52,11 @@ export class ServiceInitializer {
 
     try {
       // Initialize queue service and processors
-      this.queueService.setProcessors(sequenceProcessor, emailProcessor);
+      this.queueService.setProcessors(
+        sequenceProcessor,
+        emailProcessor,
+        threadProcessor
+      );
       logger.info("✓ Queue processors configured");
 
       // Start monitoring services

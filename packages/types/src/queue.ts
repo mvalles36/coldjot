@@ -44,6 +44,15 @@ export interface EmailJob {
   };
 }
 
+// export interface ThreadCheckData {
+//   userId: string;
+//   sequenceId: string;
+//   contactId: string;
+//   threadId: string;
+//   messageId: string;
+//   createdAt: Date;
+// }
+
 // Email Types
 // export interface EmailResult {
 //   success: boolean;

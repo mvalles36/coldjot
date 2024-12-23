@@ -1,4 +1,3 @@
-import Bull from "bull";
 import { prisma } from "@mailjot/database";
 import { google } from "googleapis";
 import { DateTime } from "luxon";
@@ -12,60 +11,35 @@ import {
 import { refreshAccessToken, oauth2Client } from "@/services/google";
 import type { gmail_v1 } from "googleapis";
 import type { MessagePartHeader } from "@mailjot/types";
+import { MONITOR_CONFIG } from "@/config/constants";
 
 type Gmail = gmail_v1.Gmail;
+import type { ThreadCheckData, ThreadMetadata } from "@mailjot/types";
+import { QueueService } from "@/services/queue/queue-service";
 
-interface ThreadCheckData {
-  threadId: string;
-  userId: string;
-  sequenceId: string;
-  contactId: string;
-  lastCheckedAt: Date;
-  createdAt: Date;
-}
-
-interface ThreadMetadata {
-  lastCheckedAt?: string;
-  [key: string]: any;
-}
-
-// Constants for thread check frequency
-const CHECK_FREQUENCIES = {
-  RECENT: { hours: 1 }, // Check every hour for recent threads
-  MEDIUM: { days: 1 }, // Check daily for medium-age threads
-  OLD: { days: 7 }, // Check weekly for old threads
-  VERY_OLD: { days: 30 }, // Check monthly for very old threads
-};
-
-const AGE_THRESHOLDS = {
-  RECENT: { days: 7 }, // Threads less than 7 days old
-  MEDIUM: { days: 30 }, // Threads less than 30 days old
-  OLD: { days: 90 }, // Threads less than 90 days old
-};
+// Use monitor config constants
+const { CHECK_FREQUENCIES, AGE_THRESHOLDS } = MONITOR_CONFIG.THREAD;
 
 export class EmailThreadProcessor {
-  private readonly queue: Bull.Queue;
+  private static instance: EmailThreadProcessor | null = null;
 
-  constructor() {
-    this.queue = new Bull("email-thread-check", {
-      defaultJobOptions: {
-        removeOnComplete: true,
-        removeOnFail: false,
-      },
-    });
+  private constructor() {}
 
-    // Process jobs
-    this.queue.process(async (job) => {
-      await this.processThread(job.data);
-    });
+  public static getInstance(): EmailThreadProcessor {
+    if (!EmailThreadProcessor.instance) {
+      EmailThreadProcessor.instance = new EmailThreadProcessor();
+    }
+    return EmailThreadProcessor.instance;
   }
 
-  // Add a public method to close the queue
+  // Add back the close method for cleanup
   public async close(): Promise<void> {
-    await this.queue.close();
+    // No need to close anything since we don't own the queue
+    // But keep the method for interface compatibility
   }
 
-  private async processThread(data: ThreadCheckData) {
+  // Remove close method since we don't own the queue
+  public async processThread(data: ThreadCheckData) {
     try {
       const { userId, threadId } = data;
 
@@ -271,20 +245,34 @@ export class EmailThreadProcessor {
       where: {
         sequenceId: data.sequenceId,
         contactId: data.contactId,
-        type: "REPLIED",
+        type: "replied",
       },
     });
 
     if (!existingReply) {
+      // first find the tracking id of the reply
+      const trackingId = await prisma.emailEvent.findFirst({
+        where: {
+          sequenceId: data.sequenceId,
+          contactId: data.contactId,
+          type: "sent",
+        },
+      });
+
+      if (!trackingId) {
+        console.error("No tracking ID found for the reply event");
+        return;
+      }
+
       // Generate a unique tracking ID for the reply event
-      const trackingId = `reply_${data.sequenceId}_${data.contactId}_${Date.now()}`;
+      // const trackingId = `reply_${data.sequenceId}_${data.contactId}_${Date.now()}`;
 
       await prisma.emailEvent.create({
         data: {
-          type: "REPLIED",
+          type: "replied",
           sequenceId: data.sequenceId,
           contactId: data.contactId,
-          trackingId,
+          trackingId: trackingId?.trackingId,
           metadata: {
             messageId,
             threadId: data.threadId,
@@ -329,11 +317,13 @@ export class EmailThreadProcessor {
       nextCheckDelay = CHECK_FREQUENCIES.VERY_OLD;
     }
 
-    // Schedule next check
-    await this.queue.add(data, {
-      delay: this.calculateDelay(nextCheckDelay),
-      attempts: 3,
-    });
+    // Schedule next check using QueueService
+    const queueService = QueueService.getInstance();
+    await queueService.addThreadJob(
+      data,
+      1,
+      this.calculateDelay(nextCheckDelay)
+    );
 
     // Update thread metadata
     const currentThread = await prisma.emailThread.findUnique({
@@ -369,21 +359,25 @@ export class EmailThreadProcessor {
         contactId: true,
         createdAt: true,
         metadata: true,
+        gmailThreadId: true,
       },
     });
 
+    const queueService = QueueService.getInstance();
     for (const thread of threads) {
       const metadata = (thread.metadata || {}) as ThreadMetadata;
-      await this.queue.add({
-        threadId: thread.id,
+      const data: ThreadCheckData = {
+        threadId: thread.gmailThreadId,
         userId: thread.userId,
         sequenceId: thread.sequenceId,
         contactId: thread.contactId,
-        lastCheckedAt: metadata.lastCheckedAt
-          ? new Date(metadata.lastCheckedAt)
-          : thread.createdAt,
+        messageId: "", // Add required field
         createdAt: thread.createdAt,
-      });
+      };
+      await queueService.addThreadJob(data);
     }
   }
 }
+
+// Export singleton instance
+export const threadProcessor = EmailThreadProcessor.getInstance();

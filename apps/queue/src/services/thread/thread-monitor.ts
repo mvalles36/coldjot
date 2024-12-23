@@ -1,13 +1,10 @@
-import { EmailThreadProcessor } from "./thread-processor";
+import { EmailThreadProcessor, threadProcessor } from "./thread-processor";
 import { logger } from "../log/logger";
 
 class EmailThreadMonitor {
-  private emailThreadProcessor: EmailThreadProcessor | undefined;
   private isRunning: boolean = false;
 
-  constructor() {
-    this.emailThreadProcessor = undefined;
-  }
+  constructor() {}
 
   public async start(): Promise<void> {
     if (this.isRunning) {
@@ -16,8 +13,7 @@ class EmailThreadMonitor {
     }
 
     try {
-      this.emailThreadProcessor = new EmailThreadProcessor();
-      await this.emailThreadProcessor.initializeThreadChecks();
+      await threadProcessor.initializeThreadChecks();
       this.isRunning = true;
       logger.info("✓ Email thread monitor started");
     } catch (error) {
@@ -32,7 +28,7 @@ class EmailThreadMonitor {
     }
 
     try {
-      await this.emailThreadProcessor?.close();
+      await threadProcessor.close();
       this.isRunning = false;
       logger.info("✓ Email thread monitor stopped");
     } catch (error) {
