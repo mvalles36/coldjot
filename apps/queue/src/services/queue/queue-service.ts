@@ -1,6 +1,7 @@
 import Bull from "bull";
 import { logger } from "@/services/log/logger";
 import { ProcessingJob, EmailJob, JobCounts } from "@mailjot/types";
+
 import type { SequenceProcessor } from "@/services/sequence/sequence-processor";
 import type { EmailProcessor } from "@/services/email/email-processor";
 

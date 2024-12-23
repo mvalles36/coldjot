@@ -1,63 +1,19 @@
 import express from "express";
 import cors from "cors";
-import { prisma } from "@mailjot/database";
-import { QueueService } from "@/services/queue/queue-service";
-
-import { sequenceProcessor } from "@/services/sequence/sequence-processor";
-import { emailProcessor } from "@/services/email/email-processor";
 import { logger } from "@/services/log/logger";
 import pinoHttp from "pino-http";
-import Redis from "ioredis";
 import routes from "./routes";
-import { contactProcessingService } from "@/services/sequence/contact-processing-service";
-import { emailSchedulingService } from "@/services/schedule/email-scheduling-service";
-import { memoryMonitor } from "@/services/monitor/memory-monitor";
+import { ServiceInitializer } from "@/services/init/service-initializer";
 
 const app = express();
 const port = 3001;
+const serviceInitializer = ServiceInitializer.getInstance();
 
-// Initialize Redis client
-const redis = new Redis({
-  host: process.env.REDIS_HOST || "localhost",
-  port: parseInt(process.env.REDIS_PORT || "6379"),
-  password: process.env.REDIS_PASSWORD,
+// Initialize all services
+serviceInitializer.initialize().catch((error) => {
+  logger.error("Failed to initialize services:", error);
+  process.exit(1);
 });
-
-redis.on("error", (error) => {
-  logger.error("❌ Redis connection error:", error);
-});
-
-redis.on("connect", () => {
-  logger.info("✓ Redis connected successfully");
-});
-
-// Initialize services in the correct order
-logger.info("🚀 Initializing services...");
-
-// Initialize queue service first
-const queueService = QueueService.getInstance();
-logger.info("✓ Queue service initialized");
-
-// Set up processors
-queueService.setProcessors(sequenceProcessor, emailProcessor);
-logger.info("✓ Queue processors configured");
-
-// Start contact processing service
-contactProcessingService.start().catch((error) => {
-  logger.error("❌ Failed to start contact processing service:", error);
-});
-logger.info("✓ Contact processing service started");
-
-// Start email scheduling service
-emailSchedulingService.start().catch((error) => {
-  logger.error("❌ Failed to start email scheduling service:", error);
-});
-logger.info("✓ Email scheduling service started");
-
-logger.info("✓ All services initialized");
-
-// Add after initializing services
-memoryMonitor.startMonitoring(30000); // Check every 30 seconds
 
 // Middleware
 app.use(cors());
@@ -80,6 +36,8 @@ const httpLogger = pinoHttp({
   },
 });
 
+app.use(httpLogger);
+
 // Mount all routes
 app.use("/api", routes);
 
@@ -98,38 +56,12 @@ app.use(
 
 // Graceful shutdown handling
 process.on("SIGTERM", async () => {
-  logger.info("📥 Received SIGTERM signal. Starting graceful shutdown...");
-
-  // Stop the contact processing service
-  contactProcessingService.stop();
-  logger.info("✓ Contact processing service stopped");
-
-  // Stop the email scheduling service
-  emailSchedulingService.stop();
-  logger.info("✓ Email scheduling service stopped");
-
-  // Close other services and connections
-  await Promise.all([queueService.close(), redis.quit(), prisma.$disconnect()]);
-
-  logger.info("✓ All services stopped gracefully");
+  await serviceInitializer.shutdown();
   process.exit(0);
 });
 
 process.on("SIGINT", async () => {
-  logger.info("📥 Received SIGINT signal. Starting graceful shutdown...");
-
-  // Stop the contact processing service
-  contactProcessingService.stop();
-  logger.info("✓ Contact processing service stopped");
-
-  // Stop the email scheduling service
-  emailSchedulingService.stop();
-  logger.info("✓ Email scheduling service stopped");
-
-  // Close other services and connections
-  await Promise.all([queueService.close(), redis.quit(), prisma.$disconnect()]);
-
-  logger.info("✓ All services stopped gracefully");
+  await serviceInitializer.shutdown();
   process.exit(0);
 });
 
