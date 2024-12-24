@@ -26,7 +26,7 @@ interface NotificationData {
 
 interface EmailThread {
   id: string;
-  gmailThreadId: string;
+  threadId: string;
   firstMessageId: string;
   userId: string;
   sequenceId: string;
@@ -469,7 +469,7 @@ const updateSequenceContactStatus = async (
 const findEmailThread = async (threadId: string, userId: string) => {
   return prisma.emailThread.findFirst({
     where: {
-      gmailThreadId: threadId,
+      threadId: threadId,
       userId,
     },
     include: {
@@ -528,7 +528,7 @@ const processBounceEvent = async (
   //   {
   //     bounceReason: failedRecipient!,
   //     messageId,
-  //     threadId: emailThread.gmailThreadId,
+  //     threadId: emailThread.threadId,
   //   },
   //   {
   //     email: emailThread.contact.email,
@@ -576,7 +576,7 @@ const processThreadBasedReply = async (
   messageDetails: GaxiosResponse<Message>
 ) => {
   const emailThread = await prisma.emailThread.findUnique({
-    where: { gmailThreadId: threadId },
+    where: { threadId: threadId },
     include: {
       sequence: true,
       contact: true,

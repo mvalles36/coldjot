@@ -358,7 +358,7 @@ model LinkClick {
 // Add a new model to track email threads
 model EmailThread {
     id             String   @id @default(cuid())
-    gmailThreadId  String   @unique
+    threadId       String   @unique
     sequenceId     String
     contactId      String
     userId         String
@@ -372,7 +372,7 @@ model EmailThread {
     sequence Sequence @relation(fields: [sequenceId], references: [id])
     contact  Contact  @relation(fields: [contactId], references: [id])
 
-    @@index([gmailThreadId])
+    @@index([threadId])
     @@index([sequenceId])
     @@index([contactId])
     @@index([userId])

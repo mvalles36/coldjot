@@ -12,6 +12,7 @@ import { refreshAccessToken, oauth2Client } from "@/services/google";
 import type { gmail_v1 } from "googleapis";
 import type { MessagePartHeader } from "@mailjot/types";
 import { MONITOR_CONFIG } from "@/config/constants";
+import { GmailClientService } from "@/services/google";
 
 type Gmail = gmail_v1.Gmail;
 import type { ThreadCheckData, ThreadMetadata } from "@mailjot/types";
@@ -25,6 +26,9 @@ export class EmailThreadProcessor {
 
   private constructor() {}
 
+  // -----------------------------------------
+  // -----------------------------------------
+  // -----------------------------------------
   public static getInstance(): EmailThreadProcessor {
     if (!EmailThreadProcessor.instance) {
       EmailThreadProcessor.instance = new EmailThreadProcessor();
@@ -32,11 +36,15 @@ export class EmailThreadProcessor {
     return EmailThreadProcessor.instance;
   }
 
-  // Add back the close method for cleanup
+  // TODO : Add back the close method for cleanup
   public async close(): Promise<void> {
     // No need to close anything since we don't own the queue
     // But keep the method for interface compatibility
   }
+
+  // -----------------------------------------
+  // -----------------------------------------
+  // -----------------------------------------
 
   // Remove close method since we don't own the queue
   public async processThread(data: ThreadCheckData) {
@@ -50,41 +58,7 @@ export class EmailThreadProcessor {
 
       console.log("Processing thread:", data);
 
-      // Get user and Google account
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        include: {
-          accounts: {
-            where: { provider: "google" },
-            select: {
-              id: true,
-              access_token: true,
-              refresh_token: true,
-              expires_at: true,
-            },
-          },
-        },
-      });
-
-      if (!user?.accounts?.[0]) {
-        console.error("No Google account found for user:", userId);
-        return;
-      }
-
-      const account = user.accounts[0];
-
-      // Handle access token refresh if needed
-      const accessToken = await this.handleAccessTokenRefresh(userId, account);
-      if (!accessToken) {
-        console.error("Failed to refresh access token for user:", userId);
-        return;
-      }
-
-      // Initialize Gmail client
-      const gmail = await this.initializeGmailClient(
-        accessToken,
-        account.refresh_token!
-      );
+      const gmail = await GmailClientService.getInstance().getClient(userId!);
 
       // Fetch and process thread messages
       await this.checkThreadForRepliesAndBounces(gmail, data);
@@ -97,43 +71,9 @@ export class EmailThreadProcessor {
     }
   }
 
-  private async handleAccessTokenRefresh(
-    userId: string,
-    account: any
-  ): Promise<string | null> {
-    const now = Math.floor(Date.now() / 1000);
-    let accessToken = account.access_token;
-
-    if (
-      account.expires_at &&
-      account.expires_at < now &&
-      account.refresh_token
-    ) {
-      try {
-        accessToken = await refreshAccessToken(userId, account.refresh_token);
-        if (!accessToken) {
-          throw new Error("Failed to refresh token");
-        }
-      } catch (error) {
-        console.error("Failed to refresh token:", error);
-        return null;
-      }
-    }
-
-    return accessToken;
-  }
-
-  private async initializeGmailClient(
-    accessToken: string,
-    refreshToken: string
-  ): Promise<Gmail> {
-    oauth2Client.setCredentials({
-      access_token: accessToken,
-      refresh_token: refreshToken,
-    });
-
-    return google.gmail({ version: "v1", auth: oauth2Client });
-  }
+  // -----------------------------------------
+  // -----------------------------------------
+  // -----------------------------------------
 
   private async checkThreadForRepliesAndBounces(
     gmail: Gmail,
@@ -187,6 +127,10 @@ export class EmailThreadProcessor {
     }
   }
 
+  // -----------------------------------------
+  // -----------------------------------------
+  // -----------------------------------------
+
   private async processBounce(
     data: ThreadCheckData,
     messageId: string,
@@ -234,6 +178,10 @@ export class EmailThreadProcessor {
       });
     }
   }
+
+  // -----------------------------------------
+  // -----------------------------------------
+  // -----------------------------------------
 
   private async processReply(
     data: ThreadCheckData,
@@ -299,6 +247,10 @@ export class EmailThreadProcessor {
     }
   }
 
+  // -----------------------------------------
+  // -----------------------------------------
+  // -----------------------------------------
+
   private async scheduleNextCheck(data: ThreadCheckData) {
     const threadAge = DateTime.now().diff(
       DateTime.fromJSDate(data.createdAt),
@@ -334,7 +286,7 @@ export class EmailThreadProcessor {
     const currentMetadata = (currentThread?.metadata || {}) as ThreadMetadata;
 
     await prisma.emailThread.update({
-      where: { id: data.threadId },
+      where: { threadId: data.threadId },
       data: {
         metadata: {
           ...currentMetadata,
@@ -344,11 +296,18 @@ export class EmailThreadProcessor {
     });
   }
 
+  // -----------------------------------------
+  // -----------------------------------------
+  // -----------------------------------------
+
   private calculateDelay(frequency: { hours?: number; days?: number }): number {
     const hours = frequency.hours || frequency.days! * 24;
     return hours * 60 * 60 * 1000; // Convert to milliseconds
   }
 
+  // -----------------------------------------
+  // -----------------------------------------
+  // -----------------------------------------
   // Method to initialize checks for all threads
   public async initializeThreadChecks() {
     const threads = await prisma.emailThread.findMany({
@@ -359,7 +318,7 @@ export class EmailThreadProcessor {
         contactId: true,
         createdAt: true,
         metadata: true,
-        gmailThreadId: true,
+        threadId: true,
       },
     });
 
@@ -367,7 +326,7 @@ export class EmailThreadProcessor {
     for (const thread of threads) {
       const metadata = (thread.metadata || {}) as ThreadMetadata;
       const data: ThreadCheckData = {
-        threadId: thread.gmailThreadId,
+        threadId: thread.threadId,
         userId: thread.userId,
         sequenceId: thread.sequenceId,
         contactId: thread.contactId,

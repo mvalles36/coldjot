@@ -159,16 +159,18 @@ export class EmailProcessor {
 
         //TODO:  Write a function to save information in EmailThread
         // Save information in EmailThread
-        await prisma.emailThread.create({
-          data: {
-            gmailThreadId: emailResult.threadId,
-            sequenceId: data.sequenceId,
-            contactId: data.contactId,
-            userId: data.userId,
-            firstMessageId: emailResult.messageId,
-            subject: data.subject || step.subject || "",
-          },
-        });
+        if (step.order === 0) {
+          await prisma.emailThread.create({
+            data: {
+              threadId: emailResult.threadId,
+              sequenceId: data.sequenceId,
+              contactId: data.contactId,
+              userId: data.userId,
+              firstMessageId: emailResult.messageId,
+              subject: data.subject || step.subject || "",
+            },
+          });
+        }
 
         // Update contact threadId
         await updateSequenceContactThreadId(
