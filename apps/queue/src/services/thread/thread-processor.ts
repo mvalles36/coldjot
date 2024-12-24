@@ -208,6 +208,8 @@ export class EmailThreadProcessor {
           updatedAt: new Date(),
         },
       });
+
+      await updateSequenceStats(data.sequenceId, "bounced", data.contactId);
     }
   }
 
@@ -243,11 +245,6 @@ export class EmailThreadProcessor {
         console.error("No tracking ID found for the reply event");
         return;
       }
-
-      // Generate a unique tracking ID for the reply event
-      // const trackingId = `reply_${data.sequenceId}_${data.contactId}_${Date.now()}`;
-
-      // update
 
       await prisma.emailEvent.create({
         data: {
