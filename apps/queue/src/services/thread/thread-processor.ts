@@ -69,77 +69,146 @@ export class EmailThreadProcessor {
         return;
       }
 
+      // Check if thread already has a bounce or reply
+      const existingEvents = await prisma.emailEvent.findMany({
+        where: {
+          sequenceId: data.sequenceId,
+          contactId: data.contactId,
+          type: {
+            in: ["BOUNCED", "replied"],
+          },
+        },
+      });
+
+      if (existingEvents.length > 0) {
+        console.log(
+          `Thread ${threadId} already has a bounce or reply. Stopping further checks.`
+        );
+        // Remove the job from the queue since we don't need to check this thread anymore
+        const queueService = QueueService.getInstance();
+        await queueService.removeThreadJob(data.threadId);
+        return;
+      }
+
       console.log("Processing thread:", data);
 
       // Fetch and process thread messages
-      await this.checkThreadForRepliesAndBounces(data);
+      const hasNewEvents = await this.checkThreadForRepliesAndBounces(data);
 
-      // Schedule next check based on thread age and activity
-      await this.scheduleNextCheck(data);
+      // Only schedule next check if no bounce or reply was found
+      if (!hasNewEvents) {
+        await this.scheduleNextCheck(data);
+      } else {
+        // Remove the job from the queue since we found a bounce or reply
+        const queueService = QueueService.getInstance();
+        await queueService.removeThreadJob(data.threadId);
+      }
     } catch (error) {
       console.error("Error processing thread:", error);
+      // If there's an error, we might want to stop checking this thread
+      if (this.shouldStopCheckingAfterError(error)) {
+        const queueService = QueueService.getInstance();
+        await queueService.removeThreadJob(data.threadId);
+      }
       throw error;
     }
+  }
+
+  private shouldStopCheckingAfterError(error: any): boolean {
+    // Define conditions when we should stop checking after an error
+    const permanentErrors = [
+      "Invalid thread ID",
+      "Thread not found",
+      "Account not found",
+      "Invalid credentials",
+      "Account disconnected",
+    ];
+
+    if (error.message) {
+      return permanentErrors.some((errMsg) => error.message.includes(errMsg));
+    }
+
+    return false;
   }
 
   // -----------------------------------------
   // -----------------------------------------
   // -----------------------------------------
 
-  private async checkThreadForRepliesAndBounces(data: ThreadCheckData) {
+  private async checkThreadForRepliesAndBounces(
+    data: ThreadCheckData
+  ): Promise<boolean> {
     const gmail = await GmailClientService.getInstance().getClient(
       data.userId!
     );
 
-    const thread = await gmail.users.threads.get({
-      userId: "me",
-      id: data.threadId,
-    });
-
-    console.log("Thread data:", thread.data);
-
-    if (!thread.data.messages) return;
-
-    // Process each message in the thread
-    for (const message of thread.data.messages) {
-      if (!message.id) continue;
-
-      const messageDetails = await gmail.users.messages.get({
+    try {
+      const thread = await gmail.users.threads.get({
         userId: "me",
-        id: message.id,
-        format: "metadata",
-        metadataHeaders: [
-          "From",
-          "To",
-          "Subject",
-          "References",
-          "In-Reply-To",
-          "Content-Type",
-          "X-Failed-Recipients",
-        ],
+        id: data.threadId,
       });
 
-      const headers = messageDetails.data.payload?.headers || [];
-      const labelIds = messageDetails.data.labelIds || [];
+      console.log("Thread data:", thread.data);
 
-      // Check for bounces
-      const isBounce = isBounceMessage(headers);
+      if (!thread.data.messages) return false;
 
-      if (isBounce) {
-        await this.processBounce(data, message.id, headers);
-      }
+      let foundNewEvent = false;
 
-      // Check for replies
-      if (!isBounce && shouldProcessMessage(labelIds)) {
-        const fromHeader =
-          headers.find((h: MessagePartHeader) => h.name === "From")?.value ||
-          "";
-        const senderEmail = extractEmailFromHeader(fromHeader);
+      // Process each message in the thread
+      for (const message of thread.data.messages) {
+        if (!message.id) continue;
 
-        if (!isSenderSequenceOwner(senderEmail, data.userId)) {
-          await this.processReply(data, message.id, fromHeader, messageDetails);
+        const messageDetails = await gmail.users.messages.get({
+          userId: "me",
+          id: message.id,
+          format: "metadata",
+          metadataHeaders: [
+            "From",
+            "To",
+            "Subject",
+            "References",
+            "In-Reply-To",
+            "Content-Type",
+            "X-Failed-Recipients",
+          ],
+        });
+
+        const headers = messageDetails.data.payload?.headers || [];
+        const labelIds = messageDetails.data.labelIds || [];
+
+        // Check for bounces
+        const isBounce = isBounceMessage(headers);
+
+        if (isBounce) {
+          await this.processBounce(data, message.id, headers);
+          foundNewEvent = true;
+          break; // Stop processing after finding a bounce
+        }
+
+        // Check for replies
+        if (!isBounce && shouldProcessMessage(labelIds)) {
+          const fromHeader =
+            headers.find((h: MessagePartHeader) => h.name === "From")?.value ||
+            "";
+          const senderEmail = extractEmailFromHeader(fromHeader);
+
+          if (!isSenderSequenceOwner(senderEmail, data.userId)) {
+            await this.processReply(
+              data,
+              message.id,
+              fromHeader,
+              messageDetails
+            );
+            foundNewEvent = true;
+            break; // Stop processing after finding a reply
+          }
         }
       }
+
+      return foundNewEvent;
+    } catch (error) {
+      console.error("Error checking thread:", error);
+      throw error;
     }
   }
 

@@ -192,7 +192,27 @@ export class QueueService {
       delay,
       attempts: QUEUE_CONFIG.RETRY_OPTIONS.THREAD.attempts,
       backoff: QUEUE_CONFIG.RETRY_OPTIONS.THREAD.backoff,
+      jobId: data.threadId,
     });
+  }
+
+  async removeThreadJob(threadId: string): Promise<void> {
+    logger.info(`🗑️ Removing thread job from queue: ${threadId}`);
+    try {
+      // Get the job by its ID
+      const job = await this.threadQueue.getJob(threadId);
+
+      if (job) {
+        // Remove the job and its dependencies
+        await job.remove();
+        logger.info(`✅ Successfully removed thread job: ${threadId}`);
+      } else {
+        logger.warn(`⚠️ No job found for thread: ${threadId}`);
+      }
+    } catch (error) {
+      logger.error(`❌ Error removing thread job ${threadId}:`, error);
+      throw error;
+    }
   }
 
   // Get job counts
