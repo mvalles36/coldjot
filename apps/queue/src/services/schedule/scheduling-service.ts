@@ -15,9 +15,9 @@ import {
 import { logger } from "@/services/log/logger";
 
 // Development mode flag
-const isDevelopment = process.env.NODE_ENV === "development" ? true : true;
+const isDevelopment = process.env.NODE_ENV === "development" ? true : false;
 // Demo mode flag - will bypass business hours checks
-const DEMO_MODE = process.env.DEMO_MODE === "true" ? true : true;
+const DEMO_MODE = process.env.DEMO_MODE === "true" ? true : false;
 
 export interface ScheduleGenerator {
   calculateNextRun(

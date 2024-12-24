@@ -58,10 +58,8 @@ export class EmailThreadProcessor {
 
       console.log("Processing thread:", data);
 
-      const gmail = await GmailClientService.getInstance().getClient(userId!);
-
       // Fetch and process thread messages
-      await this.checkThreadForRepliesAndBounces(gmail, data);
+      await this.checkThreadForRepliesAndBounces(data);
 
       // Schedule next check based on thread age and activity
       await this.scheduleNextCheck(data);
@@ -75,10 +73,11 @@ export class EmailThreadProcessor {
   // -----------------------------------------
   // -----------------------------------------
 
-  private async checkThreadForRepliesAndBounces(
-    gmail: Gmail,
-    data: ThreadCheckData
-  ) {
+  private async checkThreadForRepliesAndBounces(data: ThreadCheckData) {
+    const gmail = await GmailClientService.getInstance().getClient(
+      data.userId!
+    );
+
     const thread = await gmail.users.threads.get({
       userId: "me",
       id: data.threadId,

@@ -184,7 +184,8 @@ export class EmailSchedulingService {
       });
 
       // Development mode: Log scheduled times for debugging
-      const isDevelopment = process.env.APP_ENV === "development" ? true : true;
+      const isDevelopment =
+        process.env.APP_ENV === "development" ? true : false;
       if (isDevelopment) {
         logger.debug(
           {
