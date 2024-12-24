@@ -40,6 +40,13 @@ export class EmailProcessor {
     logger.info(`📨 Starting to process email job`);
 
     try {
+      // Check if thread has already received a reply or bounce
+      const shouldProceed = await this.checkThreadEvents(data);
+      if (!shouldProceed) {
+        logger.info("📭 Skipping email send due to existing thread events");
+        return { success: true };
+      }
+
       // Validate rate limits
       logger.info(
         `🔍 Checking rate limits for user ${data.userId} --- sequence ${data.sequenceId} --- contact ${data.contactId}`
@@ -212,6 +219,13 @@ export class EmailProcessor {
     logger.info(`📨 Checking bounce for email: ${data.messageId}`);
 
     try {
+      // Check if thread has already received a reply or bounce
+      const shouldProceed = await this.checkThreadEvents(data);
+      if (!shouldProceed) {
+        logger.info("📭 Skipping bounce check due to existing thread events");
+        return { success: true };
+      }
+
       // Get Google account info
       const googleAccount = await prisma.account.findFirst({
         where: { userId: data.userId },
@@ -425,6 +439,44 @@ export class EmailProcessor {
       await emailSchedulingService.advanceToNextEmail();
       await schedulingService.resetTime();
     }
+  }
+
+  private async checkThreadEvents(data: EmailJob["data"]): Promise<boolean> {
+    logger.info(
+      `🔍 Checking thread events for sequence ${data.sequenceId} and contact ${data.contactId}`
+    );
+
+    // If there's no threadId, it means this is a new thread, so allow it
+    if (!data.threadId) {
+      return true;
+    }
+
+    // Check for existing bounce or reply events
+    const existingEvents = await prisma.emailEvent.findMany({
+      where: {
+        sequenceId: data.sequenceId,
+        contactId: data.contactId,
+        type: {
+          in: ["BOUNCED", "replied"],
+        },
+      },
+    });
+
+    if (existingEvents.length > 0) {
+      const eventTypes = existingEvents.map((event) => event.type).join(", ");
+      logger.warn(
+        `⚠️ Thread already has ${eventTypes} event(s). Skipping email send.`,
+        {
+          threadId: data.threadId,
+          sequenceId: data.sequenceId,
+          contactId: data.contactId,
+          events: existingEvents,
+        }
+      );
+      return false;
+    }
+
+    return true;
   }
 }
 // Export singleton instance

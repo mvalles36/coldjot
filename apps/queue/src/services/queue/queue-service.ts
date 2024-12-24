@@ -199,15 +199,26 @@ export class QueueService {
   async removeThreadJob(threadId: string): Promise<void> {
     logger.info(`🗑️ Removing thread job from queue: ${threadId}`);
     try {
-      // Get the job by its ID
-      const job = await this.threadQueue.getJob(threadId);
+      // Get all jobs from the queue
+      const jobs = await this.threadQueue.getJobs([
+        "active",
+        "waiting",
+        "delayed",
+      ]);
 
-      if (job) {
-        // Remove the job and its dependencies
-        await job.remove();
-        logger.info(`✅ Successfully removed thread job: ${threadId}`);
+      // Find jobs that match our threadId
+      const jobsToRemove = jobs.filter(
+        (job) => job.data.threadId === threadId || job.opts.jobId === threadId
+      );
+
+      if (jobsToRemove.length > 0) {
+        // Remove all matching jobs
+        await Promise.all(jobsToRemove.map((job) => job.remove()));
+        logger.info(
+          `✅ Successfully removed ${jobsToRemove.length} thread jobs for thread: ${threadId}`
+        );
       } else {
-        logger.warn(`⚠️ No job found for thread: ${threadId}`);
+        logger.warn(`⚠️ No jobs found for thread: ${threadId}`);
       }
     } catch (error) {
       logger.error(`❌ Error removing thread job ${threadId}:`, error);

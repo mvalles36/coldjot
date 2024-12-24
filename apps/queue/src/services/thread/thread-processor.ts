@@ -13,6 +13,7 @@ import type { gmail_v1 } from "googleapis";
 import type { MessagePartHeader } from "@mailjot/types";
 import { MONITOR_CONFIG } from "@/config/constants";
 import { GmailClientService } from "@/services/google";
+import { logger } from "@/utils/logger";
 
 type Gmail = gmail_v1.Gmail;
 import type { ThreadCheckData, ThreadMetadata } from "@mailjot/types";
@@ -65,7 +66,7 @@ export class EmailThreadProcessor {
       const { userId, threadId } = data;
 
       if (!userId || !threadId) {
-        console.error("Invalid data for thread processing:", data);
+        logger.error("Invalid data for thread processing:", data);
         return;
       }
 
@@ -81,16 +82,21 @@ export class EmailThreadProcessor {
       });
 
       if (existingEvents.length > 0) {
-        console.log(
-          `Thread ${threadId} already has a bounce or reply. Stopping further checks.`
+        logger.info(
+          `Thread ${threadId} already has ${existingEvents.map((e) => e.type).join(", ")} event(s). Stopping further checks.`
         );
-        // Remove the job from the queue since we don't need to check this thread anymore
-        const queueService = QueueService.getInstance();
-        await queueService.removeThreadJob(data.threadId);
+        try {
+          const queueService = QueueService.getInstance();
+          await queueService.removeThreadJob(threadId);
+        } catch (error: any) {
+          logger.warn(
+            `Failed to remove thread job, but continuing as thread has already been processed: ${error?.message || "Unknown error"}`
+          );
+        }
         return;
       }
 
-      console.log("Processing thread:", data);
+      logger.info("Processing thread:", data);
 
       // Fetch and process thread messages
       const hasNewEvents = await this.checkThreadForRepliesAndBounces(data);
@@ -99,16 +105,27 @@ export class EmailThreadProcessor {
       if (!hasNewEvents) {
         await this.scheduleNextCheck(data);
       } else {
-        // Remove the job from the queue since we found a bounce or reply
-        const queueService = QueueService.getInstance();
-        await queueService.removeThreadJob(data.threadId);
+        try {
+          const queueService = QueueService.getInstance();
+          await queueService.removeThreadJob(threadId);
+        } catch (error: any) {
+          logger.warn(
+            `Failed to remove thread job after finding events, but continuing: ${error?.message || "Unknown error"}`
+          );
+        }
       }
     } catch (error) {
-      console.error("Error processing thread:", error);
+      logger.error("Error processing thread:", error);
       // If there's an error, we might want to stop checking this thread
       if (this.shouldStopCheckingAfterError(error)) {
-        const queueService = QueueService.getInstance();
-        await queueService.removeThreadJob(data.threadId);
+        try {
+          const queueService = QueueService.getInstance();
+          await queueService.removeThreadJob(data.threadId);
+        } catch (error: any) {
+          logger.warn(
+            `Failed to remove thread job after error, but continuing: ${error?.message || "Unknown error"}`
+          );
+        }
       }
       throw error;
     }
@@ -143,20 +160,32 @@ export class EmailThreadProcessor {
     );
 
     try {
+      logger.info(
+        `🔍 Fetching thread ${data.threadId} for user ${data.userId}`
+      );
+
       const thread = await gmail.users.threads.get({
         userId: "me",
         id: data.threadId,
       });
 
-      console.log("Thread data:", thread.data);
+      if (!thread.data.messages) {
+        logger.warn(`⚠️ No messages found in thread ${data.threadId}`);
+        return false;
+      }
 
-      if (!thread.data.messages) return false;
-
+      logger.info(
+        `📨 Found ${thread.data.messages.length} messages in thread ${data.threadId}`
+      );
       let foundNewEvent = false;
 
       // Process each message in the thread
       for (const message of thread.data.messages) {
         if (!message.id) continue;
+
+        logger.debug(
+          `🔍 Checking message ${message.id} in thread ${data.threadId}`
+        );
 
         const messageDetails = await gmail.users.messages.get({
           userId: "me",
@@ -170,29 +199,56 @@ export class EmailThreadProcessor {
             "In-Reply-To",
             "Content-Type",
             "X-Failed-Recipients",
+            "Message-ID",
+            "Date",
           ],
         });
 
         const headers = messageDetails.data.payload?.headers || [];
         const labelIds = messageDetails.data.labelIds || [];
 
+        logger.debug(
+          {
+            messageId: message.id,
+            headers: headers.map((h) => ({ name: h.name, value: h.value })),
+            labelIds,
+          },
+          "📧 Message details"
+        );
+
         // Check for bounces
         const isBounce = isBounceMessage(headers);
+        logger.debug(`🔍 Bounce check for message ${message.id}: ${isBounce}`);
 
         if (isBounce) {
+          logger.info(`📭 Found bounce in message ${message.id}`);
           await this.processBounce(data, message.id, headers);
           foundNewEvent = true;
-          break; // Stop processing after finding a bounce
+          break;
         }
 
         // Check for replies
         if (!isBounce && shouldProcessMessage(labelIds)) {
           const fromHeader =
-            headers.find((h: MessagePartHeader) => h.name === "From")?.value ||
-            "";
+            headers.find(
+              (h: MessagePartHeader) => h.name?.toLowerCase() === "from"
+            )?.value || "";
           const senderEmail = extractEmailFromHeader(fromHeader);
 
+          logger.debug(
+            {
+              messageId: message.id,
+              fromHeader,
+              senderEmail,
+              isOwner: isSenderSequenceOwner(senderEmail, data.userId),
+            },
+            "👤 Sender check"
+          );
+
           if (!isSenderSequenceOwner(senderEmail, data.userId)) {
+            logger.info(
+              `💬 Found reply in message ${message.id} from ${senderEmail}`
+            );
             await this.processReply(
               data,
               message.id,
@@ -200,14 +256,24 @@ export class EmailThreadProcessor {
               messageDetails
             );
             foundNewEvent = true;
-            break; // Stop processing after finding a reply
+            break;
           }
         }
       }
 
+      logger.info(
+        `✅ Finished checking thread ${data.threadId}, foundNewEvent: ${foundNewEvent}`
+      );
       return foundNewEvent;
     } catch (error) {
-      console.error("Error checking thread:", error);
+      logger.error(
+        {
+          error: error instanceof Error ? error.message : "Unknown error",
+          threadId: data.threadId,
+          userId: data.userId,
+        },
+        "❌ Error checking thread"
+      );
       throw error;
     }
   }

@@ -140,14 +140,13 @@ export class EmailService {
         // Create tracking records
         // TODO : The emailId should be the messageId or something else
         // TODO : Update createEmailTrackingRecord with trackingId, sequenceId, contactId, stepId etc
-        const emailId = randomUUID();
 
         await this.updateEmailTracking(
           options.tracking.id,
           options,
           response.data
         );
-        // await this.createEmailTrackingRecord(emailId, options, response.data);
+
         await this.createEmailEvent(
           options.tracking.id,
           options,

@@ -60,15 +60,45 @@ export const isSenderSequenceOwner = (
 
 // Helper functions for bounce processing
 export const isBounceMessage = (headers: MessagePartHeader[]) => {
+  const bounceIndicators = [
+    "mailer-daemon",
+    "mail delivery failed",
+    "delivery status notification",
+    "undeliverable",
+    "failed delivery",
+    "delivery failure",
+    "non-delivery report",
+    "returned mail",
+    "delivery problem",
+  ];
+
   return (
-    headers.some(
-      (h) => h.name === "From" && h.value?.includes("mailer-daemon")
-    ) ||
-    headers.some((h) => h.name === "X-Failed-Recipients") ||
+    // Check From header for mailer-daemon
     headers.some(
       (h) =>
-        h.name === "Content-Type" &&
-        h.value?.includes("report-type=delivery-status")
+        h.name?.toLowerCase() === "from" &&
+        bounceIndicators.some((indicator) =>
+          h.value?.toLowerCase().includes(indicator)
+        )
+    ) ||
+    // Check for failed recipients
+    headers.some(
+      (h) => h.name?.toLowerCase() === "x-failed-recipients" && h.value
+    ) ||
+    // Check Content-Type for delivery status
+    headers.some(
+      (h) =>
+        h.name?.toLowerCase() === "content-type" &&
+        (h.value?.toLowerCase().includes("report-type=delivery-status") ||
+          h.value?.toLowerCase().includes("delivery-status"))
+    ) ||
+    // Check Subject for bounce indicators
+    headers.some(
+      (h) =>
+        h.name?.toLowerCase() === "subject" &&
+        bounceIndicators.some((indicator) =>
+          h.value?.toLowerCase().includes(indicator)
+        )
     )
   );
 };
@@ -79,11 +109,27 @@ export const isBounceMessage = (headers: MessagePartHeader[]) => {
 
 // Helper functions for reply processing
 export const shouldProcessMessage = (labelIds: string[]): boolean => {
-  return !(
-    labelIds.includes("SENT") ||
-    labelIds.includes("DRAFT") ||
-    !labelIds.includes("INBOX")
+  const normalizedLabels = labelIds.map((label) => label.toUpperCase());
+
+  // Don't process if it's in SENT or DRAFT
+  if (normalizedLabels.includes("SENT") || normalizedLabels.includes("DRAFT")) {
+    return false;
+  }
+
+  // Must be in INBOX or have INBOX/CATEGORY_* label
+  const isInInbox = normalizedLabels.some(
+    (label) =>
+      label === "INBOX" ||
+      label.startsWith("CATEGORY_") ||
+      label === "IMPORTANT"
   );
+
+  // Must not be spam or trash
+  const isNotSpamOrTrash = !normalizedLabels.some(
+    (label) => label === "SPAM" || label === "TRASH" || label === "JUNK"
+  );
+
+  return isInInbox && isNotSpamOrTrash;
 };
 
 // -----------------------------------------
