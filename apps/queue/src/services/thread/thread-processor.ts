@@ -123,16 +123,14 @@ export class EmailThreadProcessor {
       const labelIds = messageDetails.data.labelIds || [];
 
       // Check for bounces
+      const isBounce = isBounceMessage(headers);
 
-      if (isBounceMessage(headers)) {
-        console.log("Bounce message check");
-        console.log(headers);
-        console.log(labelIds);
+      if (isBounce) {
         await this.processBounce(data, message.id, headers);
       }
 
       // Check for replies
-      if (shouldProcessMessage(labelIds)) {
+      if (!isBounce && shouldProcessMessage(labelIds)) {
         const fromHeader =
           headers.find((h: MessagePartHeader) => h.name === "From")?.value ||
           "";

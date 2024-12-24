@@ -60,8 +60,6 @@ export const isSenderSequenceOwner = (
 
 // Helper functions for bounce processing
 export const isBounceMessage = (headers: MessagePartHeader[]) => {
-  console.log("Bounce message check");
-  console.log(headers);
   return (
     headers.some(
       (h) => h.name === "From" && h.value?.includes("mailer-daemon")
