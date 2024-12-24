@@ -59,15 +59,13 @@ export const isSenderSequenceOwner = (
 // -----------------------------------------
 
 // Helper functions for bounce processing
-export const isBounceMessage = (
-  headers: MessagePartHeader[],
-  labelIds: string[]
-) => {
+export const isBounceMessage = (headers: MessagePartHeader[]) => {
+  console.log("Bounce message check");
+  console.log(headers);
   return (
-    (labelIds.includes("UNDELIVERABLE") &&
-      headers.some(
-        (h) => h.name === "From" && h.value?.includes("mailer-daemon")
-      )) ||
+    headers.some(
+      (h) => h.name === "From" && h.value?.includes("mailer-daemon")
+    ) ||
     headers.some((h) => h.name === "X-Failed-Recipients") ||
     headers.some(
       (h) =>

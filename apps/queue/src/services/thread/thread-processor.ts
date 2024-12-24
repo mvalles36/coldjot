@@ -17,14 +17,27 @@ import { GmailClientService } from "@/services/google";
 type Gmail = gmail_v1.Gmail;
 import type { ThreadCheckData, ThreadMetadata } from "@mailjot/types";
 import { QueueService } from "@/services/queue/queue-service";
+import { updateSequenceStats } from "../stats/sequence-stats-service";
 
 // Use monitor config constants
 const { CHECK_FREQUENCIES, AGE_THRESHOLDS } = MONITOR_CONFIG.THREAD;
 
+// Environment-specific configuration
+type Environment = "DEVELOPMENT" | "DEMO" | "PRODUCTION";
+const CURRENT_ENV = (process.env.NODE_ENV?.toUpperCase() ||
+  "DEVELOPMENT") as Environment;
+const IS_DEMO_MODE = process.env.DEMO_MODE === "true";
+
 export class EmailThreadProcessor {
   private static instance: EmailThreadProcessor | null = null;
 
-  private constructor() {}
+  private constructor() {
+    const env = this.getEnvironmentConfig();
+    console.log(`🔄 Initializing EmailThreadProcessor in ${env} environment`);
+    if (IS_DEMO_MODE) {
+      console.log("🚀 Running in DEMO mode with accelerated check frequencies");
+    }
+  }
 
   // -----------------------------------------
   // -----------------------------------------
@@ -83,6 +96,8 @@ export class EmailThreadProcessor {
       id: data.threadId,
     });
 
+    console.log("Thread data:", thread.data);
+
     if (!thread.data.messages) return;
 
     // Process each message in the thread
@@ -108,7 +123,11 @@ export class EmailThreadProcessor {
       const labelIds = messageDetails.data.labelIds || [];
 
       // Check for bounces
-      if (isBounceMessage(headers, labelIds)) {
+
+      if (isBounceMessage(headers)) {
+        console.log("Bounce message check");
+        console.log(headers);
+        console.log(labelIds);
         await this.processBounce(data, message.id, headers);
       }
 
@@ -145,14 +164,28 @@ export class EmailThreadProcessor {
 
     if (!existingBounce) {
       // Generate a unique tracking ID for the bounce event
-      const trackingId = `bounce_${data.sequenceId}_${data.contactId}_${Date.now()}`;
+      // const trackingId = `bounce_${data.sequenceId}_${data.contactId}_${Date.now()}`;
+
+      // first find the tracking id of the reply
+      const trackingId = await prisma.emailEvent.findFirst({
+        where: {
+          sequenceId: data.sequenceId,
+          contactId: data.contactId,
+          type: "sent",
+        },
+      });
+
+      if (!trackingId) {
+        console.error("No tracking ID found for the bounce event");
+        return;
+      }
 
       await prisma.emailEvent.create({
         data: {
           type: "BOUNCED",
           sequenceId: data.sequenceId,
           contactId: data.contactId,
-          trackingId,
+          trackingId: trackingId?.trackingId,
           metadata: {
             messageId,
             threadId: data.threadId,
@@ -214,6 +247,8 @@ export class EmailThreadProcessor {
       // Generate a unique tracking ID for the reply event
       // const trackingId = `reply_${data.sequenceId}_${data.contactId}_${Date.now()}`;
 
+      // update
+
       await prisma.emailEvent.create({
         data: {
           type: "replied",
@@ -230,19 +265,21 @@ export class EmailThreadProcessor {
         },
       });
 
-      await prisma.sequenceContact.updateMany({
-        where: {
-          sequenceId: data.sequenceId,
-          contactId: data.contactId,
-          status: {
-            notIn: ["completed", "replied", "opted_out"],
-          },
-        },
-        data: {
-          status: "replied",
-          updatedAt: new Date(),
-        },
-      });
+      // await prisma.sequenceContact.updateMany({
+      //   where: {
+      //     sequenceId: data.sequenceId,
+      //     contactId: data.contactId,
+      //     status: {
+      //       notIn: ["completed", "replied", "opted_out"],
+      //     },
+      //   },
+      //   data: {
+      //     status: "replied",
+      //     updatedAt: new Date(),
+      //   },
+      // });
+
+      await updateSequenceStats(data.sequenceId, "replied", data.contactId);
     }
   }
 
@@ -250,39 +287,119 @@ export class EmailThreadProcessor {
   // -----------------------------------------
   // -----------------------------------------
 
-  private async scheduleNextCheck(data: ThreadCheckData) {
-    const threadAge = DateTime.now().diff(
-      DateTime.fromJSDate(data.createdAt),
-      "days"
-    ).days;
-    let nextCheckDelay;
+  private getEnvironmentConfig(): Environment {
+    if (IS_DEMO_MODE) return "DEMO";
+    return CURRENT_ENV;
+  }
 
-    // Determine check frequency based on thread age
-    if (threadAge <= AGE_THRESHOLDS.RECENT.days) {
-      nextCheckDelay = CHECK_FREQUENCIES.RECENT;
-    } else if (threadAge <= AGE_THRESHOLDS.MEDIUM.days) {
-      nextCheckDelay = CHECK_FREQUENCIES.MEDIUM;
-    } else if (threadAge <= AGE_THRESHOLDS.OLD.days) {
-      nextCheckDelay = CHECK_FREQUENCIES.OLD;
-    } else {
-      nextCheckDelay = CHECK_FREQUENCIES.VERY_OLD;
+  private calculateTimeInMilliseconds(time: {
+    seconds?: number;
+    minutes?: number;
+    hours?: number;
+    days?: number;
+  }): number {
+    const seconds = time.seconds || 0;
+    const minutes = time.minutes || 0;
+    const hours = time.hours || 0;
+    const days = time.days || 0;
+
+    return (
+      seconds * 1000 +
+      minutes * 60 * 1000 +
+      hours * 60 * 60 * 1000 +
+      days * 24 * 60 * 60 * 1000
+    );
+  }
+
+  private getThreadAge(createdAt: Date): number {
+    const env = this.getEnvironmentConfig();
+    const now = DateTime.now();
+    const created = DateTime.fromJSDate(createdAt);
+
+    // For demo and development, use minutes instead of days
+    if (env === "DEMO" || env === "DEVELOPMENT") {
+      return now.diff(created, "minutes").minutes;
     }
+
+    return now.diff(created, "days").days;
+  }
+
+  private getCheckFrequency(threadAge: number): {
+    seconds?: number;
+    minutes?: number;
+    hours?: number;
+    days?: number;
+  } {
+    const env = this.getEnvironmentConfig();
+    const thresholds = AGE_THRESHOLDS[env];
+    const frequencies = CHECK_FREQUENCIES[env];
+
+    if (this.isRecentThread(threadAge, env)) {
+      return frequencies.RECENT;
+    } else if (this.isMediumAgedThread(threadAge, env)) {
+      return frequencies.MEDIUM;
+    } else if (this.isOldThread(threadAge, env)) {
+      return frequencies.OLD;
+    } else {
+      return frequencies.VERY_OLD;
+    }
+  }
+
+  private isRecentThread(age: number, env: Environment): boolean {
+    const threshold = this.calculateTimeInMilliseconds(
+      AGE_THRESHOLDS[env].RECENT
+    );
+    const ageInMs = this.calculateTimeInMilliseconds(
+      env === "PRODUCTION" ? { days: age } : { minutes: age }
+    );
+    return ageInMs <= threshold;
+  }
+
+  private isMediumAgedThread(age: number, env: Environment): boolean {
+    const threshold = this.calculateTimeInMilliseconds(
+      AGE_THRESHOLDS[env].MEDIUM
+    );
+    const ageInMs = this.calculateTimeInMilliseconds(
+      env === "PRODUCTION" ? { days: age } : { minutes: age }
+    );
+    return ageInMs <= threshold;
+  }
+
+  private isOldThread(age: number, env: Environment): boolean {
+    const threshold = this.calculateTimeInMilliseconds(AGE_THRESHOLDS[env].OLD);
+    const ageInMs = this.calculateTimeInMilliseconds(
+      env === "PRODUCTION" ? { days: age } : { minutes: age }
+    );
+    return ageInMs <= threshold;
+  }
+
+  private async scheduleNextCheck(data: ThreadCheckData) {
+    const threadAge = this.getThreadAge(data.createdAt);
+    const nextCheckDelay = this.getCheckFrequency(threadAge);
+    const delayMs = this.calculateTimeInMilliseconds(nextCheckDelay);
+    const env = this.getEnvironmentConfig();
+
+    console.log(`
+🕒 Scheduling next thread check:
+- Environment: ${env}
+- Thread Age: ${threadAge} ${env === "PRODUCTION" ? "days" : "minutes"}
+- Next Check Delay: ${JSON.stringify(nextCheckDelay)}
+- Delay in MS: ${delayMs}
+    `);
 
     // Schedule next check using QueueService
     const queueService = QueueService.getInstance();
-    await queueService.addThreadJob(
-      data,
-      1,
-      this.calculateDelay(nextCheckDelay)
-    );
+    await queueService.addThreadJob(data, 1, delayMs);
 
     // Update thread metadata
     const currentThread = await prisma.emailThread.findUnique({
-      where: { id: data.threadId },
+      where: { threadId: data.threadId },
       select: { metadata: true },
     });
 
     const currentMetadata = (currentThread?.metadata || {}) as ThreadMetadata;
+
+    const nextCheckAt = new Date(Date.now() + delayMs);
 
     await prisma.emailThread.update({
       where: { threadId: data.threadId },
@@ -290,6 +407,16 @@ export class EmailThreadProcessor {
         metadata: {
           ...currentMetadata,
           lastCheckedAt: new Date().toISOString(),
+          nextCheckAt: nextCheckAt.toISOString(),
+          environment: env,
+          nextCheckDelay: nextCheckDelay,
+          threadAge: threadAge,
+          checkFrequency: {
+            env,
+            threadAge,
+            nextCheckDelay,
+            delayMs,
+          },
         },
       },
     });
@@ -299,14 +426,6 @@ export class EmailThreadProcessor {
   // -----------------------------------------
   // -----------------------------------------
 
-  private calculateDelay(frequency: { hours?: number; days?: number }): number {
-    const hours = frequency.hours || frequency.days! * 24;
-    return hours * 60 * 60 * 1000; // Convert to milliseconds
-  }
-
-  // -----------------------------------------
-  // -----------------------------------------
-  // -----------------------------------------
   // Method to initialize checks for all threads
   public async initializeThreadChecks() {
     const threads = await prisma.emailThread.findMany({
@@ -322,8 +441,13 @@ export class EmailThreadProcessor {
     });
 
     const queueService = QueueService.getInstance();
+    const env = this.getEnvironmentConfig();
+
+    console.log(
+      `🔄 Initializing thread checks for ${threads.length} threads in ${env} environment`
+    );
+
     for (const thread of threads) {
-      const metadata = (thread.metadata || {}) as ThreadMetadata;
       const data: ThreadCheckData = {
         threadId: thread.threadId,
         userId: thread.userId,
@@ -332,8 +456,29 @@ export class EmailThreadProcessor {
         messageId: "", // Add required field
         createdAt: thread.createdAt,
       };
-      await queueService.addThreadJob(data);
+
+      // Calculate initial delay based on thread age
+      const threadAge = this.getThreadAge(thread.createdAt);
+      const nextCheckDelay = this.getCheckFrequency(threadAge);
+      const delayMs = this.calculateTimeInMilliseconds(nextCheckDelay);
+
+      // Add some jitter to prevent all threads from being checked at exactly the same time
+      const jitter = Math.floor(Math.random() * 60000); // Random delay up to 1 minute
+      const totalDelay = delayMs + jitter;
+
+      console.log(`
+📋 Scheduling initial check for thread:
+- Thread ID: ${thread.threadId}
+- Age: ${threadAge} ${env === "PRODUCTION" ? "days" : "minutes"}
+- Base Delay: ${delayMs}ms
+- Jitter: ${jitter}ms
+- Total Delay: ${totalDelay}ms
+      `);
+
+      await queueService.addThreadJob(data, 1, totalDelay);
     }
+
+    console.log(`✅ Initialized checks for ${threads.length} threads`);
   }
 }
 
