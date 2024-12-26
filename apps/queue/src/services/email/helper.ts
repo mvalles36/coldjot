@@ -1,7 +1,11 @@
 import { encode as base64Encode } from "js-base64";
 import { prisma } from "@mailjot/database";
 import { normalizeSubject } from "@/utils";
-import type { EmailResult, ThreadHeaders } from "@mailjot/types";
+import {
+  EmailEventEnum,
+  type EmailResult,
+  type ThreadHeaders,
+} from "@mailjot/types";
 import type { EmailTracking } from "@mailjot/types";
 import { trackEmailEvent } from "@/services/track/tracking-service";
 
@@ -235,7 +239,7 @@ export const trackEmailSent = async (
 ) => {
   await trackEmailEvent(
     tracking.id,
-    "sent",
+    EmailEventEnum.SENT,
     {
       messageId: result.messageId,
       threadId: result.threadId,
@@ -264,7 +268,7 @@ export const trackEmailBounce = async (
 ) => {
   await trackEmailEvent(
     tracking.id,
-    "bounced",
+    EmailEventEnum.BOUNCED,
     {
       bounceReason: error.message,
     },

@@ -1,4 +1,9 @@
-import { ProcessingJob, EmailJob } from "../../types/queue";
+import {
+  ProcessingJob,
+  EmailJob,
+  EmailJobEnum,
+  SequenceContactStatusEnum,
+} from "@mailjot/types";
 import { logger } from "@/services/log/logger";
 import { rateLimiter } from "@/services/rate-limit/rate-limiter";
 import { schedulingService } from "@/services/schedule/scheduling-service";
@@ -113,7 +118,7 @@ export class SequenceProcessor {
           );
           await updateSequenceContactStatus(
             contact.id,
-            StepStatus.COMPLETED,
+            SequenceContactStatusEnum.COMPLETED,
             new Date()
           );
           continue;
@@ -186,7 +191,7 @@ export class SequenceProcessor {
         // Create email job
         const emailJob: EmailJob = {
           id: randomUUID(),
-          type: "send",
+          type: EmailJobEnum.SEND,
           priority: 1,
           data: {
             sequenceId: sequence.id,
@@ -224,7 +229,10 @@ export class SequenceProcessor {
         );
 
         // Update contact status
-        await updateSequenceContactStatus(contact.id, StepStatus.SCHEDULED);
+        await updateSequenceContactStatus(
+          contact.id,
+          SequenceContactStatusEnum.SCHEDULED
+        );
 
         // Increment rate limit counters
         await rateLimiter.incrementCounters(

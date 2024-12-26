@@ -7,7 +7,7 @@ import {
   isSenderSequenceOwner,
   shouldProcessMessage,
 } from "@/utils";
-
+import { EmailEventEnum, SequenceContactStatusEnum } from "@mailjot/types";
 import { refreshAccessToken, oauth2Client } from "@/services/google";
 import type { gmail_v1 } from "googleapis";
 import type { MessagePartHeader } from "@mailjot/types";
@@ -76,7 +76,7 @@ export class EmailThreadProcessor {
           sequenceId: data.sequenceId,
           contactId: data.contactId,
           type: {
-            in: ["BOUNCED", "replied"],
+            in: [EmailEventEnum.BOUNCED, EmailEventEnum.REPLIED],
           },
         },
       });
@@ -187,6 +187,7 @@ export class EmailThreadProcessor {
           `🔍 Checking message ${message.id} in thread ${data.threadId}`
         );
 
+        // TODO : create enum for metadataHeaders
         const messageDetails = await gmail.users.messages.get({
           userId: "me",
           id: message.id,
@@ -207,14 +208,7 @@ export class EmailThreadProcessor {
         const headers = messageDetails.data.payload?.headers || [];
         const labelIds = messageDetails.data.labelIds || [];
 
-        logger.debug(
-          {
-            messageId: message.id,
-            headers: headers.map((h) => ({ name: h.name, value: h.value })),
-            labelIds,
-          },
-          "📧 Message details"
-        );
+        logger.debug("📧 Message headers details");
 
         // Check for bounces
         const isBounce = isBounceMessage(headers);
@@ -291,7 +285,7 @@ export class EmailThreadProcessor {
       where: {
         sequenceId: data.sequenceId,
         contactId: data.contactId,
-        type: "BOUNCED",
+        type: EmailEventEnum.BOUNCED,
       },
     });
 
@@ -304,7 +298,7 @@ export class EmailThreadProcessor {
         where: {
           sequenceId: data.sequenceId,
           contactId: data.contactId,
-          type: "sent",
+          type: EmailEventEnum.SENT,
         },
       });
 
@@ -315,7 +309,7 @@ export class EmailThreadProcessor {
 
       await prisma.emailEvent.create({
         data: {
-          type: "BOUNCED",
+          type: EmailEventEnum.BOUNCED,
           sequenceId: data.sequenceId,
           contactId: data.contactId,
           trackingId: trackingId?.trackingId,
@@ -333,16 +327,24 @@ export class EmailThreadProcessor {
           sequenceId: data.sequenceId,
           contactId: data.contactId,
           status: {
-            notIn: ["completed", "bounced", "opted_out"],
+            notIn: [
+              SequenceContactStatusEnum.COMPLETED,
+              SequenceContactStatusEnum.BOUNCED,
+              SequenceContactStatusEnum.OPTED_OUT,
+            ],
           },
         },
         data: {
-          status: "bounced",
+          status: SequenceContactStatusEnum.BOUNCED,
           updatedAt: new Date(),
         },
       });
 
-      await updateSequenceStats(data.sequenceId, "bounced", data.contactId);
+      await updateSequenceStats(
+        data.sequenceId,
+        EmailEventEnum.BOUNCED,
+        data.contactId
+      );
     }
   }
 
@@ -360,7 +362,7 @@ export class EmailThreadProcessor {
       where: {
         sequenceId: data.sequenceId,
         contactId: data.contactId,
-        type: "replied",
+        type: EmailEventEnum.REPLIED,
       },
     });
 
@@ -370,7 +372,7 @@ export class EmailThreadProcessor {
         where: {
           sequenceId: data.sequenceId,
           contactId: data.contactId,
-          type: "sent",
+          type: EmailEventEnum.SENT,
         },
       });
 
@@ -381,7 +383,7 @@ export class EmailThreadProcessor {
 
       await prisma.emailEvent.create({
         data: {
-          type: "replied",
+          type: EmailEventEnum.REPLIED,
           sequenceId: data.sequenceId,
           contactId: data.contactId,
           trackingId: trackingId?.trackingId,
@@ -409,7 +411,11 @@ export class EmailThreadProcessor {
       //   },
       // });
 
-      await updateSequenceStats(data.sequenceId, "replied", data.contactId);
+      await updateSequenceStats(
+        data.sequenceId,
+        EmailEventEnum.REPLIED,
+        data.contactId
+      );
     }
   }
 

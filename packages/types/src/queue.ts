@@ -1,26 +1,15 @@
 import { BusinessHours, ProcessingWindow, RateLimits } from "./sequences";
-
-// import {
-//   BusinessHours,
-//   SequenceStep,
-//   StepType,
-//   StepTiming,
-//   StepPriority,
-//   ProcessingWindow,
-//   RateLimits,
-//   EmailTracking,
-//   GoogleAccount,
-// } from "@mailjot/types";
+import { BusinessScheduleEnum, EmailJobEnum, ProcessingJobEnum } from "./enums";
 
 // Job Types
 export interface ProcessingJob {
-  type: "sequence";
+  type: ProcessingJobEnum.SEQUENCE;
   id: string;
   priority: number;
   data: {
     sequenceId: string;
     userId: string;
-    scheduleType?: "custom" | "default" | "business";
+    scheduleType?: BusinessScheduleEnum;
     businessHours?: BusinessHours;
     testMode?: boolean;
   };
@@ -28,7 +17,7 @@ export interface ProcessingJob {
 
 export interface EmailJob {
   id: string;
-  type: "send" | "bounce_check";
+  type: EmailJobEnum;
   priority: number;
   data: {
     sequenceId: string;

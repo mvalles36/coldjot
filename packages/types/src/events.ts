@@ -1,22 +1,4 @@
-// Define EmailEventType based on the schema enum
-export type EmailEventType =
-  | "sent"
-  | "opened"
-  | "clicked"
-  | "replied"
-  | "bounced"
-  | "spam"
-  | "unsubscribed"
-  | "interested";
-
-export type EmailTrackingStatus =
-  | "pending"
-  | "sent"
-  | "opened"
-  | "clicked"
-  | "bounced"
-  | "spam"
-  | "unsubscribed";
+import { EmailTrackingEnum } from "./enums";
 
 export interface EmailTrackingMetadata {
   email: string;
@@ -42,7 +24,7 @@ export interface EmailTracking {
   id: string;
   hash: string;
   metadata: EmailTrackingMetadata;
-  type: "sequence" | "campaign";
+  type: EmailTrackingEnum;
   pixel: string;
   wrappedLinks: boolean;
   trackingId: string;

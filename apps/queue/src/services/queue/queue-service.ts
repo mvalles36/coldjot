@@ -5,6 +5,7 @@ import {
   EmailJob,
   JobCounts,
   ThreadCheckData,
+  ProcessingJobEnum,
 } from "@mailjot/types";
 import { REDIS_KEYS, QUEUE_CONFIG } from "@/config/constants";
 
@@ -137,7 +138,7 @@ export class QueueService {
     // Process sequence jobs
     this.sequenceQueue.process(async (job) => {
       const processingJob: ProcessingJob = {
-        type: "sequence",
+        type: ProcessingJobEnum.SEQUENCE,
         id: job.id.toString(),
         priority: job.opts.priority || 1,
         data: job.data,

@@ -289,7 +289,6 @@ export default function SequencePageClient({
         <TabsContent value="contacts" className="mt-6">
           <SequenceContacts
             sequenceId={sequence.id}
-            initialContacts={initialContacts}
             isActive={sequence.status === "active"}
           />
         </TabsContent>

@@ -1,7 +1,11 @@
 import { logger } from "@/services/log/logger";
 import { QueueService } from "@/services/queue/queue-service";
 import { prisma } from "@mailjot/database";
-import { StepStatus } from "@mailjot/types";
+import {
+  EmailJobEnum,
+  SequenceContactStatusEnum,
+  StepStatus,
+} from "@mailjot/types";
 import { randomUUID } from "crypto";
 import { schedulingService } from "../schedule/scheduling-service";
 import { rateLimiter } from "@/services/rate-limit/rate-limiter";
@@ -56,7 +60,7 @@ export class ContactProcessingService {
       // Find contacts that haven't been processed yet
       const newContacts = await prisma.sequenceContact.findMany({
         where: {
-          status: StepStatus.NOT_SENT,
+          status: SequenceContactStatusEnum.NOT_STARTED,
           lastProcessedAt: null,
         },
         include: {
@@ -126,7 +130,7 @@ export class ContactProcessingService {
       await prisma.sequenceContact.update({
         where: { id: contact.id },
         data: {
-          status: StepStatus.PENDING,
+          status: SequenceContactStatusEnum.PENDING,
           lastProcessedAt: new Date(),
         },
       });
@@ -159,7 +163,7 @@ export class ContactProcessingService {
       // 6. Create email job
       const emailJob: EmailJob = {
         id: randomUUID(),
-        type: "send",
+        type: EmailJobEnum.SEND,
         priority: 1,
         data: {
           sequenceId: sequence.id,
@@ -186,15 +190,6 @@ export class ContactProcessingService {
             currentStep: 1,
           },
         }),
-        prisma.sequenceContact.create({
-          data: {
-            sequenceId: sequence.id,
-            contactId: contactDetails.id,
-            currentStep: 0,
-            nextScheduledAt: sendTime,
-            completed: false,
-          },
-        }),
       ]);
 
       // 9. Increment rate limit counters
@@ -207,8 +202,8 @@ export class ContactProcessingService {
       logger.info(`✅ Successfully processed contact: ${contactDetails.email}`);
     } catch (error) {
       logger.error(
-        `❌ Error processing contact ${contactDetails.email}:`,
-        error
+        error,
+        `❌ Error processing contact ${contactDetails.email}:`
       );
 
       // Update status to failed

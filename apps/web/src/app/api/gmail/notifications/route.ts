@@ -17,7 +17,13 @@ import {
 } from "@/utils";
 
 // Types and Interfaces
-import type { MessagePartHeader, Gmail, Message } from "@mailjot/types";
+import type {
+  MessagePartHeader,
+  Gmail,
+  Message,
+  SequenceContactStatusType,
+} from "@mailjot/types";
+import { SequenceContactStatusEnum } from "@mailjot/types";
 
 interface NotificationData {
   emailAddress: string;
@@ -434,26 +440,6 @@ const getMessageHeaders = async (
 
 // -----------------------------------------
 
-const updateSequenceContactStatus = async (
-  sequenceId: string,
-  contactId: string,
-  status: string
-) => {
-  await prisma.sequenceContact.updateMany({
-    where: {
-      sequenceId,
-      contactId,
-      status: {
-        notIn: ["completed", status, "opted_out"],
-      },
-    },
-    data: {
-      status,
-      updatedAt: new Date(),
-    },
-  });
-};
-
 // -----------------------------------------
 // -----------------------------------------
 // -----------------------------------------
@@ -545,12 +531,6 @@ const processBounceEvent = async (
   //   "bounced",
   //   emailThread.contactId
   // );
-
-  await updateSequenceContactStatus(
-    emailThread.sequenceId,
-    emailThread.contactId,
-    "bounced"
-  );
 
   console.log(
     "✅ Tracked first bounce event for sequence:",
@@ -720,12 +700,6 @@ const processReplyEvent = async (
   //   "replied",
   //   emailThread.contactId
   // );
-
-  await updateSequenceContactStatus(
-    emailThread.sequenceId,
-    emailThread.contactId,
-    "replied"
-  );
 
   console.log("✅ Tracked reply event for sequence:", emailThread.sequenceId);
 };

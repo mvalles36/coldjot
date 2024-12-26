@@ -1,5 +1,9 @@
 import { prisma } from "@mailjot/database";
-import { BusinessHours, StepStatus } from "@mailjot/types";
+import {
+  BusinessHours,
+  SequenceContactStatusType,
+  StepStatus,
+} from "@mailjot/types";
 import { GoogleAccount } from "@mailjot/types";
 import { logger } from "../log/logger";
 
@@ -61,7 +65,7 @@ export function getDefaultBusinessHours(): BusinessHours {
  */
 export async function updateSequenceContactStatus(
   contactId: string,
-  status: StepStatus,
+  status: SequenceContactStatusType,
   completedAt?: Date
 ) {
   try {
@@ -80,7 +84,7 @@ export async function updateSequenceContactStatus(
 }
 
 /**
- * Update sequence contact status
+ * Update sequence contact threadId
  */
 export async function updateSequenceContactThreadId(
   contactId: string,

@@ -1,3 +1,5 @@
+import { ProcessingJobEnum } from "@mailjot/types";
+
 const QUEUE_API_URL =
   process.env.NEXT_PUBLIC_QUEUE_API_URL || "http://localhost:3001";
 
@@ -41,7 +43,7 @@ export async function addEmailToQueue(data: {
   return response.json();
 }
 
-export async function getJobStatus(jobId: string, type: "sequence" | "email") {
+export async function getJobStatus(jobId: string, type: ProcessingJobEnum) {
   const response = await fetch(
     `${QUEUE_API_URL}/api/jobs/${jobId}?type=${type}`,
     {

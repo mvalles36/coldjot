@@ -93,6 +93,9 @@ export interface SequenceContact {
   lastProcessedAt?: Date | null;
   completedAt?: Date | null;
   threadId?: string | null;
+  completed?: boolean;
+  nextScheduledAt?: Date | null;
+  createdAt?: Date;
   contact: {
     id: string;
     name: string;
@@ -155,21 +158,7 @@ export interface RateLimits {
 // ------------------------
 // ------------------------
 
-// export type SequenceStatus = "draft" | "active" | "paused" | "completed";
-// export type StepStatus =
-//   | "not_sent"
-//   | "scheduled"
-//   | "in_progress"
-//   | "sent"
-//   | "failed"
-//   | "bounced"
-//   | "replied"
-//   | "interested"
-//   | "opted_out"
-//   | "completed";
-// export type StepPriority = "high" | "medium" | "low";
 export type StepTiming = "immediate" | "delay";
-// export type StepType = "manual_email" | "automated_email";
 
 export interface DevSettings {
   disableSending: boolean;
@@ -292,47 +281,3 @@ export interface EmailData {
   replyToThread?: boolean;
   templateId?: string;
 }
-
-// export interface EmailTrackingMetadata {
-//   email: string;
-//   userId: string;
-//   sequenceId: string;
-//   stepId: string;
-//   contactId: string;
-//   hash?: string;
-//   trackingId?: string;
-// }
-
-// export interface EmailTracking {
-//   id: string;
-//   hash: string;
-//   type: string;
-//   wrappedLinks: boolean;
-//   metadata: EmailTrackingMetadata;
-//   pixel?: string;
-//   trackingId?: string;
-// }
-
-// export interface EmailEventMetadata {
-//   messageId?: string;
-//   threadId?: string;
-//   from?: string;
-//   snippet?: string;
-//   timestamp?: string;
-//   replyMessageId?: string;
-//   bounceReason?: string;
-//   userAgent?: string;
-//   ipAddress?: string;
-//   location?: string;
-//   deviceType?: string;
-// }
-
-// export interface EmailEventMetadata {
-//   [key: string]: string | number | boolean | null | undefined;
-//   userAgent?: string;
-//   ipAddress?: string;
-//   location?: string;
-//   deviceType?: string;
-//   replyMessageId?: string;
-//   bounceReason?: string;
-// }

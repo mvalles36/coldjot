@@ -1,6 +1,6 @@
 import type { MessagePartHeader } from "@mailjot/types";
 import crypto from "crypto";
-
+import { EmailLabelEnum } from "@mailjot/types";
 // Message ID generation
 export const generateMessageId = (): string => {
   const domain = process.env.EMAIL_DOMAIN || "gmail.com";
@@ -112,21 +112,27 @@ export const shouldProcessMessage = (labelIds: string[]): boolean => {
   const normalizedLabels = labelIds.map((label) => label.toUpperCase());
 
   // Don't process if it's in SENT or DRAFT
-  if (normalizedLabels.includes("SENT") || normalizedLabels.includes("DRAFT")) {
+  if (
+    normalizedLabels.includes(EmailLabelEnum.SENT) ||
+    normalizedLabels.includes(EmailLabelEnum.DRAFT)
+  ) {
     return false;
   }
 
   // Must be in INBOX or have INBOX/CATEGORY_* label
   const isInInbox = normalizedLabels.some(
     (label) =>
-      label === "INBOX" ||
+      label === EmailLabelEnum.INBOX ||
       label.startsWith("CATEGORY_") ||
-      label === "IMPORTANT"
+      label === EmailLabelEnum.IMPORTANT
   );
 
   // Must not be spam or trash
   const isNotSpamOrTrash = !normalizedLabels.some(
-    (label) => label === "SPAM" || label === "TRASH" || label === "JUNK"
+    (label) =>
+      label === EmailLabelEnum.SPAM ||
+      label === EmailLabelEnum.TRASH ||
+      label === EmailLabelEnum.JUNK
   );
 
   return isInInbox && isNotSpamOrTrash;

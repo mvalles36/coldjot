@@ -1,5 +1,6 @@
 import { prisma } from "@mailjot/database";
 import type { EmailEventType } from "@mailjot/types";
+import { EmailEventEnum } from "@mailjot/types";
 import type { Prisma } from "@prisma/client";
 import { logger } from "../log/logger";
 
@@ -93,13 +94,13 @@ export const updateSequenceStats = async (
 
     // Handle different event types
     switch (type) {
-      case "sent": {
+      case EmailEventEnum.SENT: {
         // Check if this is a new contact
         if (contactId) {
           const existingSends = await getExistingEventCount({
             sequenceId,
             contactId,
-            type: "sent",
+            type: EmailEventEnum.SENT,
           });
 
           logger.info(
@@ -136,7 +137,7 @@ export const updateSequenceStats = async (
         break;
       }
 
-      case "opened": {
+      case EmailEventEnum.OPENED: {
         // Always increment total opens
         updates.openedEmails = { increment: 1 };
 
@@ -161,7 +162,7 @@ export const updateSequenceStats = async (
         break;
       }
 
-      case "clicked": {
+      case EmailEventEnum.CLICKED: {
         updates.clickedEmails = { increment: 1 };
         const newRates = calculateRates({
           ...stats,
@@ -176,7 +177,7 @@ export const updateSequenceStats = async (
         break;
       }
 
-      case "replied": {
+      case EmailEventEnum.REPLIED: {
         updates.repliedEmails = { increment: 1 };
         const newRates = calculateRates({
           ...stats,
@@ -191,7 +192,7 @@ export const updateSequenceStats = async (
         break;
       }
 
-      case "bounced": {
+      case EmailEventEnum.BOUNCED: {
         updates.bouncedEmails = { increment: 1 };
         const newRates = calculateRates({
           ...stats,
@@ -206,12 +207,12 @@ export const updateSequenceStats = async (
         break;
       }
 
-      case "unsubscribed": {
+      case EmailEventEnum.UNSUBSCRIBED: {
         if (contactId) {
           const existingUnsubscribes = await getExistingEventCount({
             sequenceId,
             contactId,
-            type: "unsubscribed",
+            type: EmailEventEnum.UNSUBSCRIBED,
           });
 
           if (existingUnsubscribes === 0) {
@@ -221,12 +222,12 @@ export const updateSequenceStats = async (
         break;
       }
 
-      case "interested": {
+      case EmailEventEnum.INTERESTED: {
         if (contactId) {
           const existingInterests = await getExistingEventCount({
             sequenceId,
             contactId,
-            type: "interested",
+            type: EmailEventEnum.INTERESTED,
           });
 
           if (existingInterests === 0) {

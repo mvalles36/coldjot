@@ -37,6 +37,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { SequenceContact, StepStatus } from "@mailjot/types";
+import { SequenceContactStatusEnum } from "@mailjot/types";
+import type { SequenceContactStatusType } from "@mailjot/types";
 
 interface ContactWithCompany {
   id: string;
@@ -66,18 +68,7 @@ interface ExtendedSequenceContact {
   id: string;
   sequenceId: string;
   contactId: string;
-  status:
-    | "not_sent"
-    | "draft"
-    | "active"
-    | "paused"
-    | "completed"
-    | "error"
-    | "pending"
-    | "scheduled"
-    | "sent"
-    | "in_progress"
-    | "bounced";
+  status: SequenceContactStatusType;
   currentStep: number;
   nextScheduledAt: Date | null;
   completed: boolean;
@@ -100,18 +91,14 @@ interface ExtendedSequenceContact {
 
 interface SequenceContactsProps {
   sequenceId: string;
-  initialContacts: SequenceContact[];
   isActive: boolean;
 }
 
 export function SequenceContacts({
   sequenceId,
-  initialContacts,
   isActive,
 }: SequenceContactsProps) {
-  const [contacts, setContacts] = useState<ExtendedSequenceContact[]>(
-    initialContacts as ExtendedSequenceContact[]
-  );
+  const [contacts, setContacts] = useState<ExtendedSequenceContact[]>([]);
   const [selectedContact, setSelectedContact] =
     useState<ContactWithCompany | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -204,7 +191,10 @@ export function SequenceContacts({
       );
     }
 
-    if (contact.status === "bounced" || contact.status === "error") {
+    if (
+      contact.status === SequenceContactStatusEnum.BOUNCED ||
+      contact.status === SequenceContactStatusEnum.ERROR
+    ) {
       return (
         <div className="flex items-center gap-2 text-red-600">
           <AlertCircle className="w-4 h-4" />
@@ -214,9 +204,9 @@ export function SequenceContacts({
     }
 
     if (
-      contact.status === "active" ||
-      contact.status === "scheduled" ||
-      contact.status === "in_progress"
+      contact.status === SequenceContactStatusEnum.ACTIVE ||
+      contact.status === SequenceContactStatusEnum.SCHEDULED ||
+      contact.status === SequenceContactStatusEnum.IN_PROGRESS
     ) {
       return (
         <div className="flex items-center gap-2 text-yellow-600">
@@ -226,7 +216,7 @@ export function SequenceContacts({
       );
     }
 
-    if (contact.status === "paused") {
+    if (contact.status === SequenceContactStatusEnum.PAUSED) {
       return (
         <div className="flex items-center gap-2 text-orange-600">
           <Clock className="w-4 h-4" />

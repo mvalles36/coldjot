@@ -1,4 +1,10 @@
-import { EmailTrackingMetadata, EmailTracking } from "@mailjot/types";
+import {
+  EmailTrackingMetadata,
+  EmailTracking,
+  EmailTrackingEnum,
+  EmailEventEnum,
+  EmailTrackingStatusEnum,
+} from "@mailjot/types";
 import { nanoid } from "nanoid";
 import { prisma } from "@mailjot/database";
 import { getAppBaseUrl } from "@/utils";
@@ -6,7 +12,7 @@ import { updateSequenceStats } from "@/services/stats/sequence-stats-service";
 import type { Prisma } from "@prisma/client";
 import { EmailEventType } from "@mailjot/types";
 import { logger } from "../log/logger";
-
+import { ProcessingJobEnum } from "@mailjot/types";
 export async function createEmailTracking(
   metadata: EmailTrackingMetadata
 ): Promise<EmailTracking> {
@@ -60,7 +66,7 @@ export async function createEmailTracking(
       id: trackingEvent.id,
       hash,
       metadata: { ...metadata, hash },
-      type: "sequence",
+      type: EmailTrackingEnum.SEQUENCE,
       pixel: generateTrackingPixel(hash),
       wrappedLinks: true,
       trackingId: trackingEvent.id, // Add tracking ID for link association
@@ -91,7 +97,7 @@ export async function recordEmailOpen(hash: string): Promise<void> {
     const existingOpenEvent = await prisma.emailEvent.findFirst({
       where: {
         trackingId: emailTracking.id,
-        type: "opened",
+        type: EmailEventEnum.OPENED,
       },
     });
 
@@ -112,7 +118,7 @@ export async function recordEmailOpen(hash: string): Promise<void> {
       await prisma.emailEvent.create({
         data: {
           trackingId: emailTracking.id,
-          type: "opened",
+          type: EmailEventEnum.OPENED,
           sequenceId: emailTracking.sequenceId,
           contactId: emailTracking.contactId,
           metadata: {
@@ -126,7 +132,7 @@ export async function recordEmailOpen(hash: string): Promise<void> {
       if (emailTracking.sequenceId && emailTracking.contactId) {
         await updateSequenceStats(
           emailTracking.sequenceId,
-          "opened",
+          EmailEventEnum.OPENED,
           emailTracking.contactId,
           { isUniqueOpen: true }
         );
@@ -396,7 +402,7 @@ export async function trackEmailEvent(
     }
 
     // Check for existing event of this type for this email (except for clicks)
-    if (type !== "clicked") {
+    if (type !== EmailEventEnum.CLICKED) {
       const existingEvent = await prisma.emailEvent.findFirst({
         where: {
           trackingId,
@@ -432,12 +438,12 @@ export async function trackEmailEvent(
       await prisma.sequenceStats.create({
         data: {
           sequenceId: sequenceId,
-          totalEmails: type === "sent" ? 1 : 0,
-          sentEmails: type === "sent" ? 1 : 0,
-          openedEmails: type === "opened" ? 1 : 0,
-          clickedEmails: type === "clicked" ? 1 : 0,
-          repliedEmails: type === "replied" ? 1 : 0,
-          bouncedEmails: type === "bounced" ? 1 : 0,
+          totalEmails: type === EmailEventEnum.SENT ? 1 : 0,
+          sentEmails: type === EmailEventEnum.SENT ? 1 : 0,
+          openedEmails: type === EmailEventEnum.OPENED ? 1 : 0,
+          clickedEmails: type === EmailEventEnum.CLICKED ? 1 : 0,
+          repliedEmails: type === EmailEventEnum.REPLIED ? 1 : 0,
+          bouncedEmails: type === EmailEventEnum.BOUNCED ? 1 : 0,
           contactId: trackingData?.contactId,
         },
       });
@@ -446,11 +452,14 @@ export async function trackEmailEvent(
 
     // Calculate updates based on event type
     const updates: Partial<Prisma.SequenceStatsUpdateInput> = {
-      totalEmails: type === "sent" ? stats.totalEmails! + 1 : stats.totalEmails,
+      totalEmails:
+        type === EmailEventEnum.SENT
+          ? stats.totalEmails! + 1
+          : stats.totalEmails,
     };
 
     switch (type) {
-      case "sent":
+      case EmailEventEnum.SENT:
         updates.sentEmails = stats.sentEmails! + 1;
         // Recalculate all rates
         updates.openRate =
@@ -463,25 +472,25 @@ export async function trackEmailEvent(
           (stats.bouncedEmails! / (stats.sentEmails! + 1)) * 100;
         break;
 
-      case "opened":
+      case EmailEventEnum.OPENED:
         updates.openedEmails = stats.openedEmails! + 1;
         updates.openRate =
           ((stats.openedEmails! + 1) / stats.sentEmails!) * 100;
         break;
 
-      case "clicked":
+      case EmailEventEnum.CLICKED:
         updates.clickedEmails = stats.clickedEmails! + 1;
         updates.clickRate =
           ((stats.clickedEmails! + 1) / stats.sentEmails!) * 100;
         break;
 
-      case "replied":
+      case EmailEventEnum.REPLIED:
         updates.repliedEmails = stats.repliedEmails! + 1;
         updates.replyRate =
           ((stats.repliedEmails! + 1) / stats.sentEmails!) * 100;
         break;
 
-      case "bounced":
+      case EmailEventEnum.BOUNCED:
         updates.bouncedEmails = stats.bouncedEmails! + 1;
         updates.bounceRate =
           ((stats.bouncedEmails! + 1) / stats.sentEmails!) * 100;
@@ -540,11 +549,13 @@ export async function updateTrackingStats(
   // Calculate updates based on event type
   const updates: Partial<Prisma.SequenceStatsUpdateInput> = {
     totalEmails:
-      type === "sent" ? (stats.totalEmails ?? 0) + 1 : (stats.totalEmails ?? 0),
+      type === EmailEventEnum.SENT
+        ? (stats.totalEmails ?? 0) + 1
+        : (stats.totalEmails ?? 0),
   };
 
   switch (type) {
-    case "sent":
+    case EmailEventEnum.SENT:
       updates.sentEmails = (stats.sentEmails ?? 0) + 1;
       const sentRates = calculateRates({
         ...stats,
@@ -553,7 +564,7 @@ export async function updateTrackingStats(
       Object.assign(updates, sentRates);
       break;
 
-    case "opened":
+    case EmailEventEnum.OPENED:
       updates.openedEmails = (stats.openedEmails ?? 0) + 1;
       const openRates = calculateRates({
         ...stats,
@@ -562,7 +573,7 @@ export async function updateTrackingStats(
       updates.openRate = openRates.openRate;
       break;
 
-    case "clicked":
+    case EmailEventEnum.CLICKED:
       updates.clickedEmails = (stats.clickedEmails ?? 0) + 1;
       const clickRates = calculateRates({
         ...stats,
@@ -571,7 +582,7 @@ export async function updateTrackingStats(
       updates.clickRate = clickRates.clickRate;
       break;
 
-    case "replied":
+    case EmailEventEnum.REPLIED:
       updates.repliedEmails = (stats.repliedEmails ?? 0) + 1;
       const replyRates = calculateRates({
         ...stats,
@@ -580,7 +591,7 @@ export async function updateTrackingStats(
       updates.replyRate = replyRates.replyRate;
       break;
 
-    case "bounced":
+    case EmailEventEnum.BOUNCED:
       updates.bouncedEmails = (stats.bouncedEmails ?? 0) + 1;
       const bounceRates = calculateRates({
         ...stats,
@@ -605,7 +616,7 @@ export class TrackingService {
         include: {
           events: {
             where: {
-              type: "opened",
+              type: EmailEventEnum.OPENED,
             },
           },
         },
@@ -626,10 +637,10 @@ export class TrackingService {
             increment: 1,
           },
           openedAt: tracking.openedAt ?? new Date(), // Only set openedAt if it hasn't been set before
-          status: "opened",
+          status: EmailTrackingStatusEnum.OPENED,
           events: {
             create: {
-              type: "opened",
+              type: EmailEventEnum.OPENED,
               sequenceId: tracking.sequenceId,
               contactId: tracking.contactId,
               metadata: {
@@ -645,7 +656,7 @@ export class TrackingService {
       if (tracking.sequenceId && tracking.contactId) {
         await updateSequenceStats(
           tracking.sequenceId,
-          "opened",
+          EmailEventEnum.OPENED,
           tracking.contactId,
           { isUniqueOpen: isFirstOpen }
         );
@@ -710,10 +721,10 @@ export class TrackingService {
           where: { id: tracking.id },
           data: {
             clickedAt: tracking.clickedAt ?? new Date(), // Only set clickedAt if it hasn't been set before
-            status: "clicked",
+            status: EmailTrackingStatusEnum.CLICKED,
             events: {
               create: {
-                type: "clicked",
+                type: EmailEventEnum.CLICKED,
                 timestamp: new Date(),
                 metadata: {
                   linkId: linkId,
@@ -729,7 +740,7 @@ export class TrackingService {
       if (tracking.sequenceId && tracking.contactId) {
         await updateSequenceStats(
           tracking.sequenceId,
-          "clicked",
+          EmailEventEnum.CLICKED,
           tracking.contactId
         );
       }

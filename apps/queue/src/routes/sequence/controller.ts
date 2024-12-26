@@ -5,8 +5,8 @@ import { MonitoringService } from "@/services/monitor/monitoring-service";
 import { rateLimiter } from "@/services/rate-limit/rate-limiter";
 import { resetSequence } from "@/services/sequence/helper";
 import { logger } from "@/services/log/logger";
-import type { BusinessHours } from "@mailjot/types";
-import type { ProcessingJob } from "@mailjot/types";
+import { ProcessingJobEnum, BusinessScheduleEnum } from "@mailjot/types";
+import type { BusinessHours, ProcessingJob } from "@mailjot/types";
 
 // Initialize services
 const queueService = QueueService.getInstance();
@@ -85,15 +85,19 @@ export async function launchSequence(req: Request, res: Response) {
       },
     });
 
+    const type = ProcessingJobEnum.SEQUENCE;
     // Create and schedule the job
     const processingJob: ProcessingJob = {
-      type: "sequence",
-      id: `sequence-${id}-${Date.now()}`,
+      type: type,
+      id: `${type}-${id}-${Date.now()}`,
       priority: 1,
       data: {
         sequenceId: id,
         userId,
-        scheduleType: businessHours ? "business" : "custom",
+        // scheduleType: businessHours ? "business" : "custom",
+        scheduleType: businessHours
+          ? BusinessScheduleEnum.BUSINESS
+          : BusinessScheduleEnum.CUSTOM,
         businessHours,
         testMode,
       },

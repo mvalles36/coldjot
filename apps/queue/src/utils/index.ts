@@ -4,6 +4,7 @@ export * from "./email";
 export const sleep = (ms: number) =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
+// TODO: check env variables and return the correct url
 // URL and tracking utilities
 export const getAppBaseUrl = () => {
   const url = process.env.NEXT_PUBLIC_APP_URL;

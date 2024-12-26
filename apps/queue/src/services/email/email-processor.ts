@@ -1,22 +1,25 @@
-import { SendEmailOptions, EmailResult } from "@mailjot/types";
+import {
+  SendEmailOptions,
+  EmailResult,
+  SequenceContactStatusEnum,
+} from "@mailjot/types";
 import { EmailJob } from "@mailjot/types";
 import { logger } from "../log/logger";
 import { rateLimiter } from "../rate-limit/rate-limiter";
 import { emailService } from "./email-service";
 
-import { QueueService } from "../queue/queue-service";
 import { prisma } from "@mailjot/database";
 
 import { SequenceStep } from "@prisma/client";
-import { sendGmailSMTP } from "../google/smtp/gmail";
 import { createEmailTracking } from "../track/tracking-service";
 import { EmailTrackingMetadata } from "@mailjot/types";
 import { gmailClientService } from "../google/gmail/gmail";
-import type { gmail_v1 } from "googleapis";
 import { schedulingService } from "../schedule/scheduling-service";
 import { emailSchedulingService } from "../schedule/email-scheduling-service";
 import { updateSequenceContactThreadId } from "../sequence/helper";
 import { updateSequenceContactStatus } from "../sequence/helper";
+
+import type { gmail_v1 } from "googleapis";
 
 export class EmailProcessor {
   // private queueService: QueueService;
@@ -382,6 +385,33 @@ export class EmailProcessor {
     const contact = await prisma.contact.findUnique({
       where: { id: data.contactId },
       select: { email: true },
+    });
+
+    // If step index is less than total steps of a sequence, update the status to in progress
+    // Get the total steps of a sequence
+    const totalSteps = await prisma.sequenceStep.count({
+      where: { sequenceId: step.sequenceId },
+    });
+
+    // If the current step is not the last step, update the status to in progress
+    if (step.order < totalSteps - 1) {
+      await updateSequenceContactStatus(
+        data.contactId,
+        SequenceContactStatusEnum.IN_PROGRESS
+      );
+    }
+
+    // if the current step is the last step, update the status to completed
+    if (step.order === totalSteps - 1) {
+      await updateSequenceContactStatus(
+        data.contactId,
+        SequenceContactStatusEnum.COMPLETED
+      );
+    }
+
+    // We also need to check the nextRunTime of the next step
+    const nextStep = await prisma.sequenceStep.findFirst({
+      where: { sequenceId: step.sequenceId, order: step.order + 1 },
     });
 
     logger.info(

@@ -10,6 +10,7 @@ import {
   type Sequence,
   type SequenceStep,
   type BusinessHours,
+  EmailJobEnum,
 } from "@mailjot/types";
 import { randomUUID } from "crypto";
 import { schedulingService } from "./scheduling-service";
@@ -413,7 +414,7 @@ export class EmailSchedulingService {
       // 4. Create email job
       const emailJob: EmailJob = {
         id: randomUUID(),
-        type: "send",
+        type: EmailJobEnum.SEND,
         priority: 1,
         data: {
           sequenceId: sequence.id,

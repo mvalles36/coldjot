@@ -7,15 +7,21 @@ import type { EmailResult, EmailTrackingMetadata } from "@mailjot/types";
 import type { gmail_v1 } from "googleapis";
 import type { SendEmailOptions } from "@mailjot/types";
 import fs from "fs";
-
+import {
+  EmailEventEnum,
+  EmailEventType,
+  EmailLabelEnum,
+  SequenceContactStatusEnum,
+} from "@mailjot/types";
 import {
   getSenderInfoWithId,
   createEmailMessage,
   createUntrackedMessage,
 } from "./helper";
-
+import { EmailTrackingStatusEnum } from "@mailjot/types";
 import { getEmailThreadInfo } from "@/services/google/helper";
 import { sendGmailSMTP, gmailClientService } from "@/services/google";
+import { updateSequenceContactStatus } from "../sequence/helper";
 
 interface SentMessageInfo {
   messageId: string;
@@ -121,7 +127,7 @@ export class EmailService {
             requestBody: {
               raw: encodedUntrackedMessage,
               threadId: sentMessageDetails.threadId,
-              labelIds: ["SENT"],
+              labelIds: [EmailLabelEnum.SENT],
             },
           });
 
@@ -152,6 +158,12 @@ export class EmailService {
           options,
           response.data
         );
+
+        // Update contact status
+        // await updateSequenceContactStatus(
+        //   contact.id,
+        //   SequenceContactStatusEnum.SCHEDULED
+        // );
 
         logger.info(
           `✨ Email sending process completed successfully ${response.data.id} --- ${response.data.threadId}`
@@ -217,10 +229,10 @@ export class EmailService {
       data: {
         messageId: trackedResponse.id || undefined,
         threadId: trackedResponse.threadId || undefined,
-        status: "sent",
+        status: EmailTrackingStatusEnum.SENT,
         events: {
           create: {
-            type: "sent",
+            type: EmailEventEnum.SENT,
             sequenceId: options.sequenceId,
             contactId: options.contactId,
             metadata: {
@@ -256,7 +268,7 @@ export class EmailService {
         messageId: trackedResponse.id || undefined,
         threadId: options.threadId || undefined,
         hash: emailId,
-        status: "sent",
+        status: EmailTrackingStatusEnum.SENT,
         userId: options.userId,
         sequenceId: options.sequenceId,
         contactId: options.contactId,
@@ -267,7 +279,7 @@ export class EmailService {
         sentAt: new Date(),
         events: {
           create: {
-            type: "sent",
+            type: EmailEventEnum.SENT,
             sequenceId: options.sequenceId,
             contactId: options.contactId,
             metadata: {
@@ -299,7 +311,11 @@ export class EmailService {
 
     // Update sequence stats for the sent event
     if (options.sequenceId && options.contactId) {
-      await updateSequenceStats(options.sequenceId, "sent", options.contactId);
+      await updateSequenceStats(
+        options.sequenceId,
+        EmailEventEnum.SENT,
+        options.contactId
+      );
     }
 
     logger.info("✅ Email event and stats created");

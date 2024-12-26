@@ -8,39 +8,9 @@ import {
   RateLimits,
   EmailTracking,
   GoogleAccount,
+  ProcessingJob,
+  EmailJob,
 } from "@mailjot/types";
-
-// Job Types
-export interface ProcessingJob {
-  type: "sequence";
-  id: string;
-  priority: number;
-  data: {
-    sequenceId: string;
-    userId: string;
-    scheduleType?: "custom" | "default" | "business";
-    businessHours?: BusinessHours;
-    testMode?: boolean;
-  };
-}
-
-export interface EmailJob {
-  id: string;
-  type: "send" | "bounce_check";
-  priority: number;
-  data: {
-    sequenceId: string;
-    contactId: string;
-    stepId: string;
-    userId: string;
-    messageId?: string;
-    testMode?: boolean;
-    scheduledTime: string;
-    to: string;
-    subject?: string;
-    threadId?: string;
-  };
-}
 
 // Email Types
 export interface EmailResult {
@@ -49,36 +19,6 @@ export interface EmailResult {
   threadId?: string;
   error?: string;
 }
-
-// Email Types
-// export interface SendEmailOptions {
-//   to: string;
-//   subject: string;
-//   html: string;
-//   replyTo?: string;
-//   threadId?: string;
-//   tracking: EmailTracking;
-//   account: GoogleAccount;
-//   userId: string;
-//   sequenceId: string;
-//   contactId: string;
-//   stepId: string;
-//   testMode?: boolean;
-// }
-
-// export interface EmailTracking {
-//   enabled: boolean;
-//   openTracking: boolean;
-//   clickTracking: boolean;
-//   unsubscribeTracking: boolean;
-// }
-
-// export interface GoogleAccount {
-//   email: string;
-//   accessToken: string;
-//   refreshToken: string;
-//   expiryDate: number;
-// }
 
 // Monitoring Types
 export interface AlertConfig {
@@ -103,9 +43,18 @@ export interface AlertThresholds {
   delivery?: number;
 }
 
+export enum SequenceHealthStatusEnum {
+  HEALTHY = "healthy",
+  WARNING = "warning",
+  ERROR = "error",
+  CRITICAL = "critical",
+}
+
+export type SequenceHealthStatusType = SequenceHealthStatusEnum;
+
 export interface SequenceHealth {
   sequenceId: string;
-  status: "healthy" | "warning" | "error" | "critical";
+  status: SequenceHealthStatusType;
   errorCount: number;
   lastCheck: Date;
   lastError?: string;
@@ -161,6 +110,15 @@ export interface QueueMetrics {
   throughput: number;
 }
 
+export enum ErrorRecoveryStatusEnum {
+  PENDING = "pending",
+  RETRYING = "retrying",
+  FAILED = "failed",
+  RECOVERED = "recovered",
+}
+
+export type ErrorRecoveryStatusType = ErrorRecoveryStatusEnum;
+
 // Error Recovery Types
 export interface ErrorRecovery {
   jobId: string;
@@ -169,13 +127,21 @@ export interface ErrorRecovery {
   lastRetry: Date;
   nextRetry?: Date;
   strategy: RetryStrategy;
-  status: "pending" | "retrying" | "failed" | "recovered";
+  status: ErrorRecoveryStatusType;
   metadata: Record<string, any>;
 }
 
+export enum RetryStrategyBackoffEnum {
+  FIXED = "fixed",
+  EXPONENTIAL = "exponential",
+  CUSTOM = "custom",
+}
+
+export type RetryStrategyBackoffType = RetryStrategyBackoffEnum;
+
 export interface RetryStrategy {
   maxRetries: number;
-  backoffType: "fixed" | "exponential" | "custom";
+  backoffType: RetryStrategyBackoffType;
   backoffDelay: number; // in milliseconds
   maxDelay?: number; // maximum delay for exponential backoff
   customBackoff?: (attempt: number) => number;
