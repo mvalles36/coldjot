@@ -1,6 +1,7 @@
 import { prisma } from "@mailjot/database";
 import {
   BusinessHours,
+  SequenceContactStatusEnum,
   SequenceContactStatusType,
   StepStatus,
 } from "@mailjot/types";
@@ -64,17 +65,33 @@ export function getDefaultBusinessHours(): BusinessHours {
  * Update sequence contact status
  */
 export async function updateSequenceContactStatus(
+  sequenceId: string,
   contactId: string,
   status: SequenceContactStatusType,
-  completedAt?: Date
+  data?: any
 ) {
   try {
+    logger.info(
+      `Updating sequence contact status: ${contactId} to ${status} for sequence: ${sequenceId}`
+    );
+
+    const date = new Date();
+    const completedAt =
+      status === SequenceContactStatusEnum.COMPLETED ? new Date() : null;
+
     await prisma.sequenceContact.update({
-      where: { id: contactId },
+      where: {
+        sequenceId_contactId: {
+          sequenceId: sequenceId,
+          contactId: contactId,
+        },
+      },
       data: {
         status,
         completedAt,
-        lastProcessedAt: new Date(),
+        updatedAt: date,
+        lastProcessedAt: date,
+        ...data,
       },
     });
   } catch (error) {

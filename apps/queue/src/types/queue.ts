@@ -149,5 +149,5 @@ export interface RetryStrategy {
 }
 
 // Re-export types from @mailjot/types for convenience
-export { StepType };
+// export { StepType };
 export type { StepTiming, StepPriority, BusinessHours };

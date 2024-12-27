@@ -10,13 +10,17 @@ import { emailService } from "./email-service";
 
 import { prisma } from "@mailjot/database";
 
-import { SequenceStep } from "@prisma/client";
+// import { SequenceStep } from "@prisma/client";
+import { SequenceStep } from "@mailjot/types";
 import { createEmailTracking } from "../track/tracking-service";
 import { EmailTrackingMetadata } from "@mailjot/types";
 import { gmailClientService } from "../google/gmail/gmail";
 import { schedulingService } from "../schedule/scheduling-service";
 import { emailSchedulingService } from "../schedule/email-scheduling-service";
-import { updateSequenceContactThreadId } from "../sequence/helper";
+import {
+  getDefaultBusinessHours,
+  updateSequenceContactThreadId,
+} from "../sequence/helper";
 import { updateSequenceContactStatus } from "../sequence/helper";
 
 import type { gmail_v1 } from "googleapis";
@@ -60,12 +64,12 @@ export class EmailProcessor {
       logger.info(`🔍 Fetching sequence step ${data.stepId}`);
       const step = await this.getAndValidateSequenceStep(data.stepId);
 
-      if (step.sequence.status !== "active") {
-        logger.info(
-          `⏸️ Sequence is not active, skipping email ${step.sequence.name}`
-        );
-        return { success: true };
-      }
+      // if (step.sequence.status !== "active") {
+      //   logger.info(
+      //     `⏸️ Sequence is not active, skipping email ${step.sequence.name}`
+      //   );
+      //   return { success: true };
+      // }
 
       // Get contact info
       logger.info(`🔍 Fetching contact info ${data.contactId}`);
@@ -301,19 +305,11 @@ export class EmailProcessor {
         //   },
         // });
 
-        // Update sequence contact status
-        await prisma.sequenceContact.update({
-          where: {
-            sequenceId_contactId: {
-              sequenceId: data.sequenceId,
-              contactId: data.contactId,
-            },
-          },
-          data: {
-            status: "BOUNCED",
-            updatedAt: new Date(),
-          },
-        });
+        await updateSequenceContactStatus(
+          data.sequenceId,
+          data.contactId,
+          SequenceContactStatusEnum.BOUNCED
+        );
       }
 
       return { success: true };
@@ -352,7 +348,9 @@ export class EmailProcessor {
   // -----------------------------------------
   // -----------------------------------------
 
-  private async getAndValidateSequenceStep(stepId: string) {
+  private async getAndValidateSequenceStep(
+    stepId: string
+  ): Promise<SequenceStep> {
     const step = await prisma.sequenceStep.findUnique({
       where: { id: stepId },
       include: {
@@ -369,7 +367,7 @@ export class EmailProcessor {
       throw new Error(`Step ${stepId} not found`);
     }
 
-    return step;
+    return step as SequenceStep;
   }
 
   // -----------------------------------------
@@ -379,7 +377,7 @@ export class EmailProcessor {
   private async handleSuccessfulEmail(
     data: EmailJob["data"],
     result: EmailResult,
-    step: SequenceStep & { sequence: { name: string; status: string } }
+    step: SequenceStep
   ) {
     // Get contact for logging
     const contact = await prisma.contact.findUnique({
@@ -396,6 +394,7 @@ export class EmailProcessor {
     // If the current step is not the last step, update the status to in progress
     if (step.order < totalSteps - 1) {
       await updateSequenceContactStatus(
+        data.sequenceId,
         data.contactId,
         SequenceContactStatusEnum.IN_PROGRESS
       );
@@ -404,15 +403,38 @@ export class EmailProcessor {
     // if the current step is the last step, update the status to completed
     if (step.order === totalSteps - 1) {
       await updateSequenceContactStatus(
+        data.sequenceId,
         data.contactId,
         SequenceContactStatusEnum.COMPLETED
       );
     }
 
-    // We also need to check the nextRunTime of the next step
-    const nextStep = await prisma.sequenceStep.findFirst({
-      where: { sequenceId: step.sequenceId, order: step.order + 1 },
+    // Get sequence
+    const sequence = await prisma.sequence.findUnique({
+      where: { id: step.sequenceId },
+      select: {
+        businessHours: true,
+      },
     });
+
+    // Calculate next send time
+    const nextSendTime = await schedulingService.calculateNextRun(
+      new Date(),
+      step,
+      sequence?.businessHours || getDefaultBusinessHours()
+    );
+
+    // TODO: check this
+    // update sequence contact nextSendTime
+    // await prisma.sequenceContact.update({
+    //   where: {
+    //     sequenceId_contactId: {
+    //       sequenceId: data.sequenceId,
+    //       contactId: data.contactId,
+    //     },
+    //   },
+    //   data: { nextScheduledAt: nextSendTime },
+    // });
 
     logger.info(
       {

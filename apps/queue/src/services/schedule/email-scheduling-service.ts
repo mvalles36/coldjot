@@ -3,7 +3,8 @@ import { QueueService } from "@/services/queue/queue-service";
 import { prisma } from "@mailjot/database";
 import {
   StepStatus,
-  StepType,
+  type StepType,
+  StepTypeEnum,
   StepPriority,
   StepTiming,
   type EmailJob,
@@ -542,6 +543,7 @@ export class EmailSchedulingService {
         "🔄 Scheduling retry"
       );
 
+      // TODO: check the logic
       await prisma.sequenceContact.update({
         where: { id: email.id },
         data: {

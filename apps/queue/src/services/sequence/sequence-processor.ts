@@ -79,8 +79,8 @@ export class SequenceProcessor {
       }
 
       // Process each contact
-      for (const contact of contacts) {
-        logger.info(`👤 Processing contact: ${contact.contact.email}`, {
+      for (const sequenceContact of contacts) {
+        logger.info(`👤 Processing contact: ${sequenceContact.contact.email}`, {
           sequence: sequence.name,
         });
 
@@ -88,7 +88,7 @@ export class SequenceProcessor {
         const contactRateLimit = await rateLimiter.checkRateLimit(
           data.userId,
           data.sequenceId,
-          contact.contact.id
+          sequenceContact.contact.id
         );
 
         if (!contactRateLimit.allowed) {
@@ -99,13 +99,13 @@ export class SequenceProcessor {
         // Get contact's progress
         const progress = await getContactProgress(
           data.sequenceId,
-          contact.contact.id
+          sequenceContact.contact.id
         );
         const currentStepIndex = progress?.currentStep ?? 0;
 
         // Log progress status
         logger.info(`📊 Contact progress:`, {
-          contact: contact.contact.email,
+          contact: sequenceContact.contact.email,
           currentStep: currentStepIndex + 1,
           totalSteps: sequence.steps.length,
           hasExistingProgress: !!progress,
@@ -114,12 +114,12 @@ export class SequenceProcessor {
         // Check if sequence is completed
         if (currentStepIndex >= sequence.steps.length) {
           logger.info(
-            `✅ Sequence completed for contact: ${contact.contact.email}`
+            `✅ Sequence completed for contact: ${sequenceContact.contact.email}`
           );
           await updateSequenceContactStatus(
-            contact.id,
-            SequenceContactStatusEnum.COMPLETED,
-            new Date()
+            sequence.id,
+            sequenceContact.id,
+            SequenceContactStatusEnum.COMPLETED
           );
           continue;
         }
@@ -153,14 +153,7 @@ export class SequenceProcessor {
           },
         });
 
-        // const sendTime = await schedulingService.calculateNextRun(
-        //   new Date(),
-        //   firstStep,
-        //   sequence.businessHours || getDefaultBusinessHours()
-        // );
-
         // Calculate next send time using the new timing service
-
         logger.info(nextStep, "🎮 Sequence Step");
 
         const nextSendTime = schedulingService.calculateNextRun(
@@ -170,7 +163,7 @@ export class SequenceProcessor {
         );
 
         logger.info(
-          `📅 Scheduling email for contact: ${contact.contact.email}`,
+          `📅 Scheduling email for contact: ${sequenceContact.contact.email}`,
           {
             step: currentStepIndex + 1,
             totalSteps: sequence.steps.length,
@@ -195,14 +188,14 @@ export class SequenceProcessor {
           priority: 1,
           data: {
             sequenceId: sequence.id,
-            contactId: contact.contact.id,
+            contactId: sequenceContact.contact.id,
             stepId: currentStep.id,
             userId: data.userId,
             to: data.testMode
               ? process.env.TEST_EMAIL || googleAccount.email || ""
-              : contact.contact.email,
+              : sequenceContact.contact.email,
             subject: subject || "",
-            threadId: contact.threadId || undefined,
+            threadId: sequenceContact.threadId || undefined,
             testMode: data.testMode || false,
             scheduledTime: nextSendTime.toISOString(),
           },
@@ -223,14 +216,18 @@ export class SequenceProcessor {
         // Update progress
         await updateSequenceContactProgress(
           sequence.id,
-          contact.contact.id,
+          sequenceContact.contact.id,
           currentStepIndex + 1,
           nextSendTime
         );
 
         // Update contact status
+        logger.info(
+          `📊 Updating contact status: ${sequenceContact.contact.id} to SCHEDULED`
+        );
         await updateSequenceContactStatus(
-          contact.id,
+          sequence.id,
+          sequenceContact.contact.id,
           SequenceContactStatusEnum.SCHEDULED
         );
 
@@ -238,7 +235,7 @@ export class SequenceProcessor {
         await rateLimiter.incrementCounters(
           data.userId,
           sequence.id,
-          contact.contact.id
+          sequenceContact.contact.id
         );
 
         // Add rate limiting delay between contacts

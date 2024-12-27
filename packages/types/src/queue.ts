@@ -181,7 +181,3 @@ export interface RetryStrategy {
   customBackoff?: (attempt: number) => number;
   shouldRetry?: (error: Error) => boolean;
 }
-
-// // Re-export types from @mailjot/types for convenience
-// export { StepType };
-// export type { StepTiming, StepPriority, BusinessHours };

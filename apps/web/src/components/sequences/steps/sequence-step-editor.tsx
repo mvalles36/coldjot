@@ -167,28 +167,7 @@ export function SequenceStepEditor({
                   <h4 className="text-sm font-medium mb-2">
                     Estimated Next Send Time
                   </h4>
-                  <div className="text-sm text-muted-foreground">
-                    {/* TODO : check again the timing service */}
-                    {/* {(() => {
-                      try {
-                        const nextTime = calculateNextSendTime(
-                          new Date(),
-                          { amount: delayAmount, unit: delayUnit as DelayUnit },
-                          {
-                            timezone:
-                              Intl.DateTimeFormat().resolvedOptions().timeZone,
-                            workDays: [1, 2, 3, 4, 5], // Default to Mon-Fri
-                            workHoursStart: "09:00",
-                            workHoursEnd: "17:00",
-                            holidays: [],
-                          }
-                        );
-                        return format(nextTime, "PPpp");
-                      } catch (error) {
-                        return "Invalid timing configuration";
-                      }
-                    })()} */}
-                  </div>
+                  <div className="text-sm text-muted-foreground"></div>
                   <p className="text-xs text-muted-foreground mt-2">
                     * Actual send time may vary based on business hours and
                     holidays

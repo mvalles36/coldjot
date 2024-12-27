@@ -1,10 +1,12 @@
-export enum StepType {
+export enum StepTypeEnum {
   MANUAL_EMAIL = "MANUAL_EMAIL",
   AUTOMATED_EMAIL = "AUTOMATED_EMAIL",
   WAIT = "WAIT",
   CONDITION = "CONDITION",
   ACTION = "ACTION",
 }
+
+export type StepType = StepTypeEnum;
 
 export enum TimingType {
   IMMEDIATE = "immediate",
@@ -44,7 +46,6 @@ export interface SequenceStep {
   id: string;
   sequenceId: string;
   stepType: StepType;
-  status: StepStatus;
   priority: StepPriority;
   timing: StepTiming;
   delayAmount?: number | null;
@@ -56,7 +57,6 @@ export interface SequenceStep {
   order: number;
   previousStepId?: string | null;
   replyToThread?: boolean;
-  threadId?: string | null;
   createdAt: Date;
   updatedAt: Date;
   templateId?: string | null;
@@ -190,28 +190,6 @@ export interface Sequence {
   testMode: boolean;
   emailListId?: string | null;
   businessHours?: BusinessHours;
-}
-
-export interface SequenceStep {
-  id: string;
-  sequenceId: string;
-  stepType: StepType;
-  status: StepStatus;
-  priority: StepPriority;
-  timing: StepTiming;
-  delayAmount?: number | null;
-  delayUnit?: string | null;
-  subject?: string | null;
-  content?: string | null;
-  includeSignature: boolean;
-  note?: string | null;
-  order: number;
-  previousStepId?: string | null;
-  replyToThread?: boolean;
-  threadId?: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-  templateId?: string | null;
 }
 
 export interface SequenceContact {

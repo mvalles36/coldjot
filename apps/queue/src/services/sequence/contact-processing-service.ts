@@ -9,7 +9,11 @@ import {
 import { randomUUID } from "crypto";
 import { schedulingService } from "../schedule/scheduling-service";
 import { rateLimiter } from "@/services/rate-limit/rate-limiter";
-import { getUserGoogleAccount, getDefaultBusinessHours } from "./helper";
+import {
+  getUserGoogleAccount,
+  getDefaultBusinessHours,
+  updateSequenceContactStatus,
+} from "./helper";
 import type { EmailJob } from "@mailjot/types";
 
 export class ContactProcessingService {
@@ -127,13 +131,19 @@ export class ContactProcessingService {
       }
 
       // 2. Update status to processing
-      await prisma.sequenceContact.update({
-        where: { id: contact.id },
-        data: {
-          status: SequenceContactStatusEnum.PENDING,
-          lastProcessedAt: new Date(),
-        },
-      });
+      // await prisma.sequenceContact.update({
+      //   where: { id: contact.id },
+      //   data: {
+      //     status: SequenceContactStatusEnum.PENDING,
+      //     lastProcessedAt: new Date(),
+      //   },
+      // });
+
+      await updateSequenceContactStatus(
+        sequence.id,
+        contact.id,
+        SequenceContactStatusEnum.PENDING
+      );
 
       // 3. Get first step of sequence
       const firstStep = sequence.steps[0];
@@ -182,22 +192,21 @@ export class ContactProcessingService {
       logger.info(`📧 Created email job for contact: ${contactDetails.email}`);
 
       // 8. Update contact status and progress
-      await Promise.all([
-        prisma.sequenceContact.update({
-          where: { id: contact.id },
-          data: {
-            status: StepStatus.SCHEDULED,
-            currentStep: 1,
-          },
-        }),
-      ]);
 
-      // 9. Increment rate limit counters
-      await rateLimiter.incrementCounters(
-        sequence.userId,
+      await updateSequenceContactStatus(
         sequence.id,
-        contactDetails.id
-      );
+        contact.id,
+        SequenceContactStatusEnum.SCHEDULED,
+        {
+          currentStep: 1,
+        }
+      ),
+        // 9. Increment rate limit counters
+        await rateLimiter.incrementCounters(
+          sequence.userId,
+          sequence.id,
+          contactDetails.id
+        );
 
       logger.info(`✅ Successfully processed contact: ${contactDetails.email}`);
     } catch (error) {
@@ -207,13 +216,12 @@ export class ContactProcessingService {
       );
 
       // Update status to failed
-      await prisma.sequenceContact.update({
-        where: { id: contact.id },
-        data: {
-          status: StepStatus.FAILED,
-          lastProcessedAt: new Date(),
-        },
-      });
+      // TODO: Update the where clause properly
+      await updateSequenceContactStatus(
+        sequence.id,
+        contact.id,
+        SequenceContactStatusEnum.FAILED
+      );
 
       // Re-throw error for higher-level handling
       throw error;

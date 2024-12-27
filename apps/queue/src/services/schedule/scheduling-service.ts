@@ -5,12 +5,13 @@ import sinon from "sinon";
 import { DateTime } from "luxon";
 import {
   ProcessingJob,
-  StepType,
+  type StepType,
   RateLimits,
   SequenceStep,
   TimingType,
   BusinessHours,
   ProcessingWindow,
+  StepTypeEnum,
 } from "@mailjot/types";
 import { logger } from "@/services/log/logger";
 
@@ -284,7 +285,7 @@ export class SchedulingService implements ScheduleGenerator {
     let delay: number;
 
     switch (step.stepType.toUpperCase()) {
-      case StepType.WAIT:
+      case StepTypeEnum.WAIT:
         if (!step.delayAmount || !step.delayUnit) {
           delay = this.DEFAULT_DELAY;
           logger.debug("Using default delay for WAIT step", { delay });
@@ -298,8 +299,8 @@ export class SchedulingService implements ScheduleGenerator {
         }
         break;
 
-      case StepType.MANUAL_EMAIL:
-      case StepType.AUTOMATED_EMAIL:
+      case StepTypeEnum.MANUAL_EMAIL:
+      case StepTypeEnum.AUTOMATED_EMAIL:
         if (step.timing === TimingType.IMMEDIATE) {
           delay = 0; // No delay for immediate
           logger.debug("⚡ Immediate email, no delay");
