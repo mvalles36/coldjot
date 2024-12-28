@@ -1,4 +1,4 @@
-import { EmailThreadProcessor, threadProcessor } from "./thread-processor";
+import { threadProcessor } from "./thread-processor";
 import { logger } from "@/lib/log";
 
 class EmailThreadMonitor {

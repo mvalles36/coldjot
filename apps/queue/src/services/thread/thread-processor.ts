@@ -13,7 +13,7 @@ import type { gmail_v1 } from "googleapis";
 import type { MessagePartHeader } from "@mailjot/types";
 import { MONITOR_CONFIG } from "@/config";
 import { GmailClientService } from "@/lib/google";
-import { logger } from "@/utils/logger";
+import { logger } from "@/lib/log";
 
 type Gmail = gmail_v1.Gmail;
 import type { ThreadCheckData, ThreadMetadata } from "@mailjot/types";
