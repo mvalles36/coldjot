@@ -1,8 +1,8 @@
 import { prisma } from "@mailjot/database";
 import { randomUUID } from "crypto";
-import { logger } from "../log/logger";
-import { addTrackingToEmail } from "@/services/track/tracking-service";
-import { updateSequenceStats } from "@/services/stats/sequence-stats-service";
+import { logger } from "../../lib/log";
+import { addTrackingToEmail } from "@/lib/tracking";
+import { updateSequenceStats } from "@/lib/stats";
 import type { EmailResult, EmailTrackingMetadata } from "@mailjot/types";
 import type { gmail_v1 } from "googleapis";
 import type { SendEmailOptions } from "@mailjot/types";
@@ -19,8 +19,8 @@ import {
   createUntrackedMessage,
 } from "./helper";
 import { EmailTrackingStatusEnum } from "@mailjot/types";
-import { getEmailThreadInfo } from "@/services/google/helper";
-import { sendGmailSMTP, gmailClientService } from "@/services/google";
+import { getEmailThreadInfo } from "@/lib/google/helper";
+import { sendGmailSMTP, gmailClientService } from "@/lib/google";
 import { updateSequenceContactStatus } from "../sequence/helper";
 
 interface SentMessageInfo {

@@ -8,17 +8,17 @@ import {
   shouldProcessMessage,
 } from "@/utils";
 import { EmailEventEnum, SequenceContactStatusEnum } from "@mailjot/types";
-import { refreshAccessToken, oauth2Client } from "@/services/google";
+import { refreshAccessToken, oauth2Client } from "@/lib/google";
 import type { gmail_v1 } from "googleapis";
 import type { MessagePartHeader } from "@mailjot/types";
 import { MONITOR_CONFIG } from "@/config";
-import { GmailClientService } from "@/services/google";
+import { GmailClientService } from "@/lib/google";
 import { logger } from "@/utils/logger";
 
 type Gmail = gmail_v1.Gmail;
 import type { ThreadCheckData, ThreadMetadata } from "@mailjot/types";
 import { QueueService } from "@/services/queue/queue-service";
-import { updateSequenceStats } from "../stats/sequence-stats-service";
+import { updateSequenceStats } from "@/lib/stats";
 
 // Use monitor config constants
 const { CHECK_FREQUENCIES, AGE_THRESHOLDS } = MONITOR_CONFIG.THREAD;

@@ -1,5 +1,5 @@
 import Redis from "ioredis";
-import { logger } from "@/services/log/logger";
+import { logger } from "@/lib/log";
 
 export class RateLimiter {
   private redis: Redis;

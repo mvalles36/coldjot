@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import { logger } from "@/services/log/logger";
+import { logger } from "@/lib/log";
 import pinoHttp from "pino-http";
 import routes from "./routes";
 import { ServiceInitializer } from "@/services/init/service-initializer";

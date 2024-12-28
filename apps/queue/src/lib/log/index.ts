@@ -1,5 +1,5 @@
 import pino from "pino";
-import { env } from "../../config";
+import { env } from "@/config";
 import path from "path";
 
 // Get the caller file name

@@ -1,4 +1,4 @@
-import { logger } from "../log/logger";
+import { logger } from "../../lib/log";
 import { MEMORY_MONITOR_CONFIG } from "@/config";
 
 export class MemoryMonitor {

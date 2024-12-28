@@ -6,7 +6,7 @@ import {
   StepStatus,
 } from "@mailjot/types";
 import { GoogleAccount } from "@mailjot/types";
-import { logger } from "../log/logger";
+import { logger } from "../../lib/log";
 
 /**
  * Get user's Google account details

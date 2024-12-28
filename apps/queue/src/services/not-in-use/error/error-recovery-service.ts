@@ -1,6 +1,6 @@
 import { prisma } from "@mailjot/database";
 import { ErrorRecovery, RetryStrategy } from "@mailjot/types";
-import { logger } from "@/services/log/logger";
+import { logger } from "@/lib/log";
 import {
   alertService,
   AlertService,

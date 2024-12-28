@@ -4,7 +4,7 @@ import { QueueService } from "@/services/queue/queue-service";
 import { MonitoringService } from "@/services/monitor/monitoring-service";
 import { rateLimiter } from "@/services/rate-limit/rate-limiter";
 import { resetSequence } from "@/services/sequence/helper";
-import { logger } from "@/services/log/logger";
+import { logger } from "@/lib/log";
 import { ProcessingJobEnum, BusinessScheduleEnum } from "@mailjot/types";
 import type { BusinessHours, ProcessingJob } from "@mailjot/types";
 

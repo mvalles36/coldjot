@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { QueueService } from "@/services/queue/queue-service";
 import { MonitoringService } from "@/services/monitor/monitoring-service";
-import { logger } from "@/services/log/logger";
+import { logger } from "@/lib/log";
 
 // Initialize services
 const queueService = QueueService.getInstance();

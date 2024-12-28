@@ -7,10 +7,10 @@ import {
   type ThreadHeaders,
 } from "@mailjot/types";
 import type { EmailTracking } from "@mailjot/types";
-import { trackEmailEvent } from "@/services/track/tracking-service";
+import { trackEmailEvent } from "@/lib/tracking";
 
 import path from "path";
-import { logger } from "../log/logger";
+import { logger } from "../../lib/log";
 import type { SenderInfo, MessageHeader, GmailMessage } from "@mailjot/types";
 // -----------------------------------------
 // -----------------------------------------

@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
-import { logger } from "@/services/log/logger";
-import { trackingService } from "@/services/track/tracking-service";
+import { logger } from "@/lib/log";
+import { trackingService } from "@/lib/tracking";
 
 // Transparent pixel for email tracking
 const TRANSPARENT_PIXEL = Buffer.from(

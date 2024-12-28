@@ -4,7 +4,7 @@ import { prisma } from "@mailjot/database";
 import { GoogleAccount } from "@mailjot/types";
 
 import type { gmail_v1 } from "googleapis";
-import { logger } from "../../log/logger";
+import { logger } from "@/lib/log";
 import {
   validateGmailCredentials,
   refreshTokenIfNeeded,

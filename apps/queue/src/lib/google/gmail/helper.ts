@@ -1,6 +1,6 @@
 import { generateMessageId } from "@/utils";
-import { logger } from "../../log/logger";
-import { refreshAccessToken } from "@/services/google";
+import { logger } from "@/lib/log";
+import { refreshAccessToken } from "@/lib/google";
 import {
   GmailCredentials,
   GmailMessage,

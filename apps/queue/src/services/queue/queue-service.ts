@@ -1,5 +1,5 @@
 import Bull from "bull";
-import { logger } from "@/services/log/logger";
+import { logger } from "@/lib/log";
 import {
   ProcessingJob,
   EmailJob,

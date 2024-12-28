@@ -12,7 +12,7 @@ import { emailProcessor } from "../email/email-processor";
 import { memoryMonitor } from "../memory/memory-monitor";
 import { emailThreadMonitor } from "../thread/thread-monitor";
 
-import { logger } from "../log/logger";
+import { logger } from "../../lib/log";
 import Redis from "ioredis";
 import { prisma } from "@mailjot/database";
 

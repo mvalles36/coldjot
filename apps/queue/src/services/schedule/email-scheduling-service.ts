@@ -1,4 +1,4 @@
-import { logger } from "@/services/log/logger";
+import { logger } from "@/lib/log";
 import { QueueService } from "@/services/queue/queue-service";
 import { prisma } from "@mailjot/database";
 import {

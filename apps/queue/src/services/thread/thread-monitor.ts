@@ -1,5 +1,5 @@
 import { EmailThreadProcessor, threadProcessor } from "./thread-processor";
-import { logger } from "../log/logger";
+import { logger } from "@/lib/log";
 
 class EmailThreadMonitor {
   private isRunning: boolean = false;

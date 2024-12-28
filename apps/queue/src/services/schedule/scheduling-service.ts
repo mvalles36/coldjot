@@ -13,7 +13,7 @@ import {
   ProcessingWindow,
   StepTypeEnum,
 } from "@mailjot/types";
-import { logger } from "@/services/log/logger";
+import { logger } from "@/lib/log";
 
 // Development mode flag
 const isDevelopment = process.env.NODE_ENV === "development" ? true : false;

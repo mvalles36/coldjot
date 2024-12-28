@@ -4,7 +4,7 @@ import {
   SequenceContactStatusEnum,
 } from "@mailjot/types";
 import { EmailJob } from "@mailjot/types";
-import { logger } from "../log/logger";
+import { logger } from "../../lib/log";
 import { rateLimiter } from "../rate-limit/rate-limiter";
 import { emailService } from "./email-service";
 import { QueueService } from "../queue/queue-service";
@@ -13,9 +13,9 @@ import { prisma } from "@mailjot/database";
 
 // import { SequenceStep } from "@prisma/client";
 import { SequenceStep } from "@mailjot/types";
-import { createEmailTracking } from "../track/tracking-service";
+import { createEmailTracking } from "@/lib/tracking";
 import { EmailTrackingMetadata } from "@mailjot/types";
-import { gmailClientService } from "../google/gmail/gmail";
+import { gmailClientService } from "@/lib/google";
 import { schedulingService } from "../schedule/scheduling-service";
 import { emailSchedulingService } from "../schedule/email-scheduling-service";
 import {

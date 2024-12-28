@@ -8,10 +8,10 @@ import {
 import { nanoid } from "nanoid";
 import { prisma } from "@mailjot/database";
 import { getAppBaseUrl } from "@/utils";
-import { updateSequenceStats } from "@/services/stats/sequence-stats-service";
+import { updateSequenceStats } from "@/lib/stats";
 import type { Prisma } from "@prisma/client";
 import { EmailEventType } from "@mailjot/types";
-import { logger } from "../log/logger";
+import { logger } from "@/lib/log";
 import { ProcessingJobEnum } from "@mailjot/types";
 export async function createEmailTracking(
   metadata: EmailTrackingMetadata

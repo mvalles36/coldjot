@@ -20,9 +20,9 @@ import {
   splitEmailContent,
 } from "@/utils";
 
-import { gmailClientService } from "@/services/google";
-import { getEmailThreadInfo } from "@/services/google/helper";
-import { logger } from "@/services/log/logger";
+import { gmailClientService } from "@/lib/google";
+import { getEmailThreadInfo } from "@/lib/google/helper";
+import { logger } from "@/lib/log";
 import {
   SendGmailOptions,
   GmailResponse,

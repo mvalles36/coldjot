@@ -4,7 +4,7 @@ import {
   EmailJobEnum,
   SequenceContactStatusEnum,
 } from "@mailjot/types";
-import { logger } from "@/services/log/logger";
+import { logger } from "@/lib/log";
 import { rateLimiter } from "@/services/rate-limit/rate-limiter";
 import { schedulingService } from "@/services/schedule/scheduling-service";
 import { SequenceStep, StepStatus } from "@mailjot/types";
@@ -19,7 +19,6 @@ import {
   getSequenceWithDetails,
   getContactProgress,
 } from "./helper";
-import { createEmailTracking } from "../track/tracking-service";
 
 export class SequenceProcessor {
   private queueService: QueueService;

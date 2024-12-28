@@ -1,12 +1,13 @@
 export const QUEUE_CONFIG = {
   DEFAULT_JOB_OPTIONS: {
+    // TODO: Add settings based on environment. It will hog memory if not set.
     removeOnComplete: {
-      age: 24 * 3600, // 24 hours
-      count: 1000,
+      //   age: 24 * 3600, // 24 hours
+      count: 1,
     },
     removeOnFail: {
-      age: 24 * 3600,
-      count: 1000,
+      //   age: 24 * 3600,
+      count: 1,
     },
   },
   RETRY_OPTIONS: {
