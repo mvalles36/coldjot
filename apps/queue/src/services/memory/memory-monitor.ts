@@ -4,6 +4,7 @@ export class MemoryMonitor {
   private static instance: MemoryMonitor;
   private checkInterval: NodeJS.Timeout | null = null;
 
+  // TODO: make this configurable and move to config
   // Memory thresholds in MB
   private readonly TARGET_MEMORY_LIMIT = 512; // 512MB target limit
   private readonly warningThresholdMB = this.TARGET_MEMORY_LIMIT * 0.8; // 409.6MB (80% of 512MB)

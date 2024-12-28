@@ -316,7 +316,9 @@ export class EmailSchedulingService {
       }
 
       // 2. Get current step
-      const currentStep = sequence.steps[email.currentStep];
+      const currentStep = sequence.steps[email.currentStep] as
+        | SequenceStep
+        | undefined;
 
       if (!currentStep) {
         logger.error("❌ Step not found", {
@@ -324,6 +326,48 @@ export class EmailSchedulingService {
           currentStep: email.currentStep,
           totalSteps: sequence.steps.length,
         });
+
+        // Verify if the step still exists in the database
+        const stepExists = await prisma.sequenceStep.findFirst({
+          where: {
+            sequenceId: sequence.id,
+            order: email.currentStep,
+          },
+        });
+
+        if (!stepExists) {
+          logger.info("🗑️ Step has been deleted, cleaning up", {
+            sequenceId: sequence.id,
+            currentStep: email.currentStep,
+          });
+
+          // If this was the last step, mark the sequence as completed
+          if (email.currentStep >= sequence.steps.length - 1) {
+            await prisma.sequenceContact.update({
+              where: { id: email.id },
+              data: {
+                completed: true,
+                completedAt: new Date(),
+                nextScheduledAt: null,
+              },
+            });
+            logger.info(
+              "✅ Marked sequence as completed due to deleted last step"
+            );
+          } else {
+            // Skip to the next step
+            await prisma.sequenceContact.update({
+              where: { id: email.id },
+              data: {
+                currentStep: email.currentStep + 1,
+                nextScheduledAt: new Date(), // Schedule immediately
+              },
+            });
+            logger.info("⏭️ Skipped deleted step, moving to next step");
+          }
+          return;
+        }
+
         throw new Error("Step not found");
       }
 

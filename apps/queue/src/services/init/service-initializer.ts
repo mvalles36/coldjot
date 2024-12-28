@@ -1,12 +1,12 @@
 // Services
 import { QueueService } from "../queue/queue-service";
+import { emailSchedulingService } from "../schedule/email-scheduling-service";
+import { contactProcessingService } from "../contact/contact-processing-service";
+
+// Processors
 import { sequenceProcessor } from "../sequence/sequence-processor";
 import { threadProcessor } from "../thread/thread-processor";
 import { emailProcessor } from "../email/email-processor";
-
-// Services
-import { emailSchedulingService } from "../schedule/email-scheduling-service";
-import { contactProcessingService } from "../contact/contact-processing-service";
 
 // Monitors
 import { memoryMonitor } from "../memory/memory-monitor";

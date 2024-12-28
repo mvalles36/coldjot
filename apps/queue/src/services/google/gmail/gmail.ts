@@ -27,6 +27,7 @@ export class GmailClientService {
   private static instance: GmailClientService;
   private config: GmailClientConfig;
 
+  // TODO: Move to config
   private constructor() {
     this.config = {
       clientId: process.env.GOOGLE_CLIENT_ID!,

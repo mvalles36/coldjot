@@ -227,6 +227,51 @@ export class QueueService {
     }
   }
 
+  /**
+   * Remove all jobs related to a specific step
+   */
+  async removeStepJobs(stepId: string): Promise<void> {
+    logger.info(`🗑️ Removing jobs for deleted step: ${stepId}`);
+    try {
+      // Get all jobs from both sequence and email queues
+      const [sequenceJobs, emailJobs] = await Promise.all([
+        this.sequenceQueue.getJobs(["active", "waiting", "delayed", "failed"]),
+        this.emailQueue.getJobs(["active", "waiting", "delayed", "failed"]),
+      ]);
+
+      // Find jobs that match our stepId
+      const sequenceJobsToRemove = sequenceJobs.filter(
+        (job) => job.data.stepId === stepId
+      );
+      const emailJobsToRemove = emailJobs.filter(
+        (job) => job.data.stepId === stepId
+      );
+
+      const totalJobs = sequenceJobsToRemove.length + emailJobsToRemove.length;
+
+      if (totalJobs > 0) {
+        // Remove all matching jobs
+        await Promise.all([
+          ...sequenceJobsToRemove.map((job) => job.remove()),
+          ...emailJobsToRemove.map((job) => job.remove()),
+        ]);
+
+        logger.info(
+          `✅ Successfully removed ${totalJobs} jobs for step: ${stepId}`,
+          {
+            sequenceJobs: sequenceJobsToRemove.length,
+            emailJobs: emailJobsToRemove.length,
+          }
+        );
+      } else {
+        logger.warn(`⚠️ No jobs found for step: ${stepId}`);
+      }
+    } catch (error) {
+      logger.error(`❌ Error removing jobs for step ${stepId}:`, error);
+      throw error;
+    }
+  }
+
   // Get job counts
   async getJobCounts(): Promise<JobCounts> {
     const [sequenceCounts, emailCounts, threadCounts] = await Promise.all([

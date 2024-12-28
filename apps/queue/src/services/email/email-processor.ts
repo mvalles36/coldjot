@@ -7,6 +7,7 @@ import { EmailJob } from "@mailjot/types";
 import { logger } from "../log/logger";
 import { rateLimiter } from "../rate-limit/rate-limiter";
 import { emailService } from "./email-service";
+import { QueueService } from "../queue/queue-service";
 
 import { prisma } from "@mailjot/database";
 
@@ -356,15 +357,21 @@ export class EmailProcessor {
       include: {
         sequence: {
           select: {
-            name: true,
+            id: true,
+            userId: true,
             status: true,
+            name: true,
           },
         },
       },
     });
 
     if (!step) {
-      throw new Error(`Step ${stepId} not found`);
+      logger.error(`❌ Step ${stepId} not found - it may have been deleted`);
+      // Remove all jobs related to this step since it no longer exists
+      const queueService = QueueService.getInstance();
+      await queueService.removeStepJobs(stepId);
+      throw new Error(`Step ${stepId} not found - it may have been deleted`);
     }
 
     return step as SequenceStep;
