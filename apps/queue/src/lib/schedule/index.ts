@@ -1,7 +1,3 @@
-// Reintroducing imports from the original snippet
-// import sinon from "sinon";
-
-// Importing Luxon and other necessary types
 import { DateTime } from "luxon";
 import {
   ProcessingJob,
@@ -34,16 +30,12 @@ export interface ScheduleGenerator {
     window: ProcessingWindow,
     limits: RateLimits
   ): ProcessingJob[];
-
-  // Restored time manipulation methods
-  advanceTimeTo?(targetDate: Date): void;
-  resetTime?(): void;
 }
 
-export class SchedulingService implements ScheduleGenerator {
+export class ScheduleGenerator implements ScheduleGenerator {
+  private static instance: ScheduleGenerator;
   private readonly MIN_DELAY = 1; // Minimum delay in minutes
   private readonly DEFAULT_DELAY = 30; // Default delay in minutes
-  // private clock?: sinon.SinonFakeTimers;
   private defaultRateLimits: RateLimits = {
     perMinute: 60,
     perHour: 500,
@@ -56,68 +48,19 @@ export class SchedulingService implements ScheduleGenerator {
     },
   };
 
-  constructor() {
-    // If in development, use sinon fake timers to allow time manipulation
-    if (isDevelopment) {
-      // this.clock = sinon.useFakeTimers({
-      //   now: new Date(),
-      //   shouldAdvanceTime: true,
-      // });
-      logger.info("🔧 Development mode: Time manipulation enabled");
+  private constructor() {
+    logger.info("🕒 Initializing SchedulingService");
+  }
+
+  public static getInstance(): ScheduleGenerator {
+    if (!ScheduleGenerator.instance) {
+      ScheduleGenerator.instance = new ScheduleGenerator();
     }
+    return ScheduleGenerator.instance;
   }
 
   /**
-   * Advances the current time to a specific target date/time (only in development mode).
-   * This uses the sinon fake timer to simulate time passing.
-   */
-  public advanceTimeTo(targetDate: Date): void {
-    // if (!isDevelopment) {
-    //   logger.warn("⚠️ Time manipulation is only available in development mode");
-    //   return;
-    // }
-    // if (this.clock) {
-    //   const currentTime = new Date();
-    //   const timeToAdvance = targetDate.getTime() - currentTime.getTime();
-    //   if (timeToAdvance > 0) {
-    //     this.clock.tick(timeToAdvance);
-    //     logger.info("⏰ Advanced time to:", {
-    //       from: currentTime.toISOString(),
-    //       to: new Date().toISOString(),
-    //       advancedBy: `${timeToAdvance}ms`,
-    //     });
-    //   } else {
-    //     logger.warn("⚠️ Cannot advance time to the past", {
-    //       current: currentTime.toISOString(),
-    //       target: targetDate.toISOString(),
-    //     });
-    //   }
-    // }
-  }
-
-  /**
-   * Resets the time to real current time (only in development mode).
-   * Restores and reinitializes the fake timer to the new current real time.
-   */
-  public resetTime(): void {
-    if (!isDevelopment) {
-      logger.warn("⚠️ Time manipulation is only available in development mode");
-      return;
-    }
-
-    // if (this.clock) {
-    //   this.clock.restore();
-    //   this.clock = sinon.useFakeTimers({
-    //     now: new Date(),
-    //     shouldAdvanceTime: true,
-    //   });
-    //   logger.info("⏰ Reset time to current time:", new Date().toISOString());
-    // }
-  }
-
-  /**
-   * Returns the current time. If we are in development mode and using fake timers,
-   * this will reflect the manipulated time. Otherwise, it returns the real current time.
+   * Returns the current time. In production, this is always the real current time.
    */
   private getCurrentTime(): Date {
     return new Date();
@@ -131,10 +74,8 @@ export class SchedulingService implements ScheduleGenerator {
     isDemoMode: boolean = false
   ): Date {
     try {
-      // If in development, prefer the possibly faked current time
-      const effectiveCurrentTime = isDevelopment
-        ? this.getCurrentTime()
-        : currentTime;
+      // Always use the provided current time
+      const effectiveCurrentTime = currentTime;
 
       logger.info(
         {
@@ -433,7 +374,7 @@ export class SchedulingService implements ScheduleGenerator {
 
     // If in demo mode, return the date as is
     if (DEMO_MODE) {
-      logger.debug("�� Demo mode: Skipping business hours adjustment");
+      logger.debug("🎮 Demo mode: Skipping business hours adjustment");
       return date;
     }
 
@@ -573,4 +514,4 @@ export class SchedulingService implements ScheduleGenerator {
 }
 
 // Export singleton instance
-export const schedulingService = new SchedulingService();
+export const scheduleGenerator = ScheduleGenerator.getInstance();

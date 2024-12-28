@@ -175,8 +175,8 @@ export class ServiceManager {
             };
           } catch (error) {
             logger.error(
-              `❌ Failed to initialize processor for ${QUEUE_NAMES[queueKey]}:`,
-              error
+              error,
+              `❌ Failed to initialize processor for ${QUEUE_NAMES[queueKey]}:`
             );
             return null;
           }
