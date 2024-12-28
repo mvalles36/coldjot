@@ -3,7 +3,7 @@ import cors from "cors";
 import { logger } from "@/lib/log";
 import pinoHttp from "pino-http";
 import routes from "./routes";
-import { ServiceInitializer } from "@/services/init/service-initializer";
+import { ServiceInitializer } from "@/services/init";
 
 const app = express();
 const port = 3001;

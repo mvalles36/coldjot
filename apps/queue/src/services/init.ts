@@ -1,18 +1,18 @@
 // Services
-import { QueueService } from "../queue/queue-service";
-import { emailSchedulingService } from "../schedule/email-scheduling-service";
-import { contactProcessingService } from "../contact/contact-processing-service";
+import { QueueService } from "./queue/queue-service";
+import { emailSchedulingService } from "./schedule/email-scheduling-service";
+import { contactProcessingService } from "./contact/contact-processing-service";
 
 // Processors
-import { sequenceProcessor } from "../sequence/sequence-processor";
-import { threadProcessor } from "../thread/thread-processor";
-import { emailProcessor } from "../email/email-processor";
+import { sequenceProcessor } from "./sequence/sequence-processor";
+import { threadProcessor } from "./thread/thread-processor";
+import { emailProcessor } from "./email/email-processor";
 
 // Monitors
-import { memoryMonitor } from "../memory/memory-monitor";
-import { emailThreadMonitor } from "../thread/thread-monitor";
+import { memoryMonitor } from "./memory/memory-monitor";
+import { emailThreadMonitor } from "./thread/thread-monitor";
 
-import { logger } from "../../lib/log";
+import { logger } from "@/lib/log";
 import Redis from "ioredis";
 import { prisma } from "@mailjot/database";
 
