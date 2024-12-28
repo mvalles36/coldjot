@@ -1,14 +1,18 @@
 import { logger } from "../log/logger";
+import { MEMORY_MONITOR_CONFIG } from "@/config";
 
 export class MemoryMonitor {
   private static instance: MemoryMonitor;
   private checkInterval: NodeJS.Timeout | null = null;
 
-  // TODO: make this configurable and move to config
-  // Memory thresholds in MB
-  private readonly TARGET_MEMORY_LIMIT = 512; // 512MB target limit
-  private readonly warningThresholdMB = this.TARGET_MEMORY_LIMIT * 0.8; // 409.6MB (80% of 512MB)
-  private readonly criticalThresholdMB = this.TARGET_MEMORY_LIMIT * 0.9; // 460.8MB (90% of 512MB)
+  private readonly TARGET_MEMORY_LIMIT =
+    MEMORY_MONITOR_CONFIG.TARGET_MEMORY_LIMIT;
+  private readonly warningThresholdMB =
+    this.TARGET_MEMORY_LIMIT *
+    MEMORY_MONITOR_CONFIG.WARNING_THRESHOLD_PERCENTAGE;
+  private readonly criticalThresholdMB =
+    this.TARGET_MEMORY_LIMIT *
+    MEMORY_MONITOR_CONFIG.CRITICAL_THRESHOLD_PERCENTAGE;
 
   private constructor() {}
 
@@ -19,7 +23,9 @@ export class MemoryMonitor {
     return MemoryMonitor.instance;
   }
 
-  public startMonitoring(intervalMs: number = 60000): void {
+  public startMonitoring(
+    intervalMs: number = MEMORY_MONITOR_CONFIG.CHECK_INTERVAL
+  ): void {
     if (this.checkInterval) {
       clearInterval(this.checkInterval);
     }

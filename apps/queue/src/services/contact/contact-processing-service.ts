@@ -15,11 +15,12 @@ import {
   updateSequenceContactStatus,
 } from "../sequence/helper";
 import type { EmailJob } from "@mailjot/types";
+import { CONTACT_PROCESSING_CONFIG } from "@/config";
 
 export class ContactProcessingService {
   private queueService: QueueService;
-  private checkInterval: number = 60000; // 1 minute
-  private batchSize: number = 100;
+  private checkInterval: number = CONTACT_PROCESSING_CONFIG.CHECK_INTERVAL;
+  private batchSize: number = CONTACT_PROCESSING_CONFIG.BATCH_SIZE;
   private intervalId?: NodeJS.Timeout;
 
   constructor() {

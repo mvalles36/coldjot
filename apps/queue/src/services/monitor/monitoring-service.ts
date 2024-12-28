@@ -8,6 +8,7 @@ import {
 } from "@mailjot/types";
 import { logger } from "@/services/log/logger";
 import { QueueService } from "@/services/queue/queue-service";
+import { DEFAULT_ALERT_CONFIG } from "@/config";
 import os from "os";
 import Bull from "bull";
 
@@ -22,17 +23,7 @@ interface CompletedJob {
 }
 
 export class MonitoringService {
-  private defaultAlertConfig: AlertConfig = {
-    errorThreshold: 0.1, // 10% error rate
-    warningThreshold: 0.05, // 5% error rate
-    criticalThreshold: 0.2, // 20% error rate
-    checkInterval: 5 * 60 * 1000, // 5 minutes
-    retryInterval: 60 * 1000, // 1 minute
-    maxRetries: 3,
-    channels: {
-      email: [process.env.ALERT_EMAIL_TO || ""],
-    },
-  };
+  private defaultAlertConfig: AlertConfig = DEFAULT_ALERT_CONFIG;
 
   // TODO : check if this is needed and improve it for memory usage
   private queueService: QueueService;

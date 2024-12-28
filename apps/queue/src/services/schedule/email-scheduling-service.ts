@@ -16,6 +16,7 @@ import {
 import { randomUUID } from "crypto";
 import { schedulingService } from "./scheduling-service";
 import { rateLimiter } from "@/services/rate-limit/rate-limiter";
+import { EMAIL_SCHEDULER_CONFIG } from "@/config";
 import type { Prisma } from "@prisma/client";
 
 // Define the type for what we actually need from the sequence
@@ -54,8 +55,8 @@ export class EmailSchedulingService {
   private queueService: QueueService;
   private intervalId?: NodeJS.Timeout;
   private scheduler: NextEmailScheduler = {
-    checkInterval: 60000, // 1 minute
-    retryDelay: 300000, // 5 minutes
+    checkInterval: EMAIL_SCHEDULER_CONFIG.CHECK_INTERVAL,
+    retryDelay: EMAIL_SCHEDULER_CONFIG.RETRY_DELAY,
   };
 
   constructor() {
