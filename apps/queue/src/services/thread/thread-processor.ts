@@ -11,7 +11,7 @@ import { EmailEventEnum, SequenceContactStatusEnum } from "@mailjot/types";
 import { refreshAccessToken, oauth2Client } from "@/services/google";
 import type { gmail_v1 } from "googleapis";
 import type { MessagePartHeader } from "@mailjot/types";
-import { MONITOR_CONFIG } from "@/config/constants";
+import { MONITOR_CONFIG } from "@/config";
 import { GmailClientService } from "@/services/google";
 import { logger } from "@/utils/logger";
 

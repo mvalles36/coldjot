@@ -6,7 +6,7 @@ import { emailProcessor } from "../email/email-processor";
 
 // Services
 import { emailSchedulingService } from "../schedule/email-scheduling-service";
-import { contactProcessingService } from "../sequence/contact-processing-service";
+import { contactProcessingService } from "../contact/contact-processing-service";
 
 // Monitors
 import { memoryMonitor } from "../memory/memory-monitor";

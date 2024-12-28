@@ -7,7 +7,7 @@ import {
   ThreadCheckData,
   ProcessingJobEnum,
 } from "@mailjot/types";
-import { REDIS_KEYS, QUEUE_CONFIG } from "@/config/constants";
+import { REDIS_KEYS, QUEUE_CONFIG } from "@/config";
 
 import type { SequenceProcessor } from "@/services/sequence/sequence-processor";
 import type { EmailProcessor } from "@/services/email/email-processor";

@@ -37,6 +37,12 @@
             ],
             "@/env": [
                 "./src/env.ts"
+            ],
+            "@/config/*": [
+                "./src/config/*"
+            ],
+            "@/config": [
+                "./src/config/index.ts"
             ]
         }
     },

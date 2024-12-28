@@ -13,7 +13,7 @@ import {
   getUserGoogleAccount,
   getDefaultBusinessHours,
   updateSequenceContactStatus,
-} from "./helper";
+} from "../sequence/helper";
 import type { EmailJob } from "@mailjot/types";
 
 export class ContactProcessingService {
