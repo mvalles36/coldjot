@@ -35,6 +35,7 @@ const envSchema = z.object({
 
   // General
   LOG_LEVEL: z.string().default("info"),
+  LOG_SHOW_TIME: z.boolean().default(false),
   NODE_ENV: z.string().default("development"),
   NEXT_PUBLIC_APP_URL: z.string().default("http://localhost:4000"),
 });

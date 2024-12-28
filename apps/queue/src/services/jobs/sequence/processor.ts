@@ -5,11 +5,18 @@ import {
   EmailJobEnum,
   SequenceContactStatusEnum,
   SequenceStep,
+  StepStatus,
+  StepPriority,
+  StepTiming,
+  StepTypeEnum,
+  BusinessHours,
+  StepType,
 } from "@mailjot/types";
 import { logger } from "@/lib/log";
 import { RateLimitService } from "@/services/core/rate-limit/service";
 import { ScheduleGenerator, scheduleGenerator } from "@/lib/schedule";
 import { randomUUID } from "crypto";
+import { prisma } from "@mailjot/database";
 import {
   getUserGoogleAccount,
   getDefaultBusinessHours,
@@ -19,6 +26,34 @@ import {
   getSequenceWithDetails,
   getContactProgress,
 } from "./helper";
+
+// Define our sequence processing types
+interface SequenceWithRelations {
+  id: string;
+  userId: string;
+  name?: string;
+  steps: SequenceStep[];
+  businessHours: BusinessHours | null;
+}
+
+interface SequenceContactWithRelations {
+  id: string;
+  sequenceId: string;
+  contactId: string;
+  currentStep: number;
+  lastProcessedAt: Date | null;
+  nextScheduledAt: Date | null;
+  completed: boolean;
+  completedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  sequence: SequenceWithRelations;
+  contact: {
+    id: string;
+    email: string;
+  };
+  threadId?: string;
+}
 
 export class SequenceProcessor {
   private queue: Queue;
@@ -121,7 +156,7 @@ export class SequenceProcessor {
           );
           await updateSequenceContactStatus(
             sequence.id,
-            sequenceContact.id,
+            sequenceContact.contact.id,
             SequenceContactStatusEnum.COMPLETED
           );
           continue;
@@ -252,6 +287,235 @@ export class SequenceProcessor {
       return { success: true };
     } catch (error) {
       logger.error(`❌ Error processing sequence job: ${job.id}`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Process an individual email
+   */
+  private async processEmail(
+    email: SequenceContactWithRelations,
+    testMode?: boolean
+  ): Promise<void> {
+    const { sequence, contact } = email;
+
+    logger.info("📧 Processing email", {
+      id: email.id,
+      sequenceId: sequence.id,
+      contactId: contact.id,
+      email: contact.email,
+      currentStep: email.currentStep,
+      totalSteps: sequence.steps.length,
+    });
+
+    try {
+      // 1. Check rate limits
+      const { allowed, info } = await this.rateLimitService.checkRateLimit(
+        sequence.userId,
+        sequence.id,
+        contact.id
+      );
+
+      if (!allowed) {
+        logger.warn("⚠️ Rate limit exceeded", {
+          userId: sequence.userId,
+          sequenceId: sequence.id,
+          contactId: contact.id,
+          info,
+        });
+        return;
+      }
+
+      // 2. Get current step
+      const currentStep = sequence.steps[email.currentStep];
+      if (!currentStep) {
+        logger.error("❌ Step not found", {
+          sequenceId: sequence.id,
+          currentStep: email.currentStep,
+          totalSteps: sequence.steps.length,
+        });
+
+        // Verify if the step still exists
+        const stepExists = await prisma.sequenceStep.findFirst({
+          where: {
+            sequenceId: sequence.id,
+            order: email.currentStep,
+          },
+        });
+
+        if (!stepExists) {
+          logger.info("🗑️ Step has been deleted, cleaning up", {
+            sequenceId: sequence.id,
+            currentStep: email.currentStep,
+          });
+
+          // If this was the last step, mark as completed
+          if (email.currentStep >= sequence.steps.length - 1) {
+            await prisma.sequenceContact.update({
+              where: { id: email.id },
+              data: {
+                completed: true,
+                completedAt: new Date(),
+                nextScheduledAt: null,
+              },
+            });
+            logger.info(
+              "✅ Marked sequence as completed due to deleted last step"
+            );
+          } else {
+            // Skip to next step
+            await prisma.sequenceContact.update({
+              where: { id: email.id },
+              data: {
+                currentStep: email.currentStep + 1,
+                nextScheduledAt: new Date(),
+              },
+            });
+            logger.info("⏭️ Skipped deleted step, moving to next step");
+          }
+          return;
+        }
+
+        throw new Error("Step not found");
+      }
+
+      // 3. Calculate next send time
+      const nextSendTime = this.scheduleGenerator.calculateNextRun(
+        new Date(),
+        currentStep,
+        sequence.businessHours || undefined
+      );
+
+      if (!nextSendTime) {
+        logger.error("❌ Could not calculate next send time", {
+          stepId: currentStep.id,
+          timing: currentStep.timing,
+          businessHours: sequence.businessHours,
+        });
+        throw new Error("Could not calculate next send time");
+      }
+
+      // Get previous subject for reply threads
+      const previousStep = sequence.steps[currentStep.order - 1];
+      const previousSubject = previousStep?.subject || "";
+      const subject = currentStep.replyToThread
+        ? `Re: ${previousSubject}`
+        : currentStep.subject;
+
+      // Get threadId if exists
+      const sequenceContact = await prisma.sequenceContact.findUnique({
+        where: {
+          sequenceId_contactId: {
+            sequenceId: sequence.id,
+            contactId: contact.id,
+          },
+        },
+        select: {
+          threadId: true,
+        },
+      });
+
+      // Get user's Google account for test mode
+      let testEmail = "";
+      if (testMode) {
+        const googleAccount = await getUserGoogleAccount(sequence.userId);
+        if (googleAccount) {
+          testEmail = process.env.TEST_EMAIL || googleAccount.email || "";
+        }
+      }
+
+      // 4. Create email job
+      const emailJob: EmailJob = {
+        id: randomUUID(),
+        type: EmailJobEnum.SEND,
+        priority: 1,
+        data: {
+          sequenceId: sequence.id,
+          contactId: contact.id,
+          stepId: currentStep.id,
+          userId: sequence.userId,
+          to: testMode ? testEmail : contact.email,
+          subject: subject || "",
+          threadId:
+            currentStep.replyToThread && sequenceContact?.threadId
+              ? sequenceContact.threadId
+              : undefined,
+          testMode: testMode || false,
+          scheduledTime: nextSendTime.toISOString(),
+        },
+      };
+
+      // 5. Add to queue
+      await this.queue.add("email", emailJob.data, {
+        jobId: emailJob.id,
+        priority: emailJob.priority,
+        delay: nextSendTime.getTime() - Date.now(),
+      });
+
+      // 6. Update sequence progress
+      const isLastStep = email.currentStep + 1 >= sequence.steps.length;
+
+      await prisma.sequenceContact.update({
+        where: { id: email.id },
+        data: {
+          lastProcessedAt: new Date(),
+          nextScheduledAt: isLastStep ? null : nextSendTime,
+          currentStep: email.currentStep + 1,
+          completed: isLastStep,
+          completedAt: isLastStep ? new Date() : null,
+        },
+      });
+
+      // Update contact status
+      await updateSequenceContactStatus(
+        sequence.id,
+        contact.id,
+        SequenceContactStatusEnum.SCHEDULED
+      );
+
+      // 7. Increment rate limit counters
+      await this.rateLimitService.incrementCounters(
+        sequence.userId,
+        sequence.id,
+        contact.id
+      );
+
+      // Add rate limiting delay
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      logger.info(
+        {
+          id: email.id,
+          sequenceId: sequence.id,
+          contactId: contact.id,
+          email: contact.email,
+          nextStep: email.currentStep + 1,
+          isComplete: isLastStep,
+        },
+        "✅ Successfully processed email"
+      );
+    } catch (error) {
+      logger.error(
+        {
+          id: email.id,
+          sequenceId: sequence.id,
+          contactId: contact.id,
+          email: contact.email,
+          error: error instanceof Error ? error.message : "Unknown error",
+          stack: error instanceof Error ? error.stack : undefined,
+        },
+        "❌ Error processing email"
+      );
+
+      // Schedule retry after delay
+      await prisma.sequenceContact.update({
+        where: { id: email.id },
+        data: {
+          nextScheduledAt: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
+        },
+      });
+
       throw error;
     }
   }

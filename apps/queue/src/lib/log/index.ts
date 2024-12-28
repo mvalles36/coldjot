@@ -24,7 +24,7 @@ const getCallerFile = () => {
 
 // Create a fixed-width formatter for the file name
 const formatFileName = (fileName: string) => {
-  const maxWidth = 40; // Adjust this value based on your longest filename
+  const maxWidth = 25; // Adjust this value based on your longest filename
   const dots = "-".repeat(maxWidth - fileName.length - 2); // -2 for the brackets
   return `${fileName} ${dots}`;
 };
@@ -35,8 +35,10 @@ export const logger = pino({
     target: "pino-pretty",
     options: {
       colorize: true,
-      ignore: "pid,hostname,fileName,paddedFileName",
-      translateTime: "yyyy-mm-dd HH:MM:ss",
+      ignore: env.LOG_SHOW_TIME
+        ? "pid,hostname,fileName,paddedFileName"
+        : "pid,hostname,fileName,paddedFileName,time",
+      translateTime: env.LOG_SHOW_TIME ? "yyyy-mm-dd HH:MM:ss" : false,
       messageFormat: "{paddedFileName} {msg}",
       customLevels: "error:30,warn:40,info:50,debug:60,trace:70",
       customColors: "error:red,warn:yellow,info:blue,debug:green,trace:gray",
