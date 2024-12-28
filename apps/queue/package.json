@@ -32,7 +32,9 @@
         "pino-http": "^8.5.1",
         "pino-pretty": "^10.2.0",
         "quoted-printable": "^1.0.1",
-        "sinon": "^19.0.2"
+        "sinon": "^19.0.2",
+        "@bull-board/api": "^6.5.4",
+        "bullmq": "^5.34.5"
     },
     "devDependencies": {
         "@types/bull": "^4.10.0",

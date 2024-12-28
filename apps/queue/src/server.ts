@@ -3,14 +3,14 @@ import cors from "cors";
 import { logger } from "@/lib/log";
 import pinoHttp from "pino-http";
 import routes from "./routes";
-import { ServiceInitializer } from "@/services/init";
+import { createServiceManager } from "@/services/service-manager";
 
 const app = express();
 const port = 3001;
-const serviceInitializer = ServiceInitializer.getInstance();
+const serviceManager = createServiceManager();
 
 // Initialize all services
-serviceInitializer.initialize().catch((error) => {
+serviceManager.initialize().catch((error) => {
   logger.error("Failed to initialize services:", error);
   process.exit(1);
 });
@@ -56,12 +56,12 @@ app.use(
 
 // Graceful shutdown handling
 process.on("SIGTERM", async () => {
-  await serviceInitializer.shutdown();
+  await serviceManager.shutdown();
   process.exit(0);
 });
 
 process.on("SIGINT", async () => {
-  await serviceInitializer.shutdown();
+  await serviceManager.shutdown();
   process.exit(0);
 });
 
