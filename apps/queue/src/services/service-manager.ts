@@ -5,12 +5,18 @@ import {
   QUEUE_NAMES,
   QUEUE_OPTIONS,
   DEFAULT_QUEUE_OPTIONS,
-  QUEUE_PATHS,
 } from "@/config/queue/queue";
 
 // Core services
 import { MemoryMonitor } from "./core/memory/monitor";
 import { RateLimitService } from "./core/rate-limit/service";
+
+// Import processors directly
+import { createEmailProcessor } from "./jobs/email/processor";
+import { createSequenceProcessor } from "./jobs/sequence/processor";
+import { createThreadProcessor } from "./jobs/thread/processor";
+import { createContactProcessor } from "./jobs/contact/processor";
+import { createScheduleProcessor } from "./jobs/schedule/processor";
 
 // Import types for processors
 import type { EmailProcessor } from "./jobs/email/processor";
@@ -25,14 +31,6 @@ type Processor =
   | ThreadProcessor
   | ContactProcessor
   | ScheduleProcessor;
-
-type ProcessorModule = {
-  createEmailProcessor?: (queue: Queue) => EmailProcessor;
-  createSequenceProcessor?: (queue: Queue) => SequenceProcessor;
-  createThreadProcessor?: (queue: Queue) => ThreadProcessor;
-  createContactProcessor?: (queue: Queue) => ContactProcessor;
-  createScheduleProcessor?: (queue: Queue) => ScheduleProcessor;
-};
 
 export class ServiceManager {
   private static instance: ServiceManager;
@@ -77,7 +75,7 @@ export class ServiceManager {
 
   private async initializeCoreServices(): Promise<void> {
     try {
-      logger.info("���� Initializing core services...");
+      logger.info("🔧 Initializing core services...");
 
       // Initialize memory monitor
       this.memoryMonitor = MemoryMonitor.getInstance();
@@ -85,7 +83,7 @@ export class ServiceManager {
 
       // Initialize rate limit service
       this.rateLimitService = RateLimitService.getInstance();
-      logger.info("��� Rate limit service initialized");
+      logger.info("⚡ Rate limit service initialized");
     } catch (error) {
       logger.error("❌ Error initializing core services:", error);
       throw error;
@@ -126,83 +124,31 @@ export class ServiceManager {
     try {
       logger.info("⚙️ Initializing processors...");
 
-      // Get all queue names and prepare imports
-      const queueKeys = Object.keys(QUEUE_NAMES) as Array<
-        keyof typeof QUEUE_NAMES
-      >;
-      const processorImports = queueKeys.map((queueKey) => {
-        const queue = this.queues.get(QUEUE_NAMES[queueKey]);
+      const processorMap = {
+        [QUEUE_NAMES.EMAIL]: createEmailProcessor,
+        [QUEUE_NAMES.SEQUENCE]: createSequenceProcessor,
+      };
+
+      for (const [name, createProcessor] of Object.entries(processorMap)) {
+        const queue = this.queues.get(name);
         if (!queue) {
-          throw new Error(`Queue not found: ${QUEUE_NAMES[queueKey]}`);
+          logger.warn(`⚠️ No queue found for processor: ${name}`);
+          continue;
         }
 
-        // Get processor path from config
-        const processorFolder = QUEUE_PATHS[queueKey];
-        const processorPath = `./jobs/${processorFolder}/processor`;
-        logger.info(`🔍 Loading processor from: ${processorPath}`);
-
-        return {
-          queueKey,
-          queue,
-          importPromise: import(processorPath) as Promise<ProcessorModule>,
-        };
-      });
-
-      // Import all processor modules in parallel
-      const results = await Promise.all(
-        processorImports.map(async ({ queueKey, queue, importPromise }) => {
-          try {
-            const module = await importPromise;
-            const processorFolder = QUEUE_PATHS[queueKey];
-            const processorKey = `create${
-              processorFolder.charAt(0).toUpperCase() + processorFolder.slice(1)
-            }Processor`;
-
-            const createProcessor =
-              module[processorKey as keyof ProcessorModule];
-            if (!createProcessor) {
-              logger.warn(
-                `⚠️ No processor found for queue ${QUEUE_NAMES[queueKey]} (${processorKey})`
-              );
-              return null;
-            }
-
-            // Initialize the processor
-            const processor = createProcessor(queue);
-            return {
-              key: processorFolder,
-              processor,
-            };
-          } catch (error) {
-            logger.error(
-              error,
-              `❌ Failed to initialize processor for ${QUEUE_NAMES[queueKey]}:`
-            );
-            return null;
-          }
-        })
-      );
-
-      // Store successful processor initializations
-      results.forEach((result) => {
-        if (result) {
-          this.processors.set(result.key, result.processor);
-          logger.info(`⚙️ Processor initialized: ${result.key}`);
+        try {
+          const processor = createProcessor(queue);
+          this.processors.set(name, processor);
+          logger.info(`⚙️ Processor initialized: ${name}`);
+        } catch (error) {
+          logger.error(error, `❌ Failed to initialize processor: ${name}`);
         }
-      });
-
-      const successCount = results.filter(Boolean).length;
-      logger.info(
-        `✅ Initialized ${successCount}/${queueKeys.length} processors successfully`
-      );
-
-      if (successCount < queueKeys.length) {
-        logger.warn(
-          `⚠️ Some processors failed to initialize (${
-            queueKeys.length - successCount
-          } failed)`
-        );
       }
+
+      const successCount = this.processors.size;
+      logger.info(
+        `✅ Initialized ${successCount}/${Object.keys(processorMap).length} processors successfully`
+      );
     } catch (error) {
       logger.error("❌ Error initializing processors:", error);
       throw error;
@@ -225,13 +171,6 @@ export class ServiceManager {
       if (this.memoryMonitor) {
         await this.memoryMonitor.stopMonitoring();
         logger.info("📊 Memory monitor stopped");
-      }
-
-      // Close all processors
-      for (const [name, processor] of this.processors.entries()) {
-        // TODO: check if this is required
-        // await processor.close();
-        logger.info(`⚙️ Processor closed: ${name}`);
       }
 
       // Close all queues

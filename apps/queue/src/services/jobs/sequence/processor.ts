@@ -163,6 +163,7 @@ export class SequenceProcessor {
         }
 
         // Get current step
+        // const currentStepIndex = sequenceContact.currentStep;
         const currentStep = sequence.steps[currentStepIndex];
         if (!currentStep) {
           logger.error(
