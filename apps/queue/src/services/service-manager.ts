@@ -12,11 +12,11 @@ import { MemoryMonitor } from "./core/memory/monitor";
 import { RateLimitService } from "./core/rate-limit/service";
 
 // Import processors directly
-import { EmailProcessor } from "./jobs/email/processor";
 import { SequenceProcessor } from "./jobs/sequence/processor";
-import { ThreadProcessor } from "./jobs/thread/processor";
+import { EmailProcessor } from "./jobs/email/processor";
 import { ContactProcessor } from "./jobs/contact/processor";
 import { ScheduleProcessor } from "./jobs/schedule/processor";
+import { ThreadProcessor } from "./jobs/thread-watch/processor";
 
 type Processor =
   | EmailProcessor
@@ -118,12 +118,12 @@ export class ServiceManager {
       logger.info("⚙️ Initializing processors...");
 
       const processorMap = {
-        [QUEUE_NAMES.EMAIL]: (queue: Queue) => new EmailProcessor(queue),
         [QUEUE_NAMES.SEQUENCE]: (queue: Queue) => new SequenceProcessor(queue),
+        [QUEUE_NAMES.EMAIL]: (queue: Queue) => new EmailProcessor(queue),
         [QUEUE_NAMES.THREAD_WATCHER]: (queue: Queue) =>
           new ThreadProcessor(queue),
-        // [QUEUE_NAMES.CONTACT]: (queue: Queue) => new ContactProcessor(queue),
-        // [QUEUE_NAMES.EMAIL_SCHEDULE]: (queue: Queue) => new ScheduleProcessor(queue),
+        [QUEUE_NAMES.CONTACT]: (queue: Queue) => new ContactProcessor(queue),
+        [QUEUE_NAMES.EMAIL_SCHEDULE]: (queue: Queue) => new ScheduleProcessor(queue),
       };
 
       for (const [name, createProcessor] of Object.entries(processorMap)) {
