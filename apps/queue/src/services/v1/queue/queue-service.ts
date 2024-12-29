@@ -10,7 +10,7 @@ import {
 import { REDIS_KEYS, QUEUE_CONFIG } from "@/config";
 
 import type { SequenceProcessor } from "@/services/v1/sequence/sequence-processor";
-import type { EmailProcessor } from "@/services/email/email-processor";
+import type { EmailProcessor } from "@/services/v1/email/email-processor";
 import type { EmailThreadProcessor } from "@/services/v1/thread/thread-processor";
 
 export class QueueService {

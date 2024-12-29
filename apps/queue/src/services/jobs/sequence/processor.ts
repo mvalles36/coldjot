@@ -1,4 +1,4 @@
-import { Queue } from "bullmq";
+import { Queue, Job } from "bullmq";
 import {
   ProcessingJob,
   EmailJob,
@@ -11,6 +11,7 @@ import {
   StepTypeEnum,
   BusinessHours,
   StepType,
+  BusinessScheduleEnum,
 } from "@mailjot/types";
 import { logger } from "@/lib/log";
 import { RateLimitService } from "@/services/core/rate-limit/service";
@@ -27,13 +28,28 @@ import {
   getContactProgress,
 } from "./helper";
 import { QUEUE_NAMES } from "@/config/queue/queue";
+import { BaseProcessor } from "../base-processor";
 
 // Define our sequence processing types
 interface SequenceWithRelations {
   id: string;
   userId: string;
   name?: string;
-  steps: SequenceStep[];
+  steps: {
+    id: string;
+    sequenceId: string;
+    stepType: StepTypeEnum;
+    priority: StepPriority;
+    timing: StepTiming;
+    delayAmount: number | null;
+    delayUnit: string | null;
+    subject: string | null;
+    order: number;
+    replyToThread: boolean;
+    templateId: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }[];
   businessHours: BusinessHours | null;
 }
 
@@ -56,26 +72,53 @@ interface SequenceContactWithRelations {
   threadId?: string;
 }
 
-export class SequenceProcessor {
-  private queue: Queue;
+interface ProcessingJobData {
+  sequenceId: string;
+  userId: string;
+  scheduleType?: BusinessScheduleEnum;
+  businessHours?: BusinessHours;
+  testMode?: boolean;
+}
+
+export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
   private rateLimitService: RateLimitService;
   private scheduleGenerator: ScheduleGenerator;
 
   constructor(queue: Queue) {
-    this.queue = queue;
+    super(queue, QUEUE_NAMES.SEQUENCE, {
+      concurrency: 5,
+      limiter: {
+        max: 100,
+        duration: 1000, // 1 second
+      },
+      connection: {
+        maxRetriesPerRequest: null,
+        enableReadyCheck: false,
+      },
+    });
     this.rateLimitService = RateLimitService.getInstance();
     this.scheduleGenerator = scheduleGenerator;
+  }
+
+  protected async process(job: Job<ProcessingJobData>): Promise<void> {
+    try {
+      const result = await this.processSequence(job.data);
+      if (!result.success) {
+        throw new Error(result.error || "Failed to process sequence");
+      }
+    } catch (error) {
+      logger.error(`Failed to process sequence job ${job.id}:`, error);
+      throw error;
+    }
   }
 
   /**
    * Process a sequence job
    */
-  async process(
-    job: ProcessingJob
+  private async processSequence(
+    data: ProcessingJobData
   ): Promise<{ success: boolean; error?: string }> {
-    const { data } = job;
     logger.info(`🚀 Starting sequence: ${data.sequenceId}`, {
-      jobId: job.id,
       testMode: data.testMode ? "✨ Test Mode" : "🔥 Production Mode",
     });
 
@@ -92,12 +135,26 @@ export class SequenceProcessor {
       }
 
       // Get sequence and validate
-      const sequence = await getSequenceWithDetails(data.sequenceId);
-      logger.info(sequence, "🎮 Sequence");
+      const dbSequence = await getSequenceWithDetails(data.sequenceId);
+      logger.info(dbSequence, "🎮 Sequence");
 
-      if (!sequence) {
+      if (!dbSequence) {
         throw new Error("Sequence not found");
       }
+
+      // Cast database sequence to our expected type
+      const sequence: SequenceWithRelations = {
+        ...dbSequence,
+        steps: dbSequence.steps.map((step) => ({
+          ...step,
+          stepType: step.stepType as StepTypeEnum,
+          priority: step.priority as StepPriority,
+          timing: step.timing as StepTiming,
+          subject: step.subject,
+          replyToThread: step.replyToThread ?? false,
+          templateId: step.templateId,
+        })),
+      };
 
       logger.info(`📋 Sequence details for ${sequence.name}:`, {
         steps: sequence.steps.length,
@@ -119,166 +176,21 @@ export class SequenceProcessor {
 
       // Process each contact
       for (const sequenceContact of contacts) {
-        logger.info(`👤 Processing contact: ${sequenceContact.contact.email}`, {
-          sequence: sequence.name,
-        });
-
-        // Check contact rate limit
-        const contactRateLimit = await this.rateLimitService.checkRateLimit(
-          data.userId,
-          data.sequenceId,
-          sequenceContact.contact.id
-        );
-
-        if (!contactRateLimit.allowed) {
-          logger.warn("⚠️ Contact rate limit exceeded:", contactRateLimit.info);
-          continue;
-        }
-
-        // Get contact's progress
-        const progress = await getContactProgress(
-          data.sequenceId,
-          sequenceContact.contact.id
-        );
-        const currentStepIndex = progress?.currentStep ?? 0;
-
-        // Log progress status
-        logger.info(`📊 Contact progress:`, {
-          contact: sequenceContact.contact.email,
-          currentStep: currentStepIndex + 1,
-          totalSteps: sequence.steps.length,
-          hasExistingProgress: !!progress,
-        });
-
-        // Check if sequence is completed
-        if (currentStepIndex >= sequence.steps.length) {
-          logger.info(
-            `✅ Sequence completed for contact: ${sequenceContact.contact.email}`
+        try {
+          await this.processContact(
+            sequenceContact,
+            sequence,
+            data,
+            googleAccount
           );
-          await updateSequenceContactStatus(
-            sequence.id,
-            sequenceContact.contact.id,
-            SequenceContactStatusEnum.COMPLETED
-          );
-          continue;
-        }
-
-        // Get current step
-        // const currentStepIndex = sequenceContact.currentStep;
-        const currentStep = sequence.steps[currentStepIndex];
-        if (!currentStep) {
+        } catch (error) {
           logger.error(
-            `❌ Step not found at index ${currentStepIndex} for sequence ${sequence.name}`
+            `❌ Error processing contact ${sequenceContact.contact.email}:`,
+            error
           );
+          // Continue with next contact even if one fails
           continue;
         }
-
-        // Get next step
-        const nextStep = sequence.steps[currentStepIndex + 1];
-        if (!nextStep) {
-          logger.info(
-            `ℹ️ No next step found - this is the last step for sequence ${sequence.name}`
-          );
-        }
-
-        // Log step details
-        logger.info(`📝 Processing step ${currentStepIndex + 1}:`, {
-          step: currentStepIndex + 1,
-          totalSteps: sequence.steps.length,
-          timing: currentStep.timing,
-          delay: {
-            amount: currentStep.delayAmount || 0,
-            unit: currentStep.delayUnit || "minutes",
-          },
-        });
-
-        // Calculate next send time using scheduling service
-        const nextSendTime = this.scheduleGenerator.calculateNextRun(
-          new Date(),
-          nextStep as SequenceStep,
-          sequence.businessHours || getDefaultBusinessHours()
-        );
-
-        logger.info(
-          `📅 Scheduling email for contact: ${sequenceContact.contact.email}`,
-          {
-            step: currentStepIndex + 1,
-            totalSteps: sequence.steps.length,
-            sendTime: nextSendTime.toISOString(),
-            subject: currentStep.subject,
-          }
-        );
-
-        // Get previous subject from previous step if replyToThread is true
-        const previousStep = sequence.steps[currentStepIndex - 1];
-        const previousSubject = previousStep?.subject || "";
-        const subject = currentStep.replyToThread
-          ? `Re: ${previousSubject}`
-          : currentStep.subject;
-
-        // Create email job
-        const emailJob: EmailJob = {
-          id: randomUUID(),
-          type: EmailJobEnum.SEND,
-          priority: 1,
-          data: {
-            sequenceId: sequence.id,
-            contactId: sequenceContact.contact.id,
-            stepId: currentStep.id,
-            userId: data.userId,
-            to: data.testMode
-              ? process.env.TEST_EMAIL || googleAccount.email || ""
-              : sequenceContact.contact.email,
-            subject: subject || "",
-            threadId: sequenceContact.threadId || undefined,
-            testMode: data.testMode || false,
-            scheduledTime: nextSendTime.toISOString(),
-          },
-        };
-
-        // Add email job to queue
-        logger.info(
-          {
-            jobId: emailJob.id,
-            step: currentStepIndex + 1,
-            totalSteps: sequence.steps.length,
-          },
-          `📬 Creating email job`
-        );
-
-        await this.queue.add(QUEUE_NAMES.EMAIL, emailJob.data, {
-          jobId: emailJob.id,
-          priority: emailJob.priority,
-          delay: nextSendTime.getTime() - Date.now(),
-        });
-
-        // Update progress
-        await updateSequenceContactProgress(
-          sequence.id,
-          sequenceContact.contact.id,
-          currentStepIndex + 1,
-          nextSendTime
-        );
-
-        // Update contact status
-        logger.info(
-          `📊 Updating contact status: ${sequenceContact.contact.id} to SCHEDULED`
-        );
-        await updateSequenceContactStatus(
-          sequence.id,
-          sequenceContact.contact.id,
-          SequenceContactStatusEnum.SCHEDULED
-        );
-
-        // Increment rate limit counters
-        await this.rateLimitService.incrementCounters(
-          data.userId,
-          sequence.id,
-          sequenceContact.contact.id
-        );
-
-        // Add rate limiting delay between contacts
-        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
 
       logger.info(`✨ Sequence processing completed: ${sequence.name}`, {
@@ -288,237 +200,178 @@ export class SequenceProcessor {
 
       return { success: true };
     } catch (error) {
-      logger.error(`❌ Error processing sequence job: ${job.id}`, error);
+      logger.error("❌ Error processing sequence:", error);
       throw error;
     }
   }
 
   /**
-   * Process an individual email
+   * Process an individual contact in the sequence
    */
-  private async processEmail(
-    email: SequenceContactWithRelations,
-    testMode?: boolean
+  private async processContact(
+    sequenceContact: any,
+    sequence: SequenceWithRelations,
+    data: ProcessingJobData,
+    googleAccount: any
   ): Promise<void> {
-    const { sequence, contact } = email;
-
-    logger.info("📧 Processing email", {
-      id: email.id,
-      sequenceId: sequence.id,
-      contactId: contact.id,
-      email: contact.email,
-      currentStep: email.currentStep,
-      totalSteps: sequence.steps.length,
+    logger.info(`👤 Processing contact: ${sequenceContact.contact.email}`, {
+      sequence: sequence.name,
     });
 
-    try {
-      // 1. Check rate limits
-      const { allowed, info } = await this.rateLimitService.checkRateLimit(
-        sequence.userId,
-        sequence.id,
-        contact.id
+    // Check contact rate limit
+    const contactRateLimit = await this.rateLimitService.checkRateLimit(
+      data.userId,
+      data.sequenceId,
+      sequenceContact.contact.id
+    );
+
+    if (!contactRateLimit.allowed) {
+      logger.warn("⚠️ Contact rate limit exceeded:", contactRateLimit.info);
+      return;
+    }
+
+    // Get contact's progress
+    const progress = await getContactProgress(
+      data.sequenceId,
+      sequenceContact.contact.id
+    );
+    const currentStepIndex = progress?.currentStep ?? 0;
+
+    // Log progress status
+    logger.info(`📊 Contact progress:`, {
+      contact: sequenceContact.contact.email,
+      currentStep: currentStepIndex + 1,
+      totalSteps: sequence.steps.length,
+      hasExistingProgress: !!progress,
+    });
+
+    // Check if sequence is completed
+    if (currentStepIndex >= sequence.steps.length) {
+      logger.info(
+        `✅ Sequence completed for contact: ${sequenceContact.contact.email}`
       );
-
-      if (!allowed) {
-        logger.warn("⚠️ Rate limit exceeded", {
-          userId: sequence.userId,
-          sequenceId: sequence.id,
-          contactId: contact.id,
-          info,
-        });
-        return;
-      }
-
-      // 2. Get current step
-      const currentStep = sequence.steps[email.currentStep];
-      if (!currentStep) {
-        logger.error("❌ Step not found", {
-          sequenceId: sequence.id,
-          currentStep: email.currentStep,
-          totalSteps: sequence.steps.length,
-        });
-
-        // Verify if the step still exists
-        const stepExists = await prisma.sequenceStep.findFirst({
-          where: {
-            sequenceId: sequence.id,
-            order: email.currentStep,
-          },
-        });
-
-        if (!stepExists) {
-          logger.info("🗑️ Step has been deleted, cleaning up", {
-            sequenceId: sequence.id,
-            currentStep: email.currentStep,
-          });
-
-          // If this was the last step, mark as completed
-          if (email.currentStep >= sequence.steps.length - 1) {
-            await prisma.sequenceContact.update({
-              where: { id: email.id },
-              data: {
-                completed: true,
-                completedAt: new Date(),
-                nextScheduledAt: null,
-              },
-            });
-            logger.info(
-              "✅ Marked sequence as completed due to deleted last step"
-            );
-          } else {
-            // Skip to next step
-            await prisma.sequenceContact.update({
-              where: { id: email.id },
-              data: {
-                currentStep: email.currentStep + 1,
-                nextScheduledAt: new Date(),
-              },
-            });
-            logger.info("⏭️ Skipped deleted step, moving to next step");
-          }
-          return;
-        }
-
-        throw new Error("Step not found");
-      }
-
-      // 3. Calculate next send time
-      const nextSendTime = this.scheduleGenerator.calculateNextRun(
-        new Date(),
-        currentStep,
-        sequence.businessHours || undefined
-      );
-
-      if (!nextSendTime) {
-        logger.error("❌ Could not calculate next send time", {
-          stepId: currentStep.id,
-          timing: currentStep.timing,
-          businessHours: sequence.businessHours,
-        });
-        throw new Error("Could not calculate next send time");
-      }
-
-      // Get previous subject for reply threads
-      const previousStep = sequence.steps[currentStep.order - 1];
-      const previousSubject = previousStep?.subject || "";
-      const subject = currentStep.replyToThread
-        ? `Re: ${previousSubject}`
-        : currentStep.subject;
-
-      // Get threadId if exists
-      const sequenceContact = await prisma.sequenceContact.findUnique({
-        where: {
-          sequenceId_contactId: {
-            sequenceId: sequence.id,
-            contactId: contact.id,
-          },
-        },
-        select: {
-          threadId: true,
-        },
-      });
-
-      // Get user's Google account for test mode
-      let testEmail = "";
-      if (testMode) {
-        const googleAccount = await getUserGoogleAccount(sequence.userId);
-        if (googleAccount) {
-          testEmail = process.env.TEST_EMAIL || googleAccount.email || "";
-        }
-      }
-
-      // 4. Create email job
-      const emailJob: EmailJob = {
-        id: randomUUID(),
-        type: EmailJobEnum.SEND,
-        priority: 1,
-        data: {
-          sequenceId: sequence.id,
-          contactId: contact.id,
-          stepId: currentStep.id,
-          userId: sequence.userId,
-          to: testMode ? testEmail : contact.email,
-          subject: subject || "",
-          threadId:
-            currentStep.replyToThread && sequenceContact?.threadId
-              ? sequenceContact.threadId
-              : undefined,
-          testMode: testMode || false,
-          scheduledTime: nextSendTime.toISOString(),
-        },
-      };
-
-      // 5. Add to queue
-      await this.queue.add(QUEUE_NAMES.EMAIL, emailJob.data, {
-        jobId: emailJob.id,
-        priority: emailJob.priority,
-        delay: nextSendTime.getTime() - Date.now(),
-      });
-
-      // 6. Update sequence progress
-      const isLastStep = email.currentStep + 1 >= sequence.steps.length;
-
-      await prisma.sequenceContact.update({
-        where: { id: email.id },
-        data: {
-          lastProcessedAt: new Date(),
-          nextScheduledAt: isLastStep ? null : nextSendTime,
-          currentStep: email.currentStep + 1,
-          completed: isLastStep,
-          completedAt: isLastStep ? new Date() : null,
-        },
-      });
-
-      // Update contact status
       await updateSequenceContactStatus(
         sequence.id,
-        contact.id,
-        SequenceContactStatusEnum.SCHEDULED
+        sequenceContact.contact.id,
+        SequenceContactStatusEnum.COMPLETED
       );
-
-      // 7. Increment rate limit counters
-      await this.rateLimitService.incrementCounters(
-        sequence.userId,
-        sequence.id,
-        contact.id
-      );
-
-      // Add rate limiting delay
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      logger.info(
-        {
-          id: email.id,
-          sequenceId: sequence.id,
-          contactId: contact.id,
-          email: contact.email,
-          nextStep: email.currentStep + 1,
-          isComplete: isLastStep,
-        },
-        "✅ Successfully processed email"
-      );
-    } catch (error) {
-      logger.error(
-        {
-          id: email.id,
-          sequenceId: sequence.id,
-          contactId: contact.id,
-          email: contact.email,
-          error: error instanceof Error ? error.message : "Unknown error",
-          stack: error instanceof Error ? error.stack : undefined,
-        },
-        "❌ Error processing email"
-      );
-
-      // Schedule retry after delay
-      await prisma.sequenceContact.update({
-        where: { id: email.id },
-        data: {
-          nextScheduledAt: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
-        },
-      });
-
-      throw error;
+      return;
     }
+
+    // Get current step
+    const currentStep = sequence.steps[currentStepIndex];
+    if (!currentStep) {
+      logger.error(
+        `❌ Step not found at index ${currentStepIndex} for sequence ${sequence.name}`
+      );
+      return;
+    }
+
+    // Get next step
+    const nextStep = sequence.steps[currentStepIndex + 1];
+    if (!nextStep) {
+      logger.info(
+        `ℹ️ No next step found - this is the last step for sequence ${sequence.name}`
+      );
+    }
+
+    // Log step details
+    logger.info(`📝 Processing step ${currentStepIndex + 1}:`, {
+      step: currentStepIndex + 1,
+      totalSteps: sequence.steps.length,
+      timing: currentStep.timing,
+      delay: {
+        amount: currentStep.delayAmount || 0,
+        unit: currentStep.delayUnit || "minutes",
+      },
+    });
+
+    // Calculate next send time using scheduling service
+    const nextSendTime = this.scheduleGenerator.calculateNextRun(
+      new Date(),
+      nextStep as SequenceStep,
+      sequence.businessHours || getDefaultBusinessHours()
+    );
+
+    logger.info(
+      `📅 Scheduling email for contact: ${sequenceContact.contact.email}`,
+      {
+        step: currentStepIndex + 1,
+        totalSteps: sequence.steps.length,
+        sendTime: nextSendTime.toISOString(),
+        subject: currentStep.subject,
+      }
+    );
+
+    // Get previous subject from previous step if replyToThread is true
+    const previousStep = sequence.steps[currentStepIndex - 1];
+    const previousSubject = previousStep?.subject || "";
+    const subject = currentStep.replyToThread
+      ? `Re: ${previousSubject}`
+      : currentStep.subject;
+
+    // Create email job
+    const emailJob: EmailJob = {
+      id: randomUUID(),
+      type: EmailJobEnum.SEND,
+      priority: 1,
+      data: {
+        sequenceId: sequence.id,
+        contactId: sequenceContact.contact.id,
+        stepId: currentStep.id,
+        userId: data.userId,
+        to: data.testMode
+          ? process.env.TEST_EMAIL || googleAccount.email || ""
+          : sequenceContact.contact.email,
+        subject: subject || "",
+        threadId: sequenceContact.threadId || undefined,
+        testMode: data.testMode || false,
+        scheduledTime: nextSendTime.toISOString(),
+      },
+    };
+
+    // Add email job to queue
+    logger.info(
+      {
+        jobId: emailJob.id,
+        step: currentStepIndex + 1,
+        totalSteps: sequence.steps.length,
+      },
+      `📬 Creating email job`
+    );
+
+    await this.queue.add(QUEUE_NAMES.EMAIL, emailJob.data, {
+      jobId: emailJob.id,
+      priority: emailJob.priority,
+      delay: nextSendTime.getTime() - Date.now(),
+    });
+
+    // Update progress
+    await updateSequenceContactProgress(
+      sequence.id,
+      sequenceContact.contact.id,
+      currentStepIndex + 1,
+      nextSendTime
+    );
+
+    // Update contact status
+    logger.info(
+      `📊 Updating contact status: ${sequenceContact.contact.id} to SCHEDULED`
+    );
+    await updateSequenceContactStatus(
+      sequence.id,
+      sequenceContact.contact.id,
+      SequenceContactStatusEnum.SCHEDULED
+    );
+
+    // Increment rate limit counters
+    await this.rateLimitService.incrementCounters(
+      data.userId,
+      sequence.id,
+      sequenceContact.contact.id
+    );
+
+    // Add rate limiting delay between contacts
+    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 }

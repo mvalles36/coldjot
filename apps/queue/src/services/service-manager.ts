@@ -5,6 +5,7 @@ import {
   QUEUE_NAMES,
   QUEUE_OPTIONS,
   DEFAULT_QUEUE_OPTIONS,
+  type QueueName,
 } from "@/config/queue/queue";
 
 // Core services
@@ -12,18 +13,14 @@ import { MemoryMonitor } from "./core/memory/monitor";
 import { RateLimitService } from "./core/rate-limit/service";
 
 // Import processors directly
+import { BaseProcessor } from "./jobs/base-processor";
 import { SequenceProcessor } from "./jobs/sequence/processor";
 import { EmailProcessor } from "./jobs/email/processor";
 import { ContactProcessor } from "./jobs/contact/processor";
 import { ScheduleProcessor } from "./jobs/schedule/processor";
 import { ThreadProcessor } from "./jobs/thread-watch/processor";
 
-type Processor =
-  | EmailProcessor
-  | SequenceProcessor
-  | ThreadProcessor
-  | ContactProcessor
-  | ScheduleProcessor;
+type ProcessorType = BaseProcessor<any>;
 
 export class ServiceManager {
   private static instance: ServiceManager;
@@ -31,7 +28,7 @@ export class ServiceManager {
   private memoryMonitor: MemoryMonitor | null = null;
   private rateLimitService: RateLimitService | null = null;
   private queues: Map<string, Queue>;
-  private processors: Map<string, Processor>;
+  private processors: Map<string, ProcessorType>;
 
   private constructor() {
     this.redisConnection = RedisConnection.getInstance();
@@ -87,28 +84,33 @@ export class ServiceManager {
     try {
       logger.info("📦 Initializing queues...");
 
-      // Get all queue names from config
-      const queueNames = Object.values(QUEUE_NAMES);
+      // Create queues for each queue name
+      const queueEntries = Object.entries(QUEUE_NAMES) as [QueueName, string][];
 
-      for (const name of queueNames) {
-        // Get queue-specific options or use defaults
-        const queueConfig =
-          QUEUE_OPTIONS[name as keyof typeof QUEUE_NAMES] ||
-          DEFAULT_QUEUE_OPTIONS;
-
-        // Create queue with connection and config
-        const queue = new Queue(name, {
-          connection: this.redisConnection.getClient(),
-          ...queueConfig,
-        });
-
-        this.queues.set(name, queue);
-        logger.info(`📬 Queue initialized: ${name}`);
+      for (const [queueKey, queueName] of queueEntries) {
+        const queue = this.createQueue(queueKey, queueName);
+        this.queues.set(queueName, queue);
+        logger.info(`📬 Queue initialized: ${queueName}`);
       }
 
-      logger.info(`✅ Initialized ${queueNames.length} queues`);
+      logger.info(`✅ Initialized ${queueEntries.length} queues`);
     } catch (error) {
       logger.error("❌ Error initializing queues:", error);
+      throw error;
+    }
+  }
+
+  private createQueue(queueKey: QueueName, queueName: string): Queue {
+    try {
+      // Get queue-specific options or use defaults
+      const queueConfig = {
+        connection: this.redisConnection.getClient(),
+        ...(QUEUE_OPTIONS[queueKey] || DEFAULT_QUEUE_OPTIONS),
+      };
+
+      return new Queue(queueName, queueConfig);
+    } catch (error) {
+      logger.error(error, `❌ Error creating queue ${queueName}:`);
       throw error;
     }
   }
@@ -117,28 +119,32 @@ export class ServiceManager {
     try {
       logger.info("⚙️ Initializing processors...");
 
-      const processorMap = {
+      const processorMap: Record<string, (queue: Queue) => ProcessorType> = {
         [QUEUE_NAMES.SEQUENCE]: (queue: Queue) => new SequenceProcessor(queue),
         [QUEUE_NAMES.EMAIL]: (queue: Queue) => new EmailProcessor(queue),
         [QUEUE_NAMES.THREAD_WATCHER]: (queue: Queue) =>
           new ThreadProcessor(queue),
         [QUEUE_NAMES.CONTACT]: (queue: Queue) => new ContactProcessor(queue),
-        [QUEUE_NAMES.EMAIL_SCHEDULE]: (queue: Queue) => new ScheduleProcessor(queue),
+        [QUEUE_NAMES.EMAIL_SCHEDULE]: (queue: Queue) =>
+          new ScheduleProcessor(queue),
       };
 
-      for (const [name, createProcessor] of Object.entries(processorMap)) {
-        const queue = this.queues.get(name);
+      for (const [queueName, createProcessor] of Object.entries(processorMap)) {
+        const queue = this.queues.get(queueName);
         if (!queue) {
-          logger.warn(`⚠️ No queue found for processor: ${name}`);
+          logger.warn(`⚠️ No queue found for processor: ${queueName}`);
           continue;
         }
 
         try {
           const processor = createProcessor(queue);
-          this.processors.set(name, processor);
-          logger.info(`⚙️ Processor initialized: ${name}`);
+          this.processors.set(queueName, processor);
+          logger.info(`⚙️ Processor initialized: ${queueName}`);
         } catch (error) {
-          logger.error(error, `❌ Failed to initialize processor: ${name}`);
+          logger.error(
+            error,
+            `❌ Failed to initialize processor: ${queueName}`
+          );
         }
       }
 
@@ -156,7 +162,7 @@ export class ServiceManager {
     return this.queues.get(name);
   }
 
-  public getProcessor(name: string): Processor | undefined {
+  public getProcessor(name: string): ProcessorType | undefined {
     return this.processors.get(name);
   }
 
@@ -168,6 +174,12 @@ export class ServiceManager {
       if (this.memoryMonitor) {
         await this.memoryMonitor.stopMonitoring();
         logger.info("📊 Memory monitor stopped");
+      }
+
+      // Close all processors (which will close their workers)
+      for (const [name, processor] of this.processors.entries()) {
+        await processor.close();
+        logger.info(`⚙️ Processor closed: ${name}`);
       }
 
       // Close all queues
