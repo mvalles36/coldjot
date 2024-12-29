@@ -36,7 +36,7 @@ export class EmailProcessor extends BaseProcessor<EmailJob> {
         duration: 1000, // 1 second
       },
       connection: {
-        // maxRetriesPerRequest: null,
+        maxRetriesPerRequest: null,
         enableReadyCheck: false,
       },
     });
@@ -372,9 +372,4 @@ export class EmailProcessor extends BaseProcessor<EmailJob> {
 
     return true;
   }
-}
-
-// Export factory function for service manager
-export function createEmailProcessor(queue: Queue): EmailProcessor {
-  return new EmailProcessor(queue);
 }

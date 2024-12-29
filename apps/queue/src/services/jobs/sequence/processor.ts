@@ -26,6 +26,7 @@ import {
   getSequenceWithDetails,
   getContactProgress,
 } from "./helper";
+import { QUEUE_NAMES } from "@/config/queue/queue";
 
 // Define our sequence processing types
 interface SequenceWithRelations {
@@ -245,7 +246,7 @@ export class SequenceProcessor {
           `📬 Creating email job`
         );
 
-        await this.queue.add("email", emailJob.data, {
+        await this.queue.add(QUEUE_NAMES.EMAIL, emailJob.data, {
           jobId: emailJob.id,
           priority: emailJob.priority,
           delay: nextSendTime.getTime() - Date.now(),
@@ -448,7 +449,7 @@ export class SequenceProcessor {
       };
 
       // 5. Add to queue
-      await this.queue.add("email", emailJob.data, {
+      await this.queue.add(QUEUE_NAMES.EMAIL, emailJob.data, {
         jobId: emailJob.id,
         priority: emailJob.priority,
         delay: nextSendTime.getTime() - Date.now(),
@@ -520,9 +521,4 @@ export class SequenceProcessor {
       throw error;
     }
   }
-}
-
-// Export factory function for service manager
-export function createSequenceProcessor(queue: Queue): SequenceProcessor {
-  return new SequenceProcessor(queue);
 }

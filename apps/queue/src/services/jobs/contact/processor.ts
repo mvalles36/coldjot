@@ -13,7 +13,7 @@ export class ContactProcessor extends BaseProcessor<any> {
         duration: 1000, // 1 second
       },
       connection: {
-        // maxRetriesPerRequest: null,
+        maxRetriesPerRequest: null,
         enableReadyCheck: false,
       },
     });
@@ -27,9 +27,4 @@ export class ContactProcessor extends BaseProcessor<any> {
       throw error;
     }
   }
-}
-
-// Export factory function for service manager
-export function createContactProcessor(queue: Queue): ContactProcessor {
-  return new ContactProcessor(queue);
 }

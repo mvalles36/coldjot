@@ -13,7 +13,7 @@ export class ScheduleProcessor extends BaseProcessor<any> {
         duration: 1000, // 1 second
       },
       connection: {
-        // maxRetriesPerRequest: null,
+        maxRetriesPerRequest: null,
         enableReadyCheck: false,
       },
     });
@@ -27,9 +27,4 @@ export class ScheduleProcessor extends BaseProcessor<any> {
       throw error;
     }
   }
-}
-
-// Export factory function for service manager
-export function createScheduleProcessor(queue: Queue): ScheduleProcessor {
-  return new ScheduleProcessor(queue);
 }

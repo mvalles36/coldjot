@@ -14,7 +14,7 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckData> {
         duration: 1000, // 1 second
       },
       connection: {
-        // maxRetriesPerRequest: null,
+        maxRetriesPerRequest: null,
         enableReadyCheck: false,
       },
     });
@@ -28,9 +28,4 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckData> {
       throw error;
     }
   }
-}
-
-// Export factory function for service manager
-export function createThreadProcessor(queue: Queue): ThreadProcessor {
-  return new ThreadProcessor(queue);
 }
