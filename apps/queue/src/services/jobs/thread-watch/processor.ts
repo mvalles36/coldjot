@@ -18,7 +18,7 @@ import {
   shouldProcessMessage,
 } from "@/utils";
 import type { MessagePartHeader } from "@mailjot/types";
-import { QueueService } from "@/services/queue/queue-service";
+import { QueueService } from "@/services/v1/queue/queue-service";
 import { updateSequenceStats } from "@/lib/stats";
 import { QUEUE_NAMES } from "@/config/queue/queue";
 

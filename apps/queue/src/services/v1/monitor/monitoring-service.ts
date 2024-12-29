@@ -7,7 +7,7 @@ import {
   JobCounts,
 } from "@mailjot/types";
 import { logger } from "@/lib/log";
-import { QueueService } from "@/services/queue/queue-service";
+import { QueueService } from "@/services/v1/queue/queue-service";
 import { DEFAULT_ALERT_CONFIG } from "@/config";
 import os from "os";
 import Bull from "bull";

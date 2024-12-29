@@ -17,13 +17,13 @@ import {
 import { rateLimitService } from "@/services/core/rate-limit/service";
 import { addTrackingToEmail, createEmailTracking } from "@/lib/tracking";
 import { gmailClientService } from "@/lib/google";
-import { schedulingService } from "@/services/schedule/scheduling-service";
-import { emailSchedulingService } from "@/services/schedule/email-scheduling-service";
+import { schedulingService } from "@/services/v1/schedule/scheduling-service";
+import { emailSchedulingService } from "@/services/v1/schedule/email-scheduling-service";
 import {
   getDefaultBusinessHours,
   updateSequenceContactThreadId,
   updateSequenceContactStatus,
-} from "@/services/sequence/helper";
+} from "@/services/v1/sequence/helper";
 import { emailService } from "@/lib/email";
 import { QUEUE_NAMES } from "@/config/queue/queue";
 

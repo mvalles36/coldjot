@@ -3,9 +3,9 @@ import { BaseProcessor } from "../base-processor";
 import { logger } from "@/lib/log";
 import { prisma } from "@mailjot/database";
 import { randomUUID } from "crypto";
-import { rateLimiter } from "@/services/rate-limit/rate-limiter";
-import { schedulingService } from "@/services/schedule/scheduling-service";
-import { QueueService } from "@/services/queue/queue-service";
+import { rateLimiter } from "@/services/v1/rate-limit/rate-limiter";
+import { schedulingService } from "@/services/v1/schedule/scheduling-service";
+import { QueueService } from "@/services/v1/queue/queue-service";
 import {
   StepStatus,
   type StepType,

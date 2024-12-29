@@ -9,9 +9,9 @@ import {
 } from "@mailjot/types";
 import { REDIS_KEYS, QUEUE_CONFIG } from "@/config";
 
-import type { SequenceProcessor } from "@/services/sequence/sequence-processor";
+import type { SequenceProcessor } from "@/services/v1/sequence/sequence-processor";
 import type { EmailProcessor } from "@/services/email/email-processor";
-import type { EmailThreadProcessor } from "@/services/thread/thread-processor";
+import type { EmailThreadProcessor } from "@/services/v1/thread/thread-processor";
 
 export class QueueService {
   private static instance: QueueService | null = null;

@@ -1,5 +1,5 @@
 import { logger } from "@/lib/log";
-import { QueueService } from "@/services/queue/queue-service";
+import { QueueService } from "@/services/v1/queue/queue-service";
 import { prisma } from "@mailjot/database";
 import {
   EmailJobEnum,
@@ -8,7 +8,7 @@ import {
 } from "@mailjot/types";
 import { randomUUID } from "crypto";
 import { schedulingService } from "../schedule/scheduling-service";
-import { rateLimiter } from "@/services/rate-limit/rate-limiter";
+import { rateLimiter } from "@/services/v1/rate-limit/rate-limiter";
 import {
   getUserGoogleAccount,
   getDefaultBusinessHours,

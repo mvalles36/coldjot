@@ -2,20 +2,20 @@ import { Queue, Job } from "bullmq";
 import { BaseProcessor } from "../base-processor";
 import { logger } from "@/lib/log";
 import { prisma } from "@mailjot/database";
-import { QueueService } from "@/services/queue/queue-service";
+import { QueueService } from "@/services/v1/queue/queue-service";
 import {
   EmailJobEnum,
   SequenceContactStatusEnum,
   type EmailJob,
 } from "@mailjot/types";
 import { randomUUID } from "crypto";
-import { schedulingService } from "@/services/schedule/scheduling-service";
-import { rateLimiter } from "@/services/rate-limit/rate-limiter";
+import { schedulingService } from "@/services/v1/schedule/scheduling-service";
+import { rateLimiter } from "@/services/v1/rate-limit/rate-limiter";
 import {
   getUserGoogleAccount,
   getDefaultBusinessHours,
   updateSequenceContactStatus,
-} from "@/services/sequence/helper";
+} from "@/services/v1/sequence/helper";
 import { CONTACT_PROCESSING_CONFIG } from "@/config";
 import { QUEUE_NAMES } from "@/config/queue/queue";
 

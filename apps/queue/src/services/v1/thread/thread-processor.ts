@@ -17,7 +17,7 @@ import { logger } from "@/lib/log";
 
 type Gmail = gmail_v1.Gmail;
 import type { ThreadCheckData, ThreadMetadata } from "@mailjot/types";
-import { QueueService } from "@/services/queue/queue-service";
+import { QueueService } from "@/services/v1/queue/queue-service";
 import { updateSequenceStats } from "@/lib/stats";
 
 // Use monitor config constants

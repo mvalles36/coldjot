@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
 import { prisma } from "@mailjot/database";
-import { QueueService } from "@/services/queue/queue-service";
-import { MonitoringService } from "@/services/monitor/monitoring-service";
-import { rateLimiter } from "@/services/rate-limit/rate-limiter";
-import { resetSequence } from "@/services/sequence/helper";
+import { QueueService } from "@/services/v1/queue/queue-service";
+import { MonitoringService } from "@/services/v1/monitor/monitoring-service";
+import { rateLimiter } from "@/services/v1/rate-limit/rate-limiter";
+import { resetSequence } from "@/services/v1/sequence/helper";
 import { logger } from "@/lib/log";
 import { ProcessingJobEnum, BusinessScheduleEnum } from "@mailjot/types";
 import type { BusinessHours, ProcessingJob } from "@mailjot/types";

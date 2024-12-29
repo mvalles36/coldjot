@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
-import { QueueService } from "@/services/queue/queue-service";
-import { MonitoringService } from "@/services/monitor/monitoring-service";
+import { QueueService } from "@/services/v1/queue/queue-service";
+import { MonitoringService } from "@/services/v1/monitor/monitoring-service";
 import { logger } from "@/lib/log";
 
 // Initialize services
