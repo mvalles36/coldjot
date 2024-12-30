@@ -22,6 +22,8 @@ import { updateSequenceStats } from "@/lib/stats";
 import { QUEUE_NAMES } from "@/config/queue/queue";
 import { ServiceManager } from "@/services/service-manager";
 import { Prisma } from "@prisma/client";
+import pLimit from "p-limit";
+import { RateLimiter } from "@/lib/rate-limiter";
 
 // Environment-specific configuration
 type Environment = "DEVELOPMENT" | "DEMO" | "PRODUCTION";
@@ -30,27 +32,34 @@ const CURRENT_ENV = (process.env.NODE_ENV?.toUpperCase() ||
 const IS_DEMO_MODE = process.env.DEMO_MODE === "true";
 
 // Use monitor config constants
-const { CHECK_FREQUENCIES, AGE_THRESHOLDS } = MONITOR_CONFIG.THREAD;
+const { CHECK_FREQUENCIES, AGE_THRESHOLDS, BATCH, RETRY } =
+  MONITOR_CONFIG.THREAD;
 
 interface ThreadCheckJob {
   type: "CHECK_THREADS";
   batchSize?: number;
+  priority?: number;
+  userId?: string;
+  sequenceId?: string;
+  threadAge?: "RECENT" | "MEDIUM" | "OLD" | "VERY_OLD";
 }
 
-interface EmailEventMetadata {
-  threadId?: string;
+interface ThreadStatus {
+  isCompleted: boolean;
+  lastActivity: Date | null;
+  engagementLevel: "NONE" | "LOW" | "MEDIUM" | "HIGH";
 }
 
 export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
   private readonly SCHEDULER_ID = "thread-monitoring-scheduler";
-  private readonly DEFAULT_BATCH_SIZE = 50;
-  private readonly CHECK_INTERVAL: number;
+  private readonly rateLimiter: RateLimiter;
+  private readonly concurrencyLimiter: pLimit.Limit;
 
   constructor(queue: Queue) {
     super(queue, QUEUE_NAMES.THREAD_WATCHER, {
-      concurrency: 5,
+      concurrency: BATCH.CONCURRENCY,
       limiter: {
-        max: 100,
+        max: BATCH.RATE_LIMIT.MAX_PER_SECOND,
         duration: 1000,
       },
       connection: {
@@ -59,22 +68,18 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
       },
     });
 
-    // Get check interval from config based on environment
-    const env = IS_DEMO_MODE ? "DEMO" : CURRENT_ENV;
-    const frequency = CHECK_FREQUENCIES[env].RECENT;
+    // Initialize rate limiter
+    this.rateLimiter = new RateLimiter({
+      maxPerSecond: BATCH.RATE_LIMIT.MAX_PER_SECOND,
+      maxPerMinute: BATCH.RATE_LIMIT.MAX_PER_MINUTE,
+    });
 
-    // Calculate interval in milliseconds based on available frequency units
-    if ("minutes" in frequency) {
-      this.CHECK_INTERVAL = frequency.minutes * 60 * 1000;
-    } else if ("hours" in frequency) {
-      this.CHECK_INTERVAL = frequency.hours * 60 * 60 * 1000;
-    } else {
-      this.CHECK_INTERVAL = 60000; // Default to 1 minute
-    }
+    // Initialize concurrency limiter
+    this.concurrencyLimiter = pLimit(BATCH.CONCURRENCY);
 
     logger.info("🧵 Thread Monitoring Processor initialized", {
-      checkInterval: this.CHECK_INTERVAL,
-      batchSize: this.DEFAULT_BATCH_SIZE,
+      batchConfig: BATCH,
+      retryConfig: RETRY,
       environment: CURRENT_ENV,
     });
 
@@ -86,20 +91,26 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
    */
   private async setupThreadMonitoringScheduler(): Promise<void> {
     try {
+      const checkInterval = this.calculateBaseCheckInterval();
       await this.queue.upsertJobScheduler(
         this.SCHEDULER_ID,
-        { every: this.CHECK_INTERVAL },
+        { every: checkInterval },
         {
           name: "check-threads",
-          data: { type: "CHECK_THREADS", batchSize: this.DEFAULT_BATCH_SIZE },
+          data: {
+            type: "CHECK_THREADS",
+            batchSize: BATCH.MIN_SIZE,
+            priority: MONITOR_CONFIG.THREAD.PRIORITY.RECENT_HIGH_ENGAGEMENT,
+          },
           opts: {
             removeOnComplete: true,
             removeOnFail: true,
+            priority: MONITOR_CONFIG.THREAD.PRIORITY.RECENT_HIGH_ENGAGEMENT,
           },
         }
       );
       logger.info(
-        `📅 Thread monitoring scheduler initialized with ${this.CHECK_INTERVAL}ms interval`
+        `📅 Thread monitoring scheduler initialized with ${checkInterval}ms interval`
       );
     } catch (error) {
       logger.error("❌ Failed to setup thread monitoring scheduler:", error);
@@ -109,9 +120,8 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
 
   protected async process(job: Job<ThreadCheckJob>): Promise<void> {
     try {
-      await this.processThreadBatch(
-        job.data.batchSize || this.DEFAULT_BATCH_SIZE
-      );
+      const batchSize = this.calculateDynamicBatchSize(job.data.batchSize);
+      await this.processThreadBatch(batchSize, job.data);
     } catch (error) {
       logger.error(`Failed to process thread monitoring job ${job.id}:`, error);
       throw error;
@@ -119,98 +129,336 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
   }
 
   /**
+   * Calculate dynamic batch size based on system load and queue metrics
+   */
+  private calculateDynamicBatchSize(requestedSize?: number): number {
+    const baseSize = requestedSize || BATCH.MIN_SIZE;
+    // TODO: Implement dynamic sizing based on metrics
+    return Math.min(Math.max(baseSize, BATCH.MIN_SIZE), BATCH.MAX_SIZE);
+  }
+
+  /**
    * Process a batch of threads that need monitoring
    */
-  private async processThreadBatch(batchSize: number): Promise<void> {
+  private async processThreadBatch(
+    batchSize: number,
+    jobData: ThreadCheckJob
+  ): Promise<void> {
     try {
-      logger.info("🔍 Checking for threads to monitor", {
+      logger.info("🔍 Starting thread batch processing", {
         batchSize,
+        priority: jobData.priority,
+        threadAge: jobData.threadAge,
         timestamp: new Date().toISOString(),
       });
 
-      // Get thread IDs from email events that indicate thread completion
-      const completedThreadIds = await prisma.emailEvent
-        .findMany({
-          where: {
-            type: {
-              in: [EmailEventEnum.BOUNCED, EmailEventEnum.REPLIED],
-            },
-          },
-          select: {
-            metadata: true,
-          },
-        })
-        .then((events) => {
-          const threadIds: string[] = [];
-          events.forEach((event) => {
-            const metadata = event.metadata as EmailEventMetadata;
-            if (metadata?.threadId) {
-              threadIds.push(metadata.threadId);
-            }
-          });
-          return threadIds;
-        });
-
-      // Find threads that need checking based on their age and last check time
-      const threadsToCheck = await prisma.emailThread.findMany({
-        where: {
-          OR: [
-            {
-              metadata: {
-                equals: Prisma.JsonNull,
-              },
-            },
-            {
-              metadata: {
-                lt: new Date(
-                  Date.now() - this.calculateNextCheckDelay()
-                ).toISOString(),
-              },
-            },
-          ],
-          // Only check active threads (no bounce/reply)
-          NOT:
-            completedThreadIds.length > 0
-              ? {
-                  id: {
-                    in: completedThreadIds,
-                  },
-                }
-              : undefined,
-        },
-        take: batchSize,
-        orderBy: {
-          createdAt: "asc",
-        },
-        include: {
-          sequence: {
-            select: {
-              userId: true,
-            },
-          },
-        },
-      });
+      // Find threads that need checking
+      const threadsToCheck = await this.findThreadsToCheck(batchSize, jobData);
 
       logger.info(`📨 Found ${threadsToCheck.length} threads to check`);
 
-      // Process each thread
-      for (const thread of threadsToCheck) {
-        try {
-          await this.checkThread(thread);
-        } catch (error) {
-          logger.error(`Error checking thread ${thread.threadId}:`, error);
-          continue;
-        }
-      }
+      // Process threads in parallel with rate limiting
+      const results = await Promise.allSettled(
+        threadsToCheck.map((thread) =>
+          this.concurrencyLimiter(async () => {
+            await this.rateLimiter.acquire();
+            try {
+              await this.checkThread(thread);
+            } catch (error) {
+              if (this.shouldRetryAfterError(error)) {
+                await this.scheduleRetry(thread, error);
+              } else {
+                logger.error(
+                  `Permanent error checking thread ${thread.threadId}:`,
+                  error
+                );
+              }
+            } finally {
+              this.rateLimiter.release();
+            }
+          })
+        )
+      );
+
+      // Log batch completion metrics
+      const successCount = results.filter(
+        (r) => r.status === "fulfilled"
+      ).length;
+      const failureCount = results.filter(
+        (r) => r.status === "rejected"
+      ).length;
 
       logger.info("✅ Completed thread monitoring batch", {
-        processedCount: threadsToCheck.length,
+        total: threadsToCheck.length,
+        success: successCount,
+        failures: failureCount,
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
-      logger.error("❌ Error in processThreadBatch:", error);
+      logger.error(error, "❌ Error in processThreadBatch:");
       throw error;
     }
+  }
+
+  /**
+   * Find threads that need checking based on their status and age
+   */
+  private async findThreadsToCheck(
+    batchSize: number,
+    jobData: ThreadCheckJob
+  ): Promise<any[]> {
+    const env = IS_DEMO_MODE ? "DEMO" : CURRENT_ENV;
+    const now = new Date();
+
+    // Calculate age thresholds
+    const ageThresholds = {
+      recent: this.calculateTimeThreshold(AGE_THRESHOLDS[env].RECENT),
+      medium: this.calculateTimeThreshold(AGE_THRESHOLDS[env].MEDIUM),
+      old: this.calculateTimeThreshold(AGE_THRESHOLDS[env].OLD),
+    };
+
+    // Calculate check frequencies
+    const checkFrequencies = {
+      recent: this.calculateTimeThreshold(CHECK_FREQUENCIES[env].RECENT),
+      medium: this.calculateTimeThreshold(CHECK_FREQUENCIES[env].MEDIUM),
+      old: this.calculateTimeThreshold(CHECK_FREQUENCIES[env].OLD),
+      veryOld: this.calculateTimeThreshold(CHECK_FREQUENCIES[env].VERY_OLD),
+    };
+
+    // Build the where clause based on thread age and status
+    const where: Prisma.EmailThreadWhereInput = {
+      // Check threads based on their last check time and age
+      OR: [
+        // New threads that haven't been checked
+        {
+          lastCheckedAt: null,
+        },
+        // Recent threads with recent updates
+        {
+          AND: [
+            { createdAt: { gte: ageThresholds.recent } },
+            {
+              updatedAt: { gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) },
+            },
+            {
+              OR: [
+                { lastCheckedAt: null },
+                { lastCheckedAt: { lt: checkFrequencies.recent } },
+              ],
+            },
+          ],
+        },
+        // Recent threads without recent updates
+        {
+          AND: [
+            { createdAt: { gte: ageThresholds.recent } },
+            {
+              updatedAt: { lt: new Date(now.getTime() - 24 * 60 * 60 * 1000) },
+            },
+            {
+              OR: [
+                { lastCheckedAt: null },
+                { lastCheckedAt: { lt: checkFrequencies.medium } },
+              ],
+            },
+          ],
+        },
+        // Medium-age threads
+        {
+          AND: [
+            {
+              createdAt: {
+                gte: ageThresholds.medium,
+                lt: ageThresholds.recent,
+              },
+            },
+            {
+              OR: [
+                { lastCheckedAt: null },
+                { lastCheckedAt: { lt: checkFrequencies.medium } },
+              ],
+            },
+          ],
+        },
+        // Old threads
+        {
+          AND: [
+            { createdAt: { gte: ageThresholds.old, lt: ageThresholds.medium } },
+            {
+              OR: [
+                { lastCheckedAt: null },
+                { lastCheckedAt: { lt: checkFrequencies.old } },
+              ],
+            },
+          ],
+        },
+        // Very old threads
+        {
+          AND: [
+            { createdAt: { lt: ageThresholds.old } },
+            {
+              OR: [
+                { lastCheckedAt: null },
+                { lastCheckedAt: { lt: checkFrequencies.veryOld } },
+              ],
+            },
+          ],
+        },
+      ],
+      // Filter by user or sequence if specified
+      ...(jobData.userId && { sequence: { userId: jobData.userId } }),
+      ...(jobData.sequenceId && { sequenceId: jobData.sequenceId }),
+      // Check metadata for completion status
+      // metadata: {
+      //   path: ["status"],
+      //   not: {
+      //     in: ["COMPLETED", "BOUNCED", "REPLIED", "UNSUBSCRIBED"],
+      //   },
+      // },
+    };
+
+    // Add age-specific filtering if specified in the job
+    if (jobData.threadAge) {
+      const ageFilter = this.getAgeSpecificFilter(
+        jobData.threadAge,
+        ageThresholds
+      );
+      if (ageFilter && where.OR) {
+        where.AND = [...(Array.isArray(where.AND) ? where.AND : []), ageFilter];
+      }
+    }
+
+    return prisma.emailThread.findMany({
+      where,
+      take: batchSize,
+      orderBy: [
+        { updatedAt: "desc" },
+        { lastCheckedAt: "asc" },
+        { createdAt: "asc" },
+      ],
+      include: {
+        sequence: {
+          select: {
+            userId: true,
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * Calculate time threshold based on configuration
+   */
+  private calculateTimeThreshold(config: {
+    minutes?: number;
+    hours?: number;
+    days?: number;
+  }): Date {
+    const now = new Date();
+    const msToSubtract =
+      (config.days || 0) * 24 * 60 * 60 * 1000 +
+      (config.hours || 0) * 60 * 60 * 1000 +
+      (config.minutes || 0) * 60 * 1000;
+
+    return new Date(now.getTime() - msToSubtract);
+  }
+
+  /**
+   * Get age-specific filter for thread queries
+   */
+  private getAgeSpecificFilter(
+    age: "RECENT" | "MEDIUM" | "OLD" | "VERY_OLD",
+    thresholds: { recent: Date; medium: Date; old: Date }
+  ): Prisma.EmailThreadWhereInput | null {
+    switch (age) {
+      case "RECENT":
+        return { createdAt: { gte: thresholds.recent } };
+      case "MEDIUM":
+        return {
+          AND: [
+            { createdAt: { gte: thresholds.medium } },
+            { createdAt: { lt: thresholds.recent } },
+          ],
+        };
+      case "OLD":
+        return {
+          AND: [
+            { createdAt: { gte: thresholds.old } },
+            { createdAt: { lt: thresholds.medium } },
+          ],
+        };
+      case "VERY_OLD":
+        return { createdAt: { lt: thresholds.old } };
+      default:
+        return null;
+    }
+  }
+
+  /**
+   * Determine if an error should trigger a retry
+   */
+  private shouldRetryAfterError(error: any): boolean {
+    const permanentErrors = [
+      "Invalid thread ID",
+      "Thread not found",
+      "Account not found",
+      "Invalid credentials",
+      "Account disconnected",
+    ];
+
+    if (error.message) {
+      return !permanentErrors.some((errMsg) => error.message.includes(errMsg));
+    }
+
+    return true;
+  }
+
+  /**
+   * Schedule a retry for a failed thread check
+   */
+  private async scheduleRetry(thread: any, error: any): Promise<void> {
+    const retryCount = (thread.metadata?.retryCount || 0) + 1;
+    if (retryCount <= RETRY.MAX_ATTEMPTS) {
+      const delay = Math.min(
+        RETRY.BACKOFF.MIN_DELAY *
+          Math.pow(RETRY.BACKOFF.FACTOR, retryCount - 1),
+        RETRY.BACKOFF.MAX_DELAY
+      );
+
+      await this.queue.add(
+        "retry-thread-check",
+        {
+          type: "CHECK_THREADS",
+          batchSize: 1,
+          threadId: thread.threadId,
+          retryCount,
+        },
+        {
+          delay,
+          removeOnComplete: true,
+          removeOnFail: true,
+        }
+      );
+
+      logger.info(
+        `Scheduled retry #${retryCount} for thread ${thread.threadId} in ${delay}ms`
+      );
+    }
+  }
+
+  /**
+   * Calculate base check interval for the scheduler
+   */
+  private calculateBaseCheckInterval(): number {
+    const env = IS_DEMO_MODE ? "DEMO" : CURRENT_ENV;
+    const frequency = CHECK_FREQUENCIES[env].RECENT;
+
+    if ("minutes" in frequency) {
+      return frequency.minutes * 60 * 1000;
+    } else if ("hours" in frequency) {
+      return frequency.hours * 60 * 60 * 1000;
+    }
+    return 60000; // Default to 1 minute
   }
 
   /**
