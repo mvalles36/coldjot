@@ -18,9 +18,10 @@ import {
   shouldProcessMessage,
 } from "@/utils";
 import type { MessagePartHeader } from "@mailjot/types";
-import { QueueService } from "@/services/v1/queue/queue-service";
 import { updateSequenceStats } from "@/lib/stats";
 import { QUEUE_NAMES } from "@/config/queue/queue";
+import { ServiceManager } from "@/services/service-manager";
+import { Prisma } from "@prisma/client";
 
 // Environment-specific configuration
 type Environment = "DEVELOPMENT" | "DEMO" | "PRODUCTION";
@@ -31,87 +32,230 @@ const IS_DEMO_MODE = process.env.DEMO_MODE === "true";
 // Use monitor config constants
 const { CHECK_FREQUENCIES, AGE_THRESHOLDS } = MONITOR_CONFIG.THREAD;
 
-export class ThreadProcessor extends BaseProcessor<ThreadCheckData> {
+interface ThreadCheckJob {
+  type: "CHECK_THREADS";
+  batchSize?: number;
+}
+
+interface EmailEventMetadata {
+  threadId?: string;
+}
+
+export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
+  private readonly SCHEDULER_ID = "thread-monitoring-scheduler";
+  private readonly DEFAULT_BATCH_SIZE = 50;
+  private readonly CHECK_INTERVAL: number;
+
   constructor(queue: Queue) {
     super(queue, QUEUE_NAMES.THREAD_WATCHER, {
       concurrency: 5,
       limiter: {
         max: 100,
-        duration: 1000, // 1 second
+        duration: 1000,
       },
       connection: {
         maxRetriesPerRequest: null,
         enableReadyCheck: false,
       },
     });
+
+    // Get check interval from config based on environment
+    const env = IS_DEMO_MODE ? "DEMO" : CURRENT_ENV;
+    const frequency = CHECK_FREQUENCIES[env].RECENT;
+
+    // Calculate interval in milliseconds based on available frequency units
+    if ("minutes" in frequency) {
+      this.CHECK_INTERVAL = frequency.minutes * 60 * 1000;
+    } else if ("hours" in frequency) {
+      this.CHECK_INTERVAL = frequency.hours * 60 * 60 * 1000;
+    } else {
+      this.CHECK_INTERVAL = 60000; // Default to 1 minute
+    }
+
+    logger.info("🧵 Thread Monitoring Processor initialized", {
+      checkInterval: this.CHECK_INTERVAL,
+      batchSize: this.DEFAULT_BATCH_SIZE,
+      environment: CURRENT_ENV,
+    });
+
+    this.setupThreadMonitoringScheduler();
   }
 
-  protected async process(job: Job<ThreadCheckData>): Promise<void> {
+  /**
+   * Set up the job scheduler for periodic thread monitoring
+   */
+  private async setupThreadMonitoringScheduler(): Promise<void> {
     try {
-      const { userId, threadId } = job.data;
+      await this.queue.upsertJobScheduler(
+        this.SCHEDULER_ID,
+        { every: this.CHECK_INTERVAL },
+        {
+          name: "check-threads",
+          data: { type: "CHECK_THREADS", batchSize: this.DEFAULT_BATCH_SIZE },
+          opts: {
+            removeOnComplete: true,
+            removeOnFail: true,
+          },
+        }
+      );
+      logger.info(
+        `📅 Thread monitoring scheduler initialized with ${this.CHECK_INTERVAL}ms interval`
+      );
+    } catch (error) {
+      logger.error("❌ Failed to setup thread monitoring scheduler:", error);
+      throw error;
+    }
+  }
 
-      if (!userId || !threadId) {
-        logger.error("Invalid data for thread processing:", job.data);
-        return;
-      }
+  protected async process(job: Job<ThreadCheckJob>): Promise<void> {
+    try {
+      await this.processThreadBatch(
+        job.data.batchSize || this.DEFAULT_BATCH_SIZE
+      );
+    } catch (error) {
+      logger.error(`Failed to process thread monitoring job ${job.id}:`, error);
+      throw error;
+    }
+  }
 
-      // Check if thread already has a bounce or reply
-      const existingEvents = await prisma.emailEvent.findMany({
+  /**
+   * Process a batch of threads that need monitoring
+   */
+  private async processThreadBatch(batchSize: number): Promise<void> {
+    try {
+      logger.info("🔍 Checking for threads to monitor", {
+        batchSize,
+        timestamp: new Date().toISOString(),
+      });
+
+      // Get thread IDs from email events that indicate thread completion
+      const completedThreadIds = await prisma.emailEvent
+        .findMany({
+          where: {
+            type: {
+              in: [EmailEventEnum.BOUNCED, EmailEventEnum.REPLIED],
+            },
+          },
+          select: {
+            metadata: true,
+          },
+        })
+        .then((events) => {
+          const threadIds: string[] = [];
+          events.forEach((event) => {
+            const metadata = event.metadata as EmailEventMetadata;
+            if (metadata?.threadId) {
+              threadIds.push(metadata.threadId);
+            }
+          });
+          return threadIds;
+        });
+
+      // Find threads that need checking based on their age and last check time
+      const threadsToCheck = await prisma.emailThread.findMany({
         where: {
-          sequenceId: job.data.sequenceId,
-          contactId: job.data.contactId,
-          type: {
-            in: [EmailEventEnum.BOUNCED, EmailEventEnum.REPLIED],
+          OR: [
+            {
+              metadata: {
+                equals: Prisma.JsonNull,
+              },
+            },
+            {
+              metadata: {
+                lt: new Date(
+                  Date.now() - this.calculateNextCheckDelay()
+                ).toISOString(),
+              },
+            },
+          ],
+          // Only check active threads (no bounce/reply)
+          NOT:
+            completedThreadIds.length > 0
+              ? {
+                  id: {
+                    in: completedThreadIds,
+                  },
+                }
+              : undefined,
+        },
+        take: batchSize,
+        orderBy: {
+          createdAt: "asc",
+        },
+        include: {
+          sequence: {
+            select: {
+              userId: true,
+            },
           },
         },
       });
 
-      if (existingEvents.length > 0) {
-        logger.info(
-          `Thread ${threadId} already has ${existingEvents.map((e) => e.type).join(", ")} event(s). Stopping further checks.`
-        );
+      logger.info(`📨 Found ${threadsToCheck.length} threads to check`);
+
+      // Process each thread
+      for (const thread of threadsToCheck) {
         try {
-          const queueService = QueueService.getInstance();
-          await queueService.removeThreadJob(threadId);
-        } catch (error: any) {
-          logger.warn(
-            `Failed to remove thread job, but continuing as thread has already been processed: ${error?.message || "Unknown error"}`
-          );
-        }
-        return;
-      }
-
-      logger.info("Processing thread:", job.data);
-
-      // Fetch and process thread messages
-      const hasNewEvents = await this.checkThreadForRepliesAndBounces(job.data);
-
-      // Only schedule next check if no bounce or reply was found
-      if (!hasNewEvents) {
-        await this.scheduleNextCheck(job.data);
-      } else {
-        try {
-          const queueService = QueueService.getInstance();
-          await queueService.removeThreadJob(threadId);
-        } catch (error: any) {
-          logger.warn(
-            `Failed to remove thread job after finding events, but continuing: ${error?.message || "Unknown error"}`
-          );
+          await this.checkThread(thread);
+        } catch (error) {
+          logger.error(`Error checking thread ${thread.threadId}:`, error);
+          continue;
         }
       }
+
+      logger.info("✅ Completed thread monitoring batch", {
+        processedCount: threadsToCheck.length,
+        timestamp: new Date().toISOString(),
+      });
     } catch (error) {
-      logger.error("Error processing thread:", error);
-      // If there's an error, we might want to stop checking this thread
-      if (this.shouldStopCheckingAfterError(error)) {
-        try {
-          const queueService = QueueService.getInstance();
-          await queueService.removeThreadJob(job.data.threadId);
-        } catch (error: any) {
-          logger.warn(
-            `Failed to remove thread job after error, but continuing: ${error?.message || "Unknown error"}`
-          );
-        }
-      }
+      logger.error("❌ Error in processThreadBatch:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Calculate the delay until next check based on environment and thread age
+   */
+  private calculateNextCheckDelay(): number {
+    const env = IS_DEMO_MODE ? "DEMO" : CURRENT_ENV;
+    const frequency = CHECK_FREQUENCIES[env].RECENT;
+
+    if ("minutes" in frequency) {
+      return frequency.minutes * 60 * 1000;
+    } else if ("hours" in frequency) {
+      return frequency.hours * 60 * 60 * 1000;
+    }
+    return 60000; // Default to 1 minute
+  }
+
+  /**
+   * Check an individual thread for replies or bounces
+   */
+  private async checkThread(thread: any): Promise<void> {
+    try {
+      const threadAge = this.getThreadAge(thread.createdAt);
+      const checkData: ThreadCheckData = {
+        threadId: thread.threadId,
+        userId: thread.sequence.userId,
+        sequenceId: thread.sequenceId,
+        contactId: thread.contactId,
+        messageId: thread.messageId || "",
+        createdAt: thread.createdAt,
+      };
+
+      // Check for replies and bounces
+      const hasNewEvents =
+        await this.checkThreadForRepliesAndBounces(checkData);
+
+      // Update thread metadata
+      await this.updateThreadMetadata(thread, threadAge, hasNewEvents);
+
+      logger.info(`✅ Checked thread ${thread.threadId}`, {
+        hasNewEvents,
+        threadAge,
+      });
+    } catch (error) {
+      logger.error(`Error checking thread ${thread.threadId}:`, error);
       throw error;
     }
   }
@@ -458,49 +602,31 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckData> {
     return ageInMs <= threshold;
   }
 
-  private async scheduleNextCheck(data: ThreadCheckData) {
-    const threadAge = this.getThreadAge(data.createdAt);
-    const nextCheckDelay = this.getCheckFrequency(threadAge);
-    const delayMs = this.calculateTimeInMilliseconds(nextCheckDelay);
-    const env = this.getEnvironmentConfig();
-
-    console.log(`
-🕒 Scheduling next thread check:
-- Environment: ${env}
-- Thread Age: ${threadAge} ${env === "PRODUCTION" ? "days" : "minutes"}
-- Next Check Delay: ${JSON.stringify(nextCheckDelay)}
-- Delay in MS: ${delayMs}
-    `);
-
-    // Schedule next check using QueueService
-    const queueService = QueueService.getInstance();
-    await queueService.addThreadJob(data, 1, delayMs);
-
-    // Update thread metadata
-    const currentThread = await prisma.emailThread.findUnique({
-      where: { threadId: data.threadId },
-      select: { metadata: true },
-    });
-
-    const currentMetadata = (currentThread?.metadata || {}) as ThreadMetadata;
-
-    const nextCheckAt = new Date(Date.now() + delayMs);
+  /**
+   * Update thread metadata after checking
+   */
+  private async updateThreadMetadata(
+    thread: any,
+    threadAge: number,
+    hasNewEvents: boolean
+  ): Promise<void> {
+    const env = IS_DEMO_MODE ? "DEMO" : CURRENT_ENV;
+    const nextCheckDelay = this.calculateNextCheckDelay();
+    const nextCheckAt = new Date(Date.now() + nextCheckDelay);
 
     await prisma.emailThread.update({
-      where: { threadId: data.threadId },
+      where: { threadId: thread.threadId },
       data: {
+        lastCheckedAt: new Date(),
         metadata: {
-          ...currentMetadata,
           lastCheckedAt: new Date().toISOString(),
-          nextCheckAt: nextCheckAt.toISOString(),
+          nextCheckAt: hasNewEvents ? null : nextCheckAt.toISOString(),
           environment: env,
-          nextCheckDelay: nextCheckDelay,
-          threadAge: threadAge,
+          threadAge,
           checkFrequency: {
             env,
             threadAge,
             nextCheckDelay,
-            delayMs,
           },
         },
       },

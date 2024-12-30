@@ -34,6 +34,7 @@ export class MemoryMonitor {
     return MemoryMonitor.instance;
   }
 
+  // TODO :  create it as a repeated job
   public async startMonitoring(
     intervalMs: number = MEMORY_MONITOR_CONFIG.CHECK_INTERVAL
   ): Promise<void> {
