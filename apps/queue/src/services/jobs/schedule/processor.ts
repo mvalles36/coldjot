@@ -5,7 +5,7 @@ import { prisma } from "@mailjot/database";
 import { randomUUID } from "crypto";
 import { rateLimiter } from "@/services/v1/rate-limit/rate-limiter";
 import { schedulingService } from "@/services/v1/schedule/scheduling-service";
-import { QueueService } from "@/services/v1/queue/queue-service";
+
 import {
   StepStatus,
   type StepType,

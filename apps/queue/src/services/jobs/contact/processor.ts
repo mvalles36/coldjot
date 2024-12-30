@@ -1,24 +1,23 @@
 import { Queue, Job } from "bullmq";
 import { BaseProcessor } from "../base-processor";
-import { logger } from "@/lib/log";
 import { prisma } from "@mailjot/database";
+import { logger } from "@/lib/log";
 
-import {
-  EmailJobEnum,
-  SequenceContactStatusEnum,
-  type EmailJob,
-} from "@mailjot/types";
-import { randomUUID } from "crypto";
-import { schedulingService } from "@/services/v1/schedule/scheduling-service";
-import { rateLimiter } from "@/services/v1/rate-limit/rate-limiter";
 import {
   getUserGoogleAccount,
   getDefaultBusinessHours,
   updateSequenceContactStatus,
 } from "@/services/v1/sequence/helper";
+
 import { CONTACT_PROCESSING_CONFIG } from "@/config";
 import { QUEUE_NAMES } from "@/config/queue/queue";
+
 import { ServiceManager } from "@/services/service-manager";
+
+import { schedulingService } from "@/services/v1/schedule/scheduling-service";
+import { rateLimiter } from "@/services/v1/rate-limit/rate-limiter";
+
+import { SequenceContactStatusEnum, type EmailJob } from "@mailjot/types";
 
 interface ContactProcessingJob {
   type: "CHECK_NEW_CONTACTS";

@@ -6,25 +6,18 @@ import {
   SendEmailOptions,
   EmailResult,
   SequenceContactStatusEnum,
-  EmailEventEnum,
-  EmailTrackingStatusEnum,
-  EmailLabelEnum,
   type EmailTrackingMetadata,
   type SequenceStep,
   StepTypeEnum,
   type EmailJob,
 } from "@mailjot/types";
 import { rateLimitService } from "@/services/core/rate-limit/service";
-import { addTrackingToEmail, createEmailTracking } from "@/lib/tracking";
-import { gmailClientService } from "@/lib/google";
-import { ScheduleProcessor } from "@/services/jobs/schedule/processor";
-// import { emailSchedulingService } from "@/services/v1/schedule/email-scheduling-service";
+import { createEmailTracking } from "@/lib/tracking";
 import { ServiceManager } from "@/services/service-manager";
 import {
-  getDefaultBusinessHours,
   updateSequenceContactThreadId,
   updateSequenceContactStatus,
-} from "@/services/v1/sequence/helper";
+} from "@/services/jobs/sequence/helper";
 import { emailService } from "@/lib/email";
 import { QUEUE_NAMES } from "@/config/queue/queue";
 

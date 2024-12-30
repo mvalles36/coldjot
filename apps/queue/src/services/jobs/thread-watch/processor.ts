@@ -4,26 +4,26 @@ import { logger } from "@/lib/log";
 import { prisma } from "@mailjot/database";
 import {
   ThreadCheckData,
-  ThreadMetadata,
   EmailEventEnum,
   SequenceContactStatusEnum,
 } from "@mailjot/types";
 import { MONITOR_CONFIG } from "@/config/monitor/constants";
 import { GmailClientService } from "@/lib/google";
 import { DateTime } from "luxon";
+import type { MessagePartHeader } from "@mailjot/types";
+import { updateSequenceStats } from "@/lib/stats";
+import { QUEUE_NAMES } from "@/config/queue/queue";
+
+import { Prisma } from "@prisma/client";
+import pLimit from "p-limit";
+import { RateLimiter } from "@/lib/rate-limiter";
+
 import {
   extractEmailFromHeader,
   isBounceMessage,
   isSenderSequenceOwner,
   shouldProcessMessage,
 } from "@/utils";
-import type { MessagePartHeader } from "@mailjot/types";
-import { updateSequenceStats } from "@/lib/stats";
-import { QUEUE_NAMES } from "@/config/queue/queue";
-import { ServiceManager } from "@/services/service-manager";
-import { Prisma } from "@prisma/client";
-import pLimit from "p-limit";
-import { RateLimiter } from "@/lib/rate-limiter";
 
 // Environment-specific configuration
 type Environment = "DEVELOPMENT" | "DEMO" | "PRODUCTION";
