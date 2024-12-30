@@ -673,3 +673,5 @@ export class ScheduleProcessor extends BaseProcessor<any> {
     }
   }
 }
+
+// TODO : export singleton instance

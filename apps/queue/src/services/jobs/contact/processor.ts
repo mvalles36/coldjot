@@ -2,7 +2,7 @@ import { Queue, Job } from "bullmq";
 import { BaseProcessor } from "../base-processor";
 import { logger } from "@/lib/log";
 import { prisma } from "@mailjot/database";
-import { QueueService } from "@/services/v1/queue/queue-service";
+
 import {
   EmailJobEnum,
   SequenceContactStatusEnum,
@@ -25,7 +25,6 @@ interface ContactProcessingJob {
 }
 
 export class ContactProcessor extends BaseProcessor<ContactProcessingJob> {
-  private queueService: QueueService;
   private checkInterval: number = CONTACT_PROCESSING_CONFIG.CHECK_INTERVAL;
   private batchSize: number = CONTACT_PROCESSING_CONFIG.BATCH_SIZE;
   private readonly SCHEDULER_ID = "contact-processing-scheduler";
@@ -45,7 +44,6 @@ export class ContactProcessor extends BaseProcessor<ContactProcessingJob> {
         enableReadyCheck: false,
       },
     });
-    this.queueService = QueueService.getInstance();
     this.setupContactProcessingScheduler();
   }
 

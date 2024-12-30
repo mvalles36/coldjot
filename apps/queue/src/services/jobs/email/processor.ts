@@ -17,8 +17,9 @@ import {
 import { rateLimitService } from "@/services/core/rate-limit/service";
 import { addTrackingToEmail, createEmailTracking } from "@/lib/tracking";
 import { gmailClientService } from "@/lib/google";
-import { schedulingService } from "@/services/v1/schedule/scheduling-service";
-import { emailSchedulingService } from "@/services/v1/schedule/email-scheduling-service";
+import { ScheduleProcessor } from "@/services/jobs/schedule/processor";
+// import { emailSchedulingService } from "@/services/v1/schedule/email-scheduling-service";
+import { ServiceManager } from "@/services/service-manager";
 import {
   getDefaultBusinessHours,
   updateSequenceContactThreadId,
@@ -28,6 +29,9 @@ import { emailService } from "@/lib/email";
 import { QUEUE_NAMES } from "@/config/queue/queue";
 
 export class EmailProcessor extends BaseProcessor<EmailJob> {
+  private serviceManager = ServiceManager.getInstance();
+  private jobManager = this.serviceManager.getJobManager();
+
   constructor(queue: Queue) {
     super(queue, QUEUE_NAMES.EMAIL, {
       concurrency: 5,
@@ -327,13 +331,12 @@ export class EmailProcessor extends BaseProcessor<EmailJob> {
       "🧪 Test mode: Triggering next email in sequence in 10 seconds"
     );
 
-    const { nextEmail } =
-      await emailSchedulingService.checkNextScheduledEmail();
-    if (nextEmail) {
-      logger.info("🧪 Test mode: Processing next email in sequence");
-      await emailSchedulingService.advanceToNextEmail();
-      await schedulingService.resetTime();
-    }
+    // const { nextEmail } = await emailSchedulingService.checkNextScheduledEmail();
+    // if (nextEmail) {
+    //   logger.info("🧪 Test mode: Processing next email in sequence");
+    //   await emailSchedulingService.advanceToNextEmail();
+    //   await schedulingService.resetTime();
+    // }
   }
 
   private async checkThreadEvents(data: EmailJob): Promise<boolean> {
