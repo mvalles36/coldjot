@@ -5,6 +5,7 @@ import { prisma } from "@mailjot/database";
 import { randomUUID } from "crypto";
 import { rateLimiter } from "@/services/v1/rate-limit/rate-limiter";
 import { schedulingService } from "@/services/v1/schedule/scheduling-service";
+import { scheduleGenerator } from "@/lib/schedule";
 
 import {
   StepStatus,
@@ -388,7 +389,7 @@ export class ScheduleProcessor extends BaseProcessor<any> {
         businessHours: sequence.businessHours,
       });
 
-      const nextSendTime = await schedulingService.calculateNextRun(
+      const nextSendTime = await scheduleGenerator.calculateNextRun(
         new Date(),
         currentStep,
         sequence.businessHours || undefined

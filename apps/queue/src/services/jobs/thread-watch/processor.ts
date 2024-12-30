@@ -308,6 +308,8 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
       // Filter by user or sequence if specified
       ...(jobData.userId && { sequence: { userId: jobData.userId } }),
       ...(jobData.sequenceId && { sequenceId: jobData.sequenceId }),
+
+      // TODO : @findThreadsToCheck() we do not have path status so we need to remove it and add a new column
       // Check metadata for completion status
       // metadata: {
       //   path: ["status"],
