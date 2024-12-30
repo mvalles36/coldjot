@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { prisma } from "@mailjot/database";
-import { QueueService } from "@/services/v1/queue/queue-service";
-import { MonitoringService } from "@/services/v1/monitor/monitoring-service";
+import { ServiceManager } from "@/services/service-manager";
+import { MonitoringService } from "@/services/monitor/service";
 import { rateLimiter } from "@/services/v1/rate-limit/rate-limiter";
 import { resetSequence } from "@/services/v1/sequence/helper";
 import { logger } from "@/lib/log";
@@ -9,8 +9,11 @@ import { ProcessingJobEnum, BusinessScheduleEnum } from "@mailjot/types";
 import type { BusinessHours, ProcessingJob } from "@mailjot/types";
 
 // Initialize services
-const queueService = QueueService.getInstance();
-const monitoringService = new MonitoringService(queueService);
+const serviceManager = ServiceManager.getInstance();
+const jobManager = serviceManager.getJobManager();
+
+// Update monitoring service to use schedule service
+const monitoringService = new MonitoringService(serviceManager);
 
 // Helper function to get business hours
 async function getBusinessHours(
@@ -94,7 +97,6 @@ export async function launchSequence(req: Request, res: Response) {
       data: {
         sequenceId: id,
         userId,
-        // scheduleType: businessHours ? "business" : "custom",
         scheduleType: businessHours
           ? BusinessScheduleEnum.BUSINESS
           : BusinessScheduleEnum.CUSTOM,
@@ -103,8 +105,8 @@ export async function launchSequence(req: Request, res: Response) {
       },
     };
 
-    // Add the job to the queue
-    const job = await queueService.addSequenceJob(processingJob);
+    // Add the job using the job manager
+    const job = await jobManager.addSequenceJob(processingJob);
 
     // Start monitoring the sequence
     await monitoringService.startMonitoring(id);

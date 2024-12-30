@@ -6,6 +6,7 @@ import {
   JobCounts,
   ThreadCheckData,
   ProcessingJobEnum,
+  EmailJobOld,
 } from "@mailjot/types";
 import { REDIS_KEYS, QUEUE_CONFIG } from "@/config";
 
@@ -148,7 +149,7 @@ export class QueueService {
 
     // Process email jobs
     this.emailQueue.process(async (job) => {
-      const emailJob: EmailJob = {
+      const emailJob: EmailJobOld = {
         id: job.id.toString(),
         type: job.data.type || "send",
         priority: job.opts.priority || 1,
@@ -173,7 +174,7 @@ export class QueueService {
     });
   }
 
-  async addEmailJob(job: EmailJob): Promise<Bull.Job> {
+  async addEmailJob(job: EmailJobOld): Promise<Bull.Job> {
     logger.info(`📥 Adding email job to queue`, job);
     return this.emailQueue.add(job.data, {
       priority: job.priority,

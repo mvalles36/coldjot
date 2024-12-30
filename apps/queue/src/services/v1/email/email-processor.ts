@@ -3,8 +3,8 @@ import {
   EmailResult,
   SequenceContactStatusEnum,
 } from "@mailjot/types";
-import { EmailJob } from "@mailjot/types";
-import { logger } from "../../lib/log";
+import { EmailJobOld } from "@mailjot/types";
+import { logger } from "@/lib/log";
 import { rateLimiter } from "../rate-limit/rate-limiter";
 import { emailService } from "./email-service";
 import { QueueService } from "../queue/queue-service";
@@ -42,7 +42,7 @@ export class EmailProcessor {
    * Process an email job
    */
   async processEmail(
-    job: EmailJob
+    job: EmailJobOld
   ): Promise<{ success: boolean; error?: string }> {
     const { data } = job;
     logger.info(`📨 Starting to process email job`);
@@ -222,7 +222,7 @@ export class EmailProcessor {
   /**
    * Check for email bounce
    */
-  async checkBounce(job: EmailJob): Promise<{ success: boolean }> {
+  async checkBounce(job: EmailJobOld): Promise<{ success: boolean }> {
     const { data } = job;
     logger.info(`📨 Checking bounce for email: ${data.messageId}`);
 
@@ -332,7 +332,7 @@ export class EmailProcessor {
   // -----------------------------------------
 
   // Helper functions for processEmail
-  private async validateRateLimits(data: EmailJob["data"]) {
+  private async validateRateLimits(data: EmailJobOld["data"]) {
     const { allowed, info } = await rateLimiter.checkRateLimit(
       data.userId,
       data.sequenceId,
@@ -382,7 +382,7 @@ export class EmailProcessor {
   // -----------------------------------------
 
   private async handleSuccessfulEmail(
-    data: EmailJob["data"],
+    data: EmailJobOld["data"],
     result: EmailResult,
     step: SequenceStep
   ) {
@@ -460,8 +460,8 @@ export class EmailProcessor {
 
   private async handleEmailError(
     error: unknown,
-    job: EmailJob,
-    data: EmailJob["data"]
+    job: EmailJobOld,
+    data: EmailJobOld["data"]
   ) {
     // Get contact for logging
     const contact = await prisma.contact.findUnique({
@@ -500,7 +500,7 @@ export class EmailProcessor {
     }
   }
 
-  private async checkThreadEvents(data: EmailJob["data"]): Promise<boolean> {
+  private async checkThreadEvents(data: EmailJobOld["data"]): Promise<boolean> {
     logger.info(
       `🔍 Checking thread events for sequence ${data.sequenceId} and contact ${data.contactId}`
     );

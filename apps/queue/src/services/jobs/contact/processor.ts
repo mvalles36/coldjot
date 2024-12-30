@@ -18,11 +18,20 @@ import {
 } from "@/services/v1/sequence/helper";
 import { CONTACT_PROCESSING_CONFIG } from "@/config";
 import { QUEUE_NAMES } from "@/config/queue/queue";
+import { ServiceManager } from "@/services/service-manager";
 
-export class ContactProcessor extends BaseProcessor<any> {
+interface ContactProcessingJob {
+  type: "CHECK_NEW_CONTACTS";
+}
+
+export class ContactProcessor extends BaseProcessor<ContactProcessingJob> {
   private queueService: QueueService;
   private checkInterval: number = CONTACT_PROCESSING_CONFIG.CHECK_INTERVAL;
   private batchSize: number = CONTACT_PROCESSING_CONFIG.BATCH_SIZE;
+  private readonly SCHEDULER_ID = "contact-processing-scheduler";
+
+  private serviceManager = ServiceManager.getInstance();
+  private jobManager = this.serviceManager.getJobManager();
 
   constructor(queue: Queue) {
     super(queue, QUEUE_NAMES.CONTACT, {
@@ -37,11 +46,42 @@ export class ContactProcessor extends BaseProcessor<any> {
       },
     });
     this.queueService = QueueService.getInstance();
+    this.setupScheduler();
   }
 
-  protected async process(job: Job<any>): Promise<void> {
+  /**
+   * Set up the job scheduler for periodic contact checking
+   */
+  private async setupScheduler(): Promise<void> {
     try {
-      await this.processNewContacts();
+      // Create a job scheduler that runs every checkInterval milliseconds
+      await this.queue.upsertJobScheduler(
+        this.SCHEDULER_ID,
+        { every: this.checkInterval },
+        {
+          // name: "check-new-contacts",
+          // data: { type: "CHECK_NEW_CONTACTS" },
+          opts: {
+            removeOnComplete: true,
+            removeOnFail: true,
+          },
+        }
+      );
+      logger.info(
+        `📅 Contact processing scheduler initialized with ${this.checkInterval}ms interval`
+      );
+    } catch (error) {
+      logger.error("❌ Failed to setup contact processing scheduler:", error);
+      throw error;
+    }
+  }
+
+  protected async process(job: Job<ContactProcessingJob>): Promise<void> {
+    logger.info(`Processing contact job ${job.id}`);
+    try {
+      if (job.data.type === "CHECK_NEW_CONTACTS") {
+        await this.processNewContacts();
+      }
     } catch (error) {
       logger.error(`Failed to process contact job ${job.id}:`, error);
       throw error;
@@ -158,22 +198,18 @@ export class ContactProcessor extends BaseProcessor<any> {
 
       // 6. Create email job
       const emailJob: EmailJob = {
-        id: randomUUID(),
-        type: EmailJobEnum.SEND,
-        priority: 1,
-        data: {
-          sequenceId: sequence.id,
-          contactId: contactDetails.id,
-          stepId: firstStep.id,
-          userId: sequence.userId,
-          to: contactDetails.email,
-          subject: firstStep.subject || "",
-          scheduledTime: sendTime.toISOString(),
-        },
+        sequenceId: sequence.id,
+        contactId: contactDetails.id,
+        stepId: firstStep.id,
+        userId: sequence.userId,
+        to: contactDetails.email,
+        subject: firstStep.subject || "",
+        scheduledTime: sendTime.toISOString(),
       };
 
       // 7. Add to queue
-      await this.queueService.addEmailJob(emailJob);
+      // await this.queueService.addEmailJob(emailJob);
+      await this.jobManager.addEmailJob(emailJob);
 
       logger.info(`📧 Created email job for contact: ${contactDetails.email}`);
 

@@ -29,6 +29,7 @@ import {
 } from "./helper";
 import { QUEUE_NAMES } from "@/config/queue/queue";
 import { BaseProcessor } from "../base-processor";
+import { ServiceManager } from "@/services/service-manager";
 
 // Define our sequence processing types
 interface SequenceWithRelations {
@@ -83,6 +84,9 @@ interface ProcessingJobData {
 export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
   private rateLimitService: RateLimitService;
   private scheduleGenerator: ScheduleGenerator;
+
+  private serviceManager = ServiceManager.getInstance();
+  private jobManager = this.serviceManager.getJobManager();
 
   constructor(queue: Queue) {
     super(queue, QUEUE_NAMES.SEQUENCE, {
@@ -185,8 +189,8 @@ export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
           );
         } catch (error) {
           logger.error(
-            `❌ Error processing contact ${sequenceContact.contact.email}:`,
-            error
+            error,
+            `❌ Error processing contact ${sequenceContact.contact.email}:`
           );
           // Continue with next contact even if one fails
           continue;
@@ -286,19 +290,27 @@ export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
       },
     });
 
-    // Calculate next send time using scheduling service
-    const nextSendTime = this.scheduleGenerator.calculateNextRun(
-      new Date(),
-      nextStep as SequenceStep,
-      sequence.businessHours || getDefaultBusinessHours()
+    logger.info(
+      nextStep,
+      "🚀 ~ SequenceProcessor ~ processContact ~ nextStep:"
     );
+
+    // Calculate next send time using scheduling service
+    let nextSendTime = null;
+    if (nextStep) {
+      nextSendTime = this.scheduleGenerator.calculateNextRun(
+        new Date(),
+        nextStep as SequenceStep,
+        sequence.businessHours || getDefaultBusinessHours()
+      );
+    }
 
     logger.info(
       `📅 Scheduling email for contact: ${sequenceContact.contact.email}`,
       {
         step: currentStepIndex + 1,
         totalSteps: sequence.steps.length,
-        sendTime: nextSendTime.toISOString(),
+        sendTime: nextSendTime?.toISOString() || "N/A",
         subject: currentStep.subject,
       }
     );
@@ -312,46 +324,53 @@ export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
 
     // Create email job
     const emailJob: EmailJob = {
-      id: randomUUID(),
-      type: EmailJobEnum.SEND,
-      priority: 1,
-      data: {
-        sequenceId: sequence.id,
-        contactId: sequenceContact.contact.id,
-        stepId: currentStep.id,
-        userId: data.userId,
-        to: data.testMode
-          ? process.env.TEST_EMAIL || googleAccount.email || ""
-          : sequenceContact.contact.email,
-        subject: subject || "",
-        threadId: sequenceContact.threadId || undefined,
-        testMode: data.testMode || false,
-        scheduledTime: nextSendTime.toISOString(),
-      },
+      sequenceId: sequence.id,
+      contactId: sequenceContact.contact.id,
+      stepId: currentStep.id,
+      userId: data.userId,
+      to: data.testMode
+        ? process.env.TEST_EMAIL || googleAccount.email || ""
+        : sequenceContact.contact.email,
+      subject: subject || "",
+      threadId: sequenceContact.threadId || undefined,
+      testMode: data.testMode || false,
+      scheduledTime: nextSendTime?.toISOString() || "N/A",
     };
 
     // Add email job to queue
     logger.info(
       {
-        jobId: emailJob.id,
         step: currentStepIndex + 1,
         totalSteps: sequence.steps.length,
       },
       `📬 Creating email job`
     );
 
-    await this.queue.add(QUEUE_NAMES.EMAIL, emailJob.data, {
-      jobId: emailJob.id,
-      priority: emailJob.priority,
-      delay: nextSendTime.getTime() - Date.now(),
-    });
+    // await this.queue.add(QUEUE_NAMES.EMAIL, emailJob.data, {
+    //   jobId: emailJob.id,
+    //   priority: emailJob.priority,
+    //   delay: nextSendTime ? nextSendTime.getTime() - Date.now() : 0,
+    // });
+
+    // await this.queue.add(
+    //   "wall",
+    //   { color: "pink" },
+    //   { delay: 10000, removeOnComplete: false, removeOnFail: false }
+    // );
+
+    logger.info(
+      emailJob,
+      `🚀 ~ SequenceProcessor ~ processContact ~ emailJob:`
+    );
+
+    await this.jobManager.addEmailJob(emailJob);
 
     // Update progress
     await updateSequenceContactProgress(
       sequence.id,
       sequenceContact.contact.id,
       currentStepIndex + 1,
-      nextSendTime
+      nextSendTime || new Date()
     );
 
     // Update contact status

@@ -16,6 +16,19 @@ export interface ProcessingJob {
 }
 
 export interface EmailJob {
+  sequenceId: string;
+  contactId: string;
+  stepId: string;
+  userId: string;
+  messageId?: string;
+  testMode?: boolean;
+  scheduledTime?: string;
+  to: string;
+  subject?: string;
+  threadId?: string;
+}
+
+export interface EmailJobOld {
   id: string;
   type: EmailJobEnum;
   priority: number;
@@ -26,7 +39,7 @@ export interface EmailJob {
     userId: string;
     messageId?: string;
     testMode?: boolean;
-    scheduledTime: string;
+    scheduledTime?: string;
     to: string;
     subject?: string;
     threadId?: string;

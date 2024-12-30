@@ -160,7 +160,7 @@ export class ScheduleGenerator implements ScheduleGenerator {
 
       return finalUtc.toJSDate();
     } catch (error) {
-      logger.error("❌ Error calculating next run:", error);
+      logger.error(error, "❌ Error calculating next run:");
       return DateTime.fromJSDate(currentTime, { zone: "utc" })
         .plus({ hours: 1 })
         .toJSDate();

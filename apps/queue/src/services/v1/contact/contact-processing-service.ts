@@ -14,7 +14,7 @@ import {
   getDefaultBusinessHours,
   updateSequenceContactStatus,
 } from "../sequence/helper";
-import type { EmailJob } from "@mailjot/types";
+import type { EmailJob, EmailJobOld } from "@mailjot/types";
 import { CONTACT_PROCESSING_CONFIG } from "@/config";
 
 export class ContactProcessingService {
@@ -172,7 +172,7 @@ export class ContactProcessingService {
       }
 
       // 6. Create email job
-      const emailJob: EmailJob = {
+      const emailJob: EmailJobOld = {
         id: randomUUID(),
         type: EmailJobEnum.SEND,
         priority: 1,

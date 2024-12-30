@@ -8,6 +8,7 @@ import {
   StepPriority,
   StepTiming,
   type EmailJob,
+  type EmailJobOld,
   type Sequence,
   type SequenceStep,
   type BusinessHours,
@@ -458,7 +459,7 @@ export class EmailSchedulingService {
       }
 
       // 4. Create email job
-      const emailJob: EmailJob = {
+      const emailJob: EmailJobOld = {
         id: randomUUID(),
         type: EmailJobEnum.SEND,
         priority: 1,

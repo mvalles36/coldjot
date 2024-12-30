@@ -1,4 +1,4 @@
-import { Queue } from "bullmq";
+import { Queue, Job } from "bullmq";
 import { logger } from "@/lib/log";
 import { RedisConnection } from "./shared/redis/connection";
 import {
@@ -7,10 +7,12 @@ import {
   DEFAULT_QUEUE_OPTIONS,
   type QueueName,
 } from "@/config/queue/queue";
+import type { ProcessingJob, EmailJob } from "@mailjot/types";
 
 // Core services
 import { MemoryMonitor } from "./core/memory/monitor";
 import { RateLimitService } from "./core/rate-limit/service";
+import { JobManager, createJobManager } from "./jobs/job-manager";
 
 // Import processors directly
 import { BaseProcessor } from "./jobs/base-processor";
@@ -27,6 +29,7 @@ export class ServiceManager {
   private redisConnection: RedisConnection;
   private memoryMonitor: MemoryMonitor | null = null;
   private rateLimitService: RateLimitService | null = null;
+  private jobManager: JobManager;
   private queues: Map<string, Queue>;
   private processors: Map<string, ProcessorType>;
 
@@ -34,6 +37,7 @@ export class ServiceManager {
     this.redisConnection = RedisConnection.getInstance();
     this.queues = new Map();
     this.processors = new Map();
+    this.jobManager = createJobManager(this);
   }
 
   public static getInstance(): ServiceManager {
@@ -198,8 +202,16 @@ export class ServiceManager {
       throw error;
     }
   }
+
+  /**
+   * Get the job manager instance
+   */
+  public getJobManager(): JobManager {
+    return this.jobManager;
+  }
 }
 
+// TODO: Remove this if possible
 // Export factory function
 export const createServiceManager = (): ServiceManager => {
   return ServiceManager.getInstance();

@@ -44,7 +44,8 @@ export class EmailProcessor extends BaseProcessor<EmailJob> {
 
   protected async process(job: Job<EmailJob>): Promise<void> {
     try {
-      const result = await this.processEmail(job.data.data);
+      logger.info(job.data, `📨 Starting to process email job`);
+      const result = await this.processEmail(job.data);
       if (!result.success) {
         throw new Error(result.error || "Failed to process email");
       }
@@ -55,9 +56,9 @@ export class EmailProcessor extends BaseProcessor<EmailJob> {
   }
 
   private async processEmail(
-    data: EmailJob["data"]
+    data: EmailJob
   ): Promise<{ success: boolean; error?: string }> {
-    logger.info(`📨 Starting to process email job`);
+    logger.info(data, `📨 Starting to process email job`);
 
     try {
       // Check if thread has already received a reply or bounce
@@ -206,14 +207,14 @@ export class EmailProcessor extends BaseProcessor<EmailJob> {
           error: error instanceof Error ? error.message : "Unknown error",
           ...data,
         },
-        "❌ Error processing email"
+        "❌ Error processing email - 1"
       );
       await this.handleEmailError(error, data);
       throw error;
     }
   }
 
-  private validateEmailData(data: EmailJob["data"]): void {
+  private validateEmailData(data: EmailJob): void {
     if (!data.to) {
       throw new Error("Email recipient is required");
     }
@@ -228,7 +229,7 @@ export class EmailProcessor extends BaseProcessor<EmailJob> {
     }
   }
 
-  private async validateRateLimits(data: EmailJob["data"]) {
+  private async validateRateLimits(data: EmailJob) {
     const { allowed, info } = await rateLimitService.checkRateLimit(
       data.userId,
       data.sequenceId,
@@ -271,7 +272,7 @@ export class EmailProcessor extends BaseProcessor<EmailJob> {
   }
 
   private async handleSuccessfulEmail(
-    data: EmailJob["data"],
+    data: EmailJob,
     result: EmailResult,
     step: any
   ) {
@@ -309,7 +310,7 @@ export class EmailProcessor extends BaseProcessor<EmailJob> {
     );
   }
 
-  private async handleEmailError(error: unknown, data: EmailJob["data"]) {
+  private async handleEmailError(error: unknown, data: EmailJob) {
     logger.error(
       {
         error: error instanceof Error ? error.message : "Unknown error",
@@ -317,7 +318,7 @@ export class EmailProcessor extends BaseProcessor<EmailJob> {
         sequenceId: data.sequenceId,
         stepId: data.stepId,
       },
-      "❌ Error processing email"
+      "❌ Error processing email - 2"
     );
   }
 
@@ -335,7 +336,7 @@ export class EmailProcessor extends BaseProcessor<EmailJob> {
     }
   }
 
-  private async checkThreadEvents(data: EmailJob["data"]): Promise<boolean> {
+  private async checkThreadEvents(data: EmailJob): Promise<boolean> {
     logger.info(
       `🔍 Checking thread events for sequence ${data.sequenceId} and contact ${data.contactId}`
     );

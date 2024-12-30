@@ -1,6 +1,7 @@
 import {
   ProcessingJob,
   EmailJob,
+  EmailJobOld,
   EmailJobEnum,
   SequenceContactStatusEnum,
 } from "@mailjot/types";
@@ -181,7 +182,7 @@ export class SequenceProcessor {
           : currentStep.subject;
 
         // Create email job
-        const emailJob: EmailJob = {
+        const emailJob: EmailJobOld = {
           id: randomUUID(),
           type: EmailJobEnum.SEND,
           priority: 1,

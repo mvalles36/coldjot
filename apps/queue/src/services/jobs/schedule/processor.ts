@@ -20,6 +20,7 @@ import {
 } from "@mailjot/types";
 import { EMAIL_SCHEDULER_CONFIG } from "@/config";
 import { QUEUE_NAMES } from "@/config/queue/queue";
+import { ServiceManager } from "@/services/service-manager";
 // Define the type for what we actually need from the sequence
 type SequenceWithRelations = {
   id: string;
@@ -51,6 +52,9 @@ export class ScheduleProcessor extends BaseProcessor<any> {
   private queueService: QueueService;
   private checkInterval: number = EMAIL_SCHEDULER_CONFIG.CHECK_INTERVAL;
   private retryDelay: number = EMAIL_SCHEDULER_CONFIG.RETRY_DELAY;
+
+  private serviceManager = ServiceManager.getInstance();
+  private jobManager = this.serviceManager.getJobManager();
 
   constructor(queue: Queue) {
     super(queue, QUEUE_NAMES.EMAIL_SCHEDULE, {
@@ -428,22 +432,17 @@ export class ScheduleProcessor extends BaseProcessor<any> {
 
       // 4. Create email job
       const emailJob: EmailJob = {
-        id: randomUUID(),
-        type: EmailJobEnum.SEND,
-        priority: 1,
-        data: {
-          sequenceId: sequence.id,
-          contactId: contact.id,
-          stepId: currentStep.id,
-          userId: sequence.userId,
-          to: contact.email,
-          subject: subject || currentStep.subject || "",
-          threadId:
-            currentStep.replyToThread && sequenceContact?.threadId
-              ? sequenceContact.threadId
-              : undefined,
-          scheduledTime: nextSendTime.toISOString(),
-        },
+        sequenceId: sequence.id,
+        contactId: contact.id,
+        stepId: currentStep.id,
+        userId: sequence.userId,
+        to: contact.email,
+        subject: subject || currentStep.subject || "",
+        threadId:
+          currentStep.replyToThread && sequenceContact?.threadId
+            ? sequenceContact.threadId
+            : undefined,
+        scheduledTime: nextSendTime.toISOString(),
       };
 
       logger.info("📧 Created email job with thread details");
@@ -451,19 +450,15 @@ export class ScheduleProcessor extends BaseProcessor<any> {
       // 5. Add to queue
       logger.debug(
         {
-          jobId: emailJob.id,
-          type: emailJob.type,
-          priority: emailJob.priority,
-          scheduledTime: emailJob.data.scheduledTime,
+          scheduledTime: emailJob.scheduledTime,
         },
         "📤 Adding email job to queue"
       );
 
-      await this.queueService.addEmailJob(emailJob);
+      await this.jobManager.addEmailJob(emailJob);
 
       logger.info(
         {
-          jobId: emailJob.id,
           scheduledTime: nextSendTime.toISOString(),
           to: contact.email,
           sequenceId: sequence.id,
