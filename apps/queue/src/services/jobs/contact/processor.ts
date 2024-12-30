@@ -46,13 +46,13 @@ export class ContactProcessor extends BaseProcessor<ContactProcessingJob> {
       },
     });
     this.queueService = QueueService.getInstance();
-    this.setupScheduler();
+    this.setupContactProcessingScheduler();
   }
 
   /**
    * Set up the job scheduler for periodic contact checking
    */
-  private async setupScheduler(): Promise<void> {
+  private async setupContactProcessingScheduler(): Promise<void> {
     try {
       // Create a job scheduler that runs every checkInterval milliseconds
       await this.queue.upsertJobScheduler(

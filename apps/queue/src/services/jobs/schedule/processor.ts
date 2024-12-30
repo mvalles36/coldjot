@@ -49,9 +49,9 @@ interface SequenceContactWithRelations {
 }
 
 export class ScheduleProcessor extends BaseProcessor<any> {
-  private queueService: QueueService;
   private checkInterval: number = EMAIL_SCHEDULER_CONFIG.CHECK_INTERVAL;
   private retryDelay: number = EMAIL_SCHEDULER_CONFIG.RETRY_DELAY;
+  private readonly SCHEDULER_ID = "email-sending-scheduler";
 
   private serviceManager = ServiceManager.getInstance();
   private jobManager = this.serviceManager.getJobManager();
@@ -68,11 +68,39 @@ export class ScheduleProcessor extends BaseProcessor<any> {
         enableReadyCheck: false,
       },
     });
-    this.queueService = QueueService.getInstance();
+
     logger.info("📧 Email Scheduling Processor initialized", {
       checkInterval: this.checkInterval,
       retryDelay: this.retryDelay,
     });
+
+    this.setupEmailSendingScheduler();
+  }
+
+  /**
+   * Set up the job scheduler for periodic email checking
+   */
+  private async setupEmailSendingScheduler(): Promise<void> {
+    try {
+      // Create a job scheduler that runs every checkInterval milliseconds
+      await this.queue.upsertJobScheduler(
+        this.SCHEDULER_ID,
+        { every: this.checkInterval },
+        {
+          name: "check-scheduled-emails",
+          opts: {
+            removeOnComplete: true,
+            removeOnFail: true,
+          },
+        }
+      );
+      logger.info(
+        `📅 Email scheduling scheduler initialized with ${this.checkInterval}ms interval`
+      );
+    } catch (error) {
+      logger.error("❌ Failed to setup email scheduling scheduler:", error);
+      throw error;
+    }
   }
 
   protected async process(job: Job<any>): Promise<void> {
