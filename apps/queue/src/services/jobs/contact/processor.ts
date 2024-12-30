@@ -79,9 +79,9 @@ export class ContactProcessor extends BaseProcessor<ContactProcessingJob> {
   protected async process(job: Job<ContactProcessingJob>): Promise<void> {
     logger.info(`Processing contact job ${job.id}`);
     try {
-      if (job.data.type === "CHECK_NEW_CONTACTS") {
-        await this.processNewContacts();
-      }
+      // if (job.data.type === "CHECK_NEW_CONTACTS") {
+      await this.processNewContacts();
+      // }
     } catch (error) {
       logger.error(`Failed to process contact job ${job.id}:`, error);
       throw error;
@@ -146,10 +146,13 @@ export class ContactProcessor extends BaseProcessor<ContactProcessingJob> {
   private async processContact(contact: any): Promise<void> {
     const { sequence, contact: contactDetails } = contact;
 
-    logger.info(`👤 Processing contact: ${contactDetails.email}`, {
-      sequenceId: sequence.id,
-      contactId: contactDetails.id,
-    });
+    logger.info(
+      {
+        sequenceId: sequence.id,
+        contactId: contactDetails.id,
+      },
+      `👤 Processing contact: ${contactDetails.email}`
+    );
 
     try {
       // 1. Check rate limits
@@ -167,7 +170,7 @@ export class ContactProcessor extends BaseProcessor<ContactProcessingJob> {
       // 2. Update status to processing
       await updateSequenceContactStatus(
         sequence.id,
-        contact.id,
+        contact.contact.id,
         SequenceContactStatusEnum.PENDING
       );
 
@@ -185,6 +188,7 @@ export class ContactProcessor extends BaseProcessor<ContactProcessingJob> {
         );
       }
 
+      // TODO: Do we really need this to check time here insteaf of while sending emails?
       // 5. Calculate send time using scheduling service
       const sendTime = await schedulingService.calculateNextRun(
         new Date(),
@@ -216,7 +220,7 @@ export class ContactProcessor extends BaseProcessor<ContactProcessingJob> {
       // 8. Update contact status and progress
       await updateSequenceContactStatus(
         sequence.id,
-        contact.id,
+        contact.contact.id,
         SequenceContactStatusEnum.SCHEDULED,
         {
           currentStep: 1,
@@ -240,7 +244,7 @@ export class ContactProcessor extends BaseProcessor<ContactProcessingJob> {
       // Update status to failed
       await updateSequenceContactStatus(
         sequence.id,
-        contact.id,
+        contact.contact.id,
         SequenceContactStatusEnum.FAILED
       );
 

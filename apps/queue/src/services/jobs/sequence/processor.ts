@@ -334,7 +334,7 @@ export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
       subject: subject || "",
       threadId: sequenceContact.threadId || undefined,
       testMode: data.testMode || false,
-      scheduledTime: nextSendTime?.toISOString() || "N/A",
+      scheduledTime: nextSendTime?.toISOString(),
     };
 
     // Add email job to queue

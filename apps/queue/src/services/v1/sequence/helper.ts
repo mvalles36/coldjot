@@ -75,6 +75,11 @@ export async function updateSequenceContactStatus(
       `Updating sequence contact status: ${contactId} to ${status} for sequence: ${sequenceId}`
     );
 
+    logger.info({
+      status,
+      data,
+    });
+
     const date = new Date();
     const completedAt =
       status === SequenceContactStatusEnum.COMPLETED ? new Date() : null;
