@@ -802,54 +802,6 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
     return now.diff(created, "days").days;
   }
 
-  private getCheckFrequency(threadAge: number): {
-    seconds?: number;
-    minutes?: number;
-    hours?: number;
-    days?: number;
-  } {
-    const env = this.getEnvironmentConfig();
-    const frequencies = CHECK_FREQUENCIES[env];
-
-    if (this.isRecentThread(threadAge, env)) {
-      return frequencies.RECENT;
-    } else if (this.isMediumAgedThread(threadAge, env)) {
-      return frequencies.MEDIUM;
-    } else if (this.isOldThread(threadAge, env)) {
-      return frequencies.OLD;
-    } else {
-      return frequencies.VERY_OLD;
-    }
-  }
-
-  private isRecentThread(age: number, env: Environment): boolean {
-    const threshold = this.calculateTimeInMilliseconds(
-      AGE_THRESHOLDS[env].RECENT
-    );
-    const ageInMs = this.calculateTimeInMilliseconds(
-      env === "PRODUCTION" ? { days: age } : { minutes: age }
-    );
-    return ageInMs <= threshold;
-  }
-
-  private isMediumAgedThread(age: number, env: Environment): boolean {
-    const threshold = this.calculateTimeInMilliseconds(
-      AGE_THRESHOLDS[env].MEDIUM
-    );
-    const ageInMs = this.calculateTimeInMilliseconds(
-      env === "PRODUCTION" ? { days: age } : { minutes: age }
-    );
-    return ageInMs <= threshold;
-  }
-
-  private isOldThread(age: number, env: Environment): boolean {
-    const threshold = this.calculateTimeInMilliseconds(AGE_THRESHOLDS[env].OLD);
-    const ageInMs = this.calculateTimeInMilliseconds(
-      env === "PRODUCTION" ? { days: age } : { minutes: age }
-    );
-    return ageInMs <= threshold;
-  }
-
   /**
    * Update thread metadata after checking
    */

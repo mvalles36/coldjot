@@ -372,59 +372,6 @@ async function processMessageForReplies(
 // -----------------------------------------
 // -----------------------------------------
 
-async function processMessageForBounces(
-  gmail: Gmail,
-  messageId: string,
-  userId: string
-) {
-  try {
-    const messageDetails = await getMessageHeaders(gmail, messageId, [
-      "From",
-      "To",
-      "Subject",
-      "X-Failed-Recipients",
-      "Content-Type",
-      "Message-ID",
-    ]);
-
-    const messageData = messageDetails.data;
-    const headers = messageData.payload?.headers || [];
-    const labelIds = messageData.labelIds || [];
-    const threadId = messageData.threadId;
-
-    if (!isBounceMessage(headers, labelIds)) {
-      return;
-    }
-
-    console.log("📨 Potential bounced email detected:", messageId);
-
-    const emailThread = await findEmailThread(threadId!, userId);
-    if (!emailThread) {
-      return;
-    }
-
-    if (await hasBounceEvent(emailThread)) {
-      return;
-    }
-
-    const trackingEvent = await findTrackingEvent(
-      emailThread.firstMessageId,
-      userId
-    );
-    if (!trackingEvent) {
-      return;
-    }
-
-    await processBounceEvent(trackingEvent, emailThread, messageId, headers);
-  } catch (error) {
-    console.error("Error processing message for bounces:", error);
-  }
-}
-
-// -----------------------------------------
-// -----------------------------------------
-// -----------------------------------------
-
 const getMessageHeaders = async (
   gmail: Gmail,
   messageId: string,
@@ -506,31 +453,6 @@ const processBounceEvent = async (
   const failedRecipient = headers.find(
     (h) => h.name === "X-Failed-Recipients"
   )?.value;
-
-  // TODO: fix this
-  // await trackEmailEvent(
-  //   trackingEvent.hash,
-  //   "bounced",
-  //   {
-  //     bounceReason: failedRecipient!,
-  //     messageId,
-  //     threadId: emailThread.threadId,
-  //   },
-  //   {
-  //     email: emailThread.contact.email,
-  //     userId: emailThread.userId,
-  //     sequenceId: emailThread.sequenceId,
-  //     stepId: trackingEvent.stepId,
-  //     contactId: emailThread.contactId,
-  //   }
-  // );
-
-  // TODO: fix this
-  // await updateSequenceStats(
-  //   emailThread.sequenceId,
-  //   "bounced",
-  //   emailThread.contactId
-  // );
 
   console.log(
     "✅ Tracked first bounce event for sequence:",
@@ -673,33 +595,6 @@ const processReplyEvent = async (
   emailThread: EmailThread
 ) => {
   const snippet = messageDetails.data.snippet || undefined;
-
-  // TODO: fix this
-  // await trackEmailEvent(
-  //   trackingEvent.hash,
-  //   "replied",
-  //   {
-  //     replyMessageId: messageId,
-  //     threadId,
-  //     from: fromHeader,
-  //     ...(snippet && { snippet }),
-  //     timestamp: new Date().toISOString(),
-  //   },
-  //   {
-  //     email: emailThread.contact.email,
-  //     userId: emailThread.userId,
-  //     sequenceId: emailThread.sequenceId,
-  //     stepId: trackingEvent.stepId,
-  //     contactId: emailThread.contactId,
-  //   }
-  // );
-
-  // TODO: fix this
-  // await updateSequenceStats(
-  //   emailThread.sequenceId,
-  //   "replied",
-  //   emailThread.contactId
-  // );
 
   console.log("✅ Tracked reply event for sequence:", emailThread.sequenceId);
 };
