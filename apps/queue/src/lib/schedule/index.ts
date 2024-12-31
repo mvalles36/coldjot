@@ -10,6 +10,9 @@ import {
   StepTypeEnum,
 } from "@mailjot/types";
 import { logger } from "@/lib/log";
+import { prisma } from "@mailjot/database";
+
+// const prisma = new PrismaClient();
 
 // Development mode flag
 const isDevelopment = process.env.NODE_ENV === "development" ? true : false;
@@ -23,7 +26,7 @@ export interface ScheduleGenerator {
     businessHours?: BusinessHours,
     rateLimits?: RateLimits,
     isDemoMode?: boolean
-  ): Date;
+  ): Promise<Date>;
 
   distributeLoad(
     jobs: ProcessingJob[],
@@ -36,6 +39,10 @@ export class ScheduleGenerator implements ScheduleGenerator {
   private static instance: ScheduleGenerator;
   private readonly MIN_DELAY = 1; // Minimum delay in minutes
   private readonly DEFAULT_DELAY = 30; // Default delay in minutes
+  private readonly DISTRIBUTION_WINDOW = 15; // Minutes to distribute load within
+  private readonly MAX_EMAILS_PER_MINUTE = 50; // Maximum emails per minute
+  private readonly MAX_EMAILS_PER_HOUR = 1000; // Maximum emails per hour
+
   private defaultRateLimits: RateLimits = {
     perMinute: 60,
     perHour: 500,
@@ -66,13 +73,16 @@ export class ScheduleGenerator implements ScheduleGenerator {
     return new Date();
   }
 
-  calculateNextRun(
+  /**
+   * Calculate next run time with rate limit consideration
+   */
+  async calculateNextRun(
     currentTime: Date,
     step: SequenceStep,
     businessHours?: BusinessHours,
     rateLimits: RateLimits = this.defaultRateLimits,
     isDemoMode: boolean = false
-  ): Date {
+  ): Promise<Date> {
     try {
       // Always use the provided current time
       const effectiveCurrentTime = currentTime;
@@ -127,19 +137,44 @@ export class ScheduleGenerator implements ScheduleGenerator {
         "🌐 Converting to business hours timezone"
       );
 
-      const localTarget = this.adjustToBusinessHours(
+      let localTarget = this.adjustToBusinessHours(
         targetTime.setZone(businessHours.timezone),
         businessHours
       );
 
-      logger.info(
-        {
-          beforeAdjustment: targetTime.setZone(businessHours.timezone).toISO(),
-          afterAdjustment: localTarget.toISO(),
-          timezone: businessHours.timezone,
-        },
-        "⚡ Adjusted to business hours"
-      );
+      // Check rate limits and adjust if needed
+      let attempts = 0;
+      const maxAttempts = 5;
+
+      while (attempts < maxAttempts) {
+        const { minuteAvailable, hourAvailable } =
+          await this.checkTimeSlotAvailability(localTarget);
+
+        if (minuteAvailable && hourAvailable) {
+          break;
+        }
+
+        // Adjust time based on availability
+        if (!minuteAvailable) {
+          const distributionMinutes = Math.floor(
+            Math.random() * this.DISTRIBUTION_WINDOW
+          );
+          localTarget = localTarget.plus({ minutes: distributionMinutes });
+        }
+
+        if (!hourAvailable) {
+          localTarget = localTarget.plus({ hours: 1 });
+          const distributionMinutes = Math.floor(Math.random() * 60);
+          localTarget = localTarget.set({ minute: distributionMinutes });
+        }
+
+        // If we've moved outside business hours, find next business day
+        if (!this.isValidBusinessTime(localTarget, businessHours)) {
+          localTarget = this.nextBusinessStart(localTarget, businessHours);
+        }
+
+        attempts++;
+      }
 
       // Convert back to UTC
       const finalUtc = localTarget.toUTC();
@@ -149,6 +184,7 @@ export class ScheduleGenerator implements ScheduleGenerator {
           originalTime: effectiveCurrentTime.toISOString(),
           finalTimeUTC: finalUtc.toISO(),
           totalDelayMinutes: finalUtc.diff(utcNow, "minutes").minutes,
+          attempts,
           businessHours: {
             start: businessHours.workHoursStart,
             end: businessHours.workHoursEnd,
@@ -383,25 +419,25 @@ export class ScheduleGenerator implements ScheduleGenerator {
     const [startHour, startMinute] = workHoursStart.split(":").map(Number);
     const [endHour, endMinute] = workHoursEnd.split(":").map(Number);
 
-    let adjusted = date;
+    let result = date;
     let iteration = 0;
     const maxIterations = 14;
 
     while (
-      !this.isValidBusinessTime(adjusted, businessHours) &&
+      !this.isValidBusinessTime(result, businessHours) &&
       iteration < maxIterations
     ) {
       iteration++;
       logger.debug(`🔄 Adjustment iteration ${iteration}`, {
-        currentDateTime: adjusted.toISO(),
+        currentDateTime: result.toISO(),
       });
 
-      const dayStart = adjusted.set({
+      const dayStart = result.set({
         hour: startHour,
         minute: startMinute,
         second: 0,
       });
-      const dayEnd = adjusted.set({
+      const dayEnd = result.set({
         hour: endHour,
         minute: endMinute,
         second: 0,
@@ -409,53 +445,90 @@ export class ScheduleGenerator implements ScheduleGenerator {
 
       // If holiday/not a workday or before dayStart
       if (
-        !workDays.includes(adjusted.weekday % 7) ||
+        !workDays.includes(result.weekday % 7) ||
         holidays.some((h) =>
-          adjusted.hasSame(DateTime.fromJSDate(h, { zone: timezone }), "day")
+          result.hasSame(DateTime.fromJSDate(h, { zone: timezone }), "day")
         ) ||
-        adjusted < dayStart
+        result < dayStart
       ) {
         logger.debug("📅 Invalid business day or before hours", {
-          isWorkDay: workDays.includes(adjusted.weekday % 7),
-          isBeforeStart: adjusted < dayStart,
-          currentTime: adjusted.toISO(),
+          isWorkDay: workDays.includes(result.weekday % 7),
+          isBeforeStart: result < dayStart,
+          currentTime: result.toISO(),
           dayStart: dayStart.toISO(),
         });
         // Move to the start of the next valid day
-        adjusted = this.nextBusinessStart(adjusted, businessHours);
+        result = this.nextBusinessStart(result, businessHours);
         continue;
       }
 
       // If after business hours
-      if (adjusted > dayEnd) {
+      if (result > dayEnd) {
         logger.debug("🌙 After business hours", {
-          currentTime: adjusted.toISO(),
+          currentTime: result.toISO(),
           dayEnd: dayEnd.toISO(),
         });
-        adjusted = this.nextBusinessStart(
-          adjusted.plus({ days: 1 }),
+        result = this.nextBusinessStart(
+          result.plus({ days: 1 }),
           businessHours
         );
       }
     }
 
-    if (iteration >= maxIterations) {
-      logger.warn("⚠️ Max iterations reached while adjusting business hours", {
-        initialDate: date.toISO(),
-        finalDate: adjusted.toISO(),
-        iterations: iteration,
-      });
-    }
+    // Add distribution within the business day
+    const businessDayMinutes =
+      endHour * 60 + endMinute - (startHour * 60 + startMinute);
+    const distributionMinutes = Math.floor(Math.random() * businessDayMinutes);
+
+    // Calculate the distributed time
+    result = result
+      .set({
+        hour: startHour,
+        minute: startMinute,
+        second: Math.floor(Math.random() * 60),
+        millisecond: Math.floor(Math.random() * 1000),
+      })
+      .plus({ minutes: distributionMinutes });
 
     logger.info("✅ Business hours adjustment complete", {
       inputDate: date.toISO(),
-      adjustedDate: adjusted.toISO(),
-      iterations: iteration,
+      adjustedDate: result.toISO(),
       timezone: businessHours.timezone,
       demoMode: DEMO_MODE,
     });
 
-    return adjusted;
+    return result;
+  }
+
+  /**
+   * Check if the time slot is available based on rate limits
+   */
+  private async checkTimeSlotAvailability(
+    dateTime: DateTime
+  ): Promise<{ minuteAvailable: boolean; hourAvailable: boolean }> {
+    // Get existing scheduled emails for this minute and hour
+    const existingScheduled = await prisma.sequenceContact.count({
+      where: {
+        nextScheduledAt: {
+          gte: dateTime.minus({ minutes: 1 }).toJSDate(),
+          lt: dateTime.plus({ minutes: 1 }).toJSDate(),
+        },
+      },
+    });
+
+    const existingScheduledHour = await prisma.sequenceContact.count({
+      where: {
+        nextScheduledAt: {
+          gte: dateTime.minus({ hours: 1 }).toJSDate(),
+          lt: dateTime.plus({ hours: 1 }).toJSDate(),
+        },
+      },
+    });
+
+    return {
+      minuteAvailable: existingScheduled < this.MAX_EMAILS_PER_MINUTE,
+      hourAvailable: existingScheduledHour < this.MAX_EMAILS_PER_HOUR,
+    };
   }
 
   private nextBusinessStart(

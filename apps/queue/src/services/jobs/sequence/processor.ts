@@ -298,7 +298,7 @@ export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
     // Calculate next send time using scheduling service
     let nextSendTime = null;
     if (nextStep) {
-      nextSendTime = this.scheduleGenerator.calculateNextRun(
+      nextSendTime = await this.scheduleGenerator.calculateNextRun(
         new Date(),
         nextStep as SequenceStep,
         sequence.businessHours || getDefaultBusinessHours()
