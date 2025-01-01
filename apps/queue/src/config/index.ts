@@ -25,3 +25,10 @@ export * from "./memory/constants";
 
 // Email Scheduling
 export * from "./schedule/email";
+
+// Development mode flag
+export const isDevelopment =
+  process.env.NODE_ENV === "development" ? true : false;
+
+// Demo mode flag - will bypass business hours checks
+export const DEMO_MODE = process.env.DEMO_MODE === "true" ? true : false;

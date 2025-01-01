@@ -11,13 +11,9 @@ import {
 } from "@mailjot/types";
 import { logger } from "@/lib/log";
 import { prisma } from "@mailjot/database";
-
-// const prisma = new PrismaClient();
-
-// Development mode flag
-const isDevelopment = process.env.NODE_ENV === "development" ? true : false;
-// Demo mode flag - will bypass business hours checks
-const DEMO_MODE = process.env.DEMO_MODE === "true" ? true : false;
+import { RATE_LIMIT_CONFIG } from "@/config/rate-limit/constants";
+import { isDevelopment, DEMO_MODE } from "@/config";
+import { DEFAULT_BUSINESS_HOURS } from "@/config/business/hours";
 
 export interface ScheduleGenerator {
   calculateNextRun(
@@ -37,23 +33,8 @@ export interface ScheduleGenerator {
 
 export class ScheduleGenerator implements ScheduleGenerator {
   private static instance: ScheduleGenerator;
-  private readonly MIN_DELAY = 1; // Minimum delay in minutes
-  private readonly DEFAULT_DELAY = 30; // Default delay in minutes
-  private readonly DISTRIBUTION_WINDOW = 15; // Minutes to distribute load within
-  private readonly MAX_EMAILS_PER_MINUTE = 50; // Maximum emails per minute
-  private readonly MAX_EMAILS_PER_HOUR = 1000; // Maximum emails per hour
-
-  private defaultRateLimits: RateLimits = {
-    perMinute: 60,
-    perHour: 500,
-    perDay: 2000,
-    perContact: 3,
-    perSequence: 1000,
-    cooldown: {
-      afterBounce: 24 * 60 * 60 * 1000, // 24 hours
-      afterError: 15 * 60 * 1000, // 15 minutes
-    },
-  };
+  private defaultRateLimits: RateLimits = RATE_LIMIT_CONFIG.DEFAULT_LIMITS;
+  private defaultBusinessHours: BusinessHours = DEFAULT_BUSINESS_HOURS;
 
   private constructor() {
     logger.info("🕒 Initializing SchedulingService");
@@ -73,13 +54,14 @@ export class ScheduleGenerator implements ScheduleGenerator {
     return new Date();
   }
 
+  // TODO: Add rate limit consideration
   /**
    * Calculate next run time with rate limit consideration
    */
   async calculateNextRun(
     currentTime: Date,
     step: SequenceStep,
-    businessHours?: BusinessHours,
+    businessHours: BusinessHours = this.defaultBusinessHours,
     rateLimits: RateLimits = this.defaultRateLimits,
     isDemoMode: boolean = false
   ): Promise<Date> {
@@ -98,7 +80,7 @@ export class ScheduleGenerator implements ScheduleGenerator {
 - Delay Unit: ${step.delayUnit || "N/A"}
 - Demo Mode: ${isDemoMode}
 - Has Business Hours: ${!!businessHours}
-- Business Hours Timezone: ${businessHours?.timezone || "N/A"}
+- Business Hours Timezone: ${businessHours.timezone}
 - Development Mode: ${isDevelopment}
 ---`
       );
@@ -181,7 +163,7 @@ export class ScheduleGenerator implements ScheduleGenerator {
         // Adjust time based on availability
         if (!minuteAvailable) {
           const distributionMinutes = Math.floor(
-            Math.random() * this.DISTRIBUTION_WINDOW
+            Math.random() * RATE_LIMIT_CONFIG.SCHEDULING.DISTRIBUTION_WINDOW
           );
           localTarget = localTarget.plus({ minutes: distributionMinutes });
           logger.info(
@@ -321,7 +303,7 @@ export class ScheduleGenerator implements ScheduleGenerator {
     switch (step.stepType.toUpperCase()) {
       case StepTypeEnum.WAIT:
         if (!step.delayAmount || !step.delayUnit) {
-          delay = this.DEFAULT_DELAY;
+          delay = RATE_LIMIT_CONFIG.SCHEDULING.DEFAULT_DELAY;
           logger.debug("Using default delay for WAIT step", { delay });
         } else {
           delay = this.convertToMinutes(step.delayAmount, step.delayUnit);
@@ -345,7 +327,7 @@ export class ScheduleGenerator implements ScheduleGenerator {
             specifiedDelay: step.delayAmount,
           });
         } else {
-          delay = this.DEFAULT_DELAY;
+          delay = RATE_LIMIT_CONFIG.SCHEDULING.DEFAULT_DELAY;
           logger.debug("⚠️ No timing specified, using default delay", {
             delay,
           });
@@ -353,13 +335,13 @@ export class ScheduleGenerator implements ScheduleGenerator {
         break;
 
       default:
-        delay = this.DEFAULT_DELAY;
+        delay = RATE_LIMIT_CONFIG.SCHEDULING.DEFAULT_DELAY;
         logger.debug("⚠️ Unknown step type, using default delay", { delay });
     }
 
-    // Only apply minimum delay if it's more than 30 minutes
-    if (delay > this.DEFAULT_DELAY) {
-      delay = Math.max(delay, this.DEFAULT_DELAY);
+    // Only apply minimum delay if it's more than DEFAULT_DELAY
+    if (delay > RATE_LIMIT_CONFIG.SCHEDULING.DEFAULT_DELAY) {
+      delay = Math.max(delay, RATE_LIMIT_CONFIG.SCHEDULING.MIN_DELAY);
       logger.debug("📊 Applied minimum delay threshold", {
         finalDelay: delay,
         reason: "Delay > 30 minutes",
@@ -597,8 +579,11 @@ export class ScheduleGenerator implements ScheduleGenerator {
     });
 
     return {
-      minuteAvailable: existingScheduled < this.MAX_EMAILS_PER_MINUTE,
-      hourAvailable: existingScheduledHour < this.MAX_EMAILS_PER_HOUR,
+      minuteAvailable:
+        existingScheduled < RATE_LIMIT_CONFIG.SCHEDULING.MAX_EMAILS_PER_MINUTE,
+      hourAvailable:
+        existingScheduledHour <
+        RATE_LIMIT_CONFIG.SCHEDULING.MAX_EMAILS_PER_HOUR,
     };
   }
 
