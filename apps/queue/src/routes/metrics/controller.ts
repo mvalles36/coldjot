@@ -1,11 +1,11 @@
 import { Request, Response } from "express";
-import { QueueService } from "@/services/v1/queue/queue-service";
-import { MonitoringService } from "@/services/v1/monitor/monitoring-service";
+import { ServiceManager } from "@/services/service-manager";
+import { MonitoringService } from "@/services/monitor/service";
 import { logger } from "@/lib/log";
 
 // Initialize services
-const queueService = QueueService.getInstance();
-const monitoringService = new MonitoringService(queueService);
+const serviceManager = ServiceManager.getInstance();
+const monitoringService = new MonitoringService(serviceManager);
 
 export async function getSystemMetrics(req: Request, res: Response) {
   try {

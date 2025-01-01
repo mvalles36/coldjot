@@ -88,53 +88,67 @@ export class ScheduleGenerator implements ScheduleGenerator {
       const effectiveCurrentTime = currentTime;
 
       logger.info(
-        {
-          currentTime: effectiveCurrentTime.toISOString(),
-          stepType: step.stepType,
-          timing: step.timing,
-          delayAmount: step.delayAmount,
-          delayUnit: step.delayUnit,
-          isDemoMode,
-          hasBusinessHours: !!businessHours,
-          businessHoursTimezone: businessHours?.timezone,
-          isDevelopment,
-        },
-        "⏰ Starting next run calculation"
+        `
+---
+🔄 Starting Next Run Calculation
+- Current Time: ${effectiveCurrentTime.toISOString()}
+- Step Type: ${step.stepType}
+- Timing: ${step.timing}
+- Delay Amount: ${step.delayAmount || "N/A"}
+- Delay Unit: ${step.delayUnit || "N/A"}
+- Demo Mode: ${isDemoMode}
+- Has Business Hours: ${!!businessHours}
+- Business Hours Timezone: ${businessHours?.timezone || "N/A"}
+- Development Mode: ${isDevelopment}
+---`
       );
 
       const baseDelayMinutes = this.calculateBaseDelay(step, isDemoMode);
       logger.info(
-        {
-          baseDelayMinutes,
-          inHours: baseDelayMinutes / 60,
-        },
-        "📊 Base delay calculated"
+        `
+---
+📊 Base Delay Calculation
+- Base Delay (minutes): ${baseDelayMinutes}
+- Base Delay (hours): ${(baseDelayMinutes / 60).toFixed(2)}
+---`
       );
 
       const utcNow = DateTime.fromJSDate(effectiveCurrentTime, { zone: "utc" });
       let targetTime = utcNow.plus({ minutes: baseDelayMinutes });
 
       logger.info(
-        {
-          utcNow: utcNow.toISO(),
-          targetTime: targetTime.toISO(),
-          addedMinutes: baseDelayMinutes,
-        },
-        "🎯 Initial target time calculated"
+        `
+---
+🎯 Initial Target Time
+- UTC Now: ${utcNow.toISO()}
+- Target Time: ${targetTime.toISO()}
+- Added Minutes: ${baseDelayMinutes}
+- Time Difference: ${targetTime.diff(utcNow).toHuman()}
+---`
       );
 
       if (!businessHours) {
-        logger.info("⏭️ No business hours defined, returning UTC target time");
+        logger.info(
+          `
+---
+⏭️ No Business Hours Defined
+- Returning UTC Target Time: ${targetTime.toISO()}
+- No Business Hours Adjustments Needed
+---`
+        );
         return targetTime.toJSDate();
       }
 
       // With business hours: Convert to local timezone and adjust
       logger.info(
-        {
-          fromUTC: targetTime.toISO(),
-          toTimezone: businessHours.timezone,
-        },
-        "🌐 Converting to business hours timezone"
+        `
+---
+🌐 Converting to Business Hours Timezone
+- From UTC: ${targetTime.toISO()}
+- To Timezone: ${businessHours.timezone}
+- Business Hours: ${businessHours.workHoursStart} - ${businessHours.workHoursEnd}
+- Work Days: ${businessHours.workDays.join(", ")}
+---`
       );
 
       let localTarget = this.adjustToBusinessHours(
@@ -154,23 +168,61 @@ export class ScheduleGenerator implements ScheduleGenerator {
           break;
         }
 
+        logger.info(
+          `
+---
+⚖️ Rate Limit Adjustment (Attempt ${attempts + 1})
+- Minute Available: ${minuteAvailable}
+- Hour Available: ${hourAvailable}
+- Current Time: ${localTarget.toISO()}
+---`
+        );
+
         // Adjust time based on availability
         if (!minuteAvailable) {
           const distributionMinutes = Math.floor(
             Math.random() * this.DISTRIBUTION_WINDOW
           );
           localTarget = localTarget.plus({ minutes: distributionMinutes });
+          logger.info(
+            `
+---
+⏱️ Minute Rate Limit Adjustment
+- Added Minutes: ${distributionMinutes}
+- New Target: ${localTarget.toISO()}
+---`
+          );
         }
 
         if (!hourAvailable) {
           localTarget = localTarget.plus({ hours: 1 });
           const distributionMinutes = Math.floor(Math.random() * 60);
           localTarget = localTarget.set({ minute: distributionMinutes });
+          logger.info(
+            `
+---
+⏰ Hour Rate Limit Adjustment
+- Added Hours: 1
+- Random Minutes: ${distributionMinutes}
+- New Target: ${localTarget.toISO()}
+---`
+          );
         }
 
         // If we've moved outside business hours, find next business day
         if (!this.isValidBusinessTime(localTarget, businessHours)) {
+          const oldTarget = localTarget;
           localTarget = this.nextBusinessStart(localTarget, businessHours);
+          logger.info(
+            `
+---
+📅 Business Hours Adjustment
+- Outside Business Hours Detected
+- Old Target: ${oldTarget.toISO()}
+- New Target: ${localTarget.toISO()}
+- Adjustment: ${localTarget.diff(oldTarget).toHuman()}
+---`
+          );
         }
 
         attempts++;
@@ -180,23 +232,30 @@ export class ScheduleGenerator implements ScheduleGenerator {
       const finalUtc = localTarget.toUTC();
 
       logger.info(
-        {
-          originalTime: effectiveCurrentTime.toISOString(),
-          finalTimeUTC: finalUtc.toISO(),
-          totalDelayMinutes: finalUtc.diff(utcNow, "minutes").minutes,
-          attempts,
-          businessHours: {
-            start: businessHours.workHoursStart,
-            end: businessHours.workHoursEnd,
-            timezone: businessHours.timezone,
-          },
-        },
-        "✅ Final calculation complete"
+        `
+---
+✅ Final Calculation Complete
+- Original Time: ${effectiveCurrentTime.toISOString()}
+- Final Time (UTC): ${finalUtc.toISO()}
+- Total Delay: ${finalUtc.diff(utcNow, ["hours", "minutes"]).toHuman()}
+- Business Hours:
+  • Start: ${businessHours.workHoursStart}
+  • End: ${businessHours.workHoursEnd}
+  • Timezone: ${businessHours.timezone}
+- Rate Limit Attempts: ${attempts}
+---`
       );
 
       return finalUtc.toJSDate();
     } catch (error) {
-      logger.error(error, "❌ Error calculating next run:");
+      logger.error(
+        `
+---
+❌ Error Calculating Next Run
+- Error: ${error instanceof Error ? error.message : "Unknown error"}
+- Fallback: Adding 1 hour to current time
+---`
+      );
       return DateTime.fromJSDate(currentTime, { zone: "utc" })
         .plus({ hours: 1 })
         .toJSDate();
@@ -423,6 +482,14 @@ export class ScheduleGenerator implements ScheduleGenerator {
     let iteration = 0;
     const maxIterations = 14;
 
+    // First check if the current time is already valid
+    if (this.isValidBusinessTime(result, businessHours)) {
+      logger.debug("✅ Time is already within business hours", {
+        time: result.toISO(),
+      });
+      return result;
+    }
+
     while (
       !this.isValidBusinessTime(result, businessHours) &&
       iteration < maxIterations
@@ -475,20 +542,24 @@ export class ScheduleGenerator implements ScheduleGenerator {
       }
     }
 
-    // Add distribution within the business day
-    const businessDayMinutes =
-      endHour * 60 + endMinute - (startHour * 60 + startMinute);
-    const distributionMinutes = Math.floor(Math.random() * businessDayMinutes);
+    // Add distribution within the business day ONLY if we had to adjust the time
+    if (iteration > 0) {
+      const businessDayMinutes =
+        endHour * 60 + endMinute - (startHour * 60 + startMinute);
+      const distributionMinutes = Math.floor(
+        Math.random() * businessDayMinutes
+      );
 
-    // Calculate the distributed time
-    result = result
-      .set({
-        hour: startHour,
-        minute: startMinute,
-        second: Math.floor(Math.random() * 60),
-        millisecond: Math.floor(Math.random() * 1000),
-      })
-      .plus({ minutes: distributionMinutes });
+      // Calculate the distributed time
+      result = result
+        .set({
+          hour: startHour,
+          minute: startMinute,
+          second: Math.floor(Math.random() * 60),
+          millisecond: Math.floor(Math.random() * 1000),
+        })
+        .plus({ minutes: distributionMinutes });
+    }
 
     logger.info("✅ Business hours adjustment complete", {
       inputDate: date.toISO(),

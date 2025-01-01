@@ -1,0 +1,144 @@
+@mailjot/queue:dev: INFO (Demo): index.ts --------------- 🎮 Sequence
+@mailjot/queue:dev:     id: "cm4wsahq7000a12u1gs9w3665"
+@mailjot/queue:dev:     accessLevel: "team"
+@mailjot/queue:dev:     scheduleType: "business"
+@mailjot/queue:dev:     status: "active"
+@mailjot/queue:dev:     testMode: false
+@mailjot/queue:dev:     userId: "cm4wsa3t5000212u1pwp54fox"
+@mailjot/queue:dev:     createdAt: "2024-12-20T13:26:15.871Z"
+@mailjot/queue:dev:     updatedAt: "2025-01-01T08:52:17.435Z"
+@mailjot/queue:dev:     emailListId: null
+@mailjot/queue:dev:     steps: [
+@mailjot/queue:dev:       {
+@mailjot/queue:dev:         "id": "cm4wsaqdf000c12u129mhhd77",
+@mailjot/queue:dev:         "sequenceId": "cm4wsahq7000a12u1gs9w3665",
+@mailjot/queue:dev:         "stepType": "manual_email",
+@mailjot/queue:dev:         "priority": "medium",
+@mailjot/queue:dev:         "timing": "immediate",
+@mailjot/queue:dev:         "delayAmount": null,
+@mailjot/queue:dev:         "delayUnit": null,
+@mailjot/queue:dev:         "subject": "Demo",
+@mailjot/queue:dev:         "content": "<p>Demo</p>",
+@mailjot/queue:dev:         "includeSignature": true,
+@mailjot/queue:dev:         "note": "",
+@mailjot/queue:dev:         "order": 0,
+@mailjot/queue:dev:         "previousStepId": null,
+@mailjot/queue:dev:         "replyToThread": false,
+@mailjot/queue:dev:         "createdAt": "2024-12-20T13:26:27.075Z",
+@mailjot/queue:dev:         "updatedAt": "2024-12-20T13:26:27.075Z",
+@mailjot/queue:dev:         "templateId": null
+@mailjot/queue:dev:       },
+@mailjot/queue:dev:       {
+@mailjot/queue:dev:         "id": "cm5asb4fu0001u7r0eutga7dt",
+@mailjot/queue:dev:         "sequenceId": "cm4wsahq7000a12u1gs9w3665",
+@mailjot/queue:dev:         "stepType": "manual_email",
+@mailjot/queue:dev:         "priority": "medium",
+@mailjot/queue:dev:         "timing": "delay",
+@mailjot/queue:dev:         "delayAmount": 30,
+@mailjot/queue:dev:         "delayUnit": "minutes",
+@mailjot/queue:dev:         "subject": "",
+@mailjot/queue:dev:         "content": "<p>demo 2</p>",
+@mailjot/queue:dev:         "includeSignature": true,
+@mailjot/queue:dev:         "note": "",
+@mailjot/queue:dev:         "order": 1,
+@mailjot/queue:dev:         "previousStepId": "cm4wsaqdf000c12u129mhhd77",
+@mailjot/queue:dev:         "replyToThread": true,
+@mailjot/queue:dev:         "createdAt": "2024-12-30T08:35:31.770Z",
+@mailjot/queue:dev:         "updatedAt": "2024-12-30T08:35:31.770Z",
+@mailjot/queue:dev:         "templateId": null
+@mailjot/queue:dev:       }
+@mailjot/queue:dev:     ]
+@mailjot/queue:dev:     businessHours: {
+@mailjot/queue:dev:       "id": "cm4wsb878000h12u1b1k0jzzo",
+@mailjot/queue:dev:       "userId": "cm4wsa3t5000212u1pwp54fox",
+@mailjot/queue:dev:       "sequenceId": "cm4wsahq7000a12u1gs9w3665",
+@mailjot/queue:dev:       "timezone": "Asia/Karachi",
+@mailjot/queue:dev:       "workDays": [
+@mailjot/queue:dev:         1,
+@mailjot/queue:dev:         2,
+@mailjot/queue:dev:         3,
+@mailjot/queue:dev:         4,
+@mailjot/queue:dev:         5
+@mailjot/queue:dev:       ],
+@mailjot/queue:dev:       "workHoursStart": "09:00",
+@mailjot/queue:dev:       "workHoursEnd": "17:00",
+@mailjot/queue:dev:       "holidays": [],
+@mailjot/queue:dev:       "createdAt": "2024-12-20T13:26:50.181Z",
+@mailjot/queue:dev:       "updatedAt": "2024-12-20T13:26:50.181Z"
+@mailjot/queue:dev:     }
+@mailjot/queue:dev: INFO: index.ts --------------- 📋 Sequence details for Demo:
+@mailjot/queue:dev: INFO: index.ts --------------- 👥 Processing contacts:
+@mailjot/queue:dev: INFO: index.ts --------------- 👤 Processing contact: zee.khan34@gmail.com
+@mailjot/queue:dev: INFO: index.ts --------------- 📊 Contact progress:
+@mailjot/queue:dev: INFO: index.ts --------------- 📝 Processing step 1:
+@mailjot/queue:dev: INFO: index.ts --------------- 🚀 ~ SequenceProcessor ~ processContact ~ nextStep:
+@mailjot/queue:dev:     id: "cm5asb4fu0001u7r0eutga7dt"
+@mailjot/queue:dev:     sequenceId: "cm4wsahq7000a12u1gs9w3665"
+@mailjot/queue:dev:     stepType: "manual_email"
+@mailjot/queue:dev:     priority: "medium"
+@mailjot/queue:dev:     timing: "delay"
+@mailjot/queue:dev:     delayAmount: 30
+@mailjot/queue:dev:     delayUnit: "minutes"
+@mailjot/queue:dev:     subject: ""
+@mailjot/queue:dev:     content: "<p>demo 2</p>"
+@mailjot/queue:dev:     includeSignature: true
+@mailjot/queue:dev:     note: ""
+@mailjot/queue:dev:     order: 1
+@mailjot/queue:dev:     previousStepId: "cm4wsaqdf000c12u129mhhd77"
+@mailjot/queue:dev:     replyToThread: true
+@mailjot/queue:dev:     createdAt: "2024-12-30T08:35:31.770Z"
+@mailjot/queue:dev:     updatedAt: "2024-12-30T08:35:31.770Z"
+@mailjot/queue:dev:     templateId: null
+@mailjot/queue:dev: INFO: index.ts --------------- 
+@mailjot/queue:dev: ---
+@mailjot/queue:dev: 🔄 Starting Next Run Calculation
+@mailjot/queue:dev: - Current Time: 2025-01-01T08:52:17.458Z
+@mailjot/queue:dev: - Step Type: manual_email
+@mailjot/queue:dev: - Timing: delay
+@mailjot/queue:dev: - Delay Amount: 30
+@mailjot/queue:dev: - Delay Unit: minutes
+@mailjot/queue:dev: - Demo Mode: false
+@mailjot/queue:dev: - Has Business Hours: true
+@mailjot/queue:dev: - Business Hours Timezone: Asia/Karachi
+@mailjot/queue:dev: - Development Mode: true
+@mailjot/queue:dev: ---
+@mailjot/queue:dev: INFO: index.ts --------------- ⌛ Starting base delay calculation
+@mailjot/queue:dev: DEBUG: index.ts --------------- ⏰ Using exact specified delay
+@mailjot/queue:dev: DEBUG: index.ts --------------- 📊 Using exact delay
+@mailjot/queue:dev: INFO: index.ts --------------- ✅ Final base delay calculated
+@mailjot/queue:dev: INFO: index.ts --------------- 
+@mailjot/queue:dev: ---
+@mailjot/queue:dev: 📊 Base Delay Calculation
+@mailjot/queue:dev: - Base Delay (minutes): 30
+@mailjot/queue:dev: - Base Delay (hours): 0.50
+@mailjot/queue:dev: ---
+@mailjot/queue:dev: INFO: index.ts --------------- 
+@mailjot/queue:dev: ---
+@mailjot/queue:dev: 🎯 Initial Target Time
+@mailjot/queue:dev: - UTC Now: 2025-01-01T08:52:17.458Z
+@mailjot/queue:dev: - Target Time: 2025-01-01T09:22:17.458Z
+@mailjot/queue:dev: - Added Minutes: 30
+@mailjot/queue:dev: - Time Difference: 1800000 milliseconds
+@mailjot/queue:dev: ---
+@mailjot/queue:dev: INFO: index.ts --------------- 
+@mailjot/queue:dev: ---
+@mailjot/queue:dev: 🌐 Converting to Business Hours Timezone
+@mailjot/queue:dev: - From UTC: 2025-01-01T09:22:17.458Z
+@mailjot/queue:dev: - To Timezone: Asia/Karachi
+@mailjot/queue:dev: - Business Hours: 09:00 - 17:00
+@mailjot/queue:dev: - Work Days: 1, 2, 3, 4, 5
+@mailjot/queue:dev: ---
+@mailjot/queue:dev: INFO: index.ts --------------- 🕒 Starting business hours adjustment
+@mailjot/queue:dev: DEBUG: index.ts --------------- 🔍 Checking business time validity
+@mailjot/queue:dev: INFO: index.ts --------------- ✅ Business hours adjustment complete
+@mailjot/queue:dev: INFO: index.ts --------------- 
+@mailjot/queue:dev: ---
+@mailjot/queue:dev: ✅ Final Calculation Complete
+@mailjot/queue:dev: - Original Time: 2025-01-01T08:52:17.458Z
+@mailjot/queue:dev: - Final Time (UTC): 2025-01-01T05:41:24.877Z
+@mailjot/queue:dev: - Total Delay: -3 hours, -10.876 minutes
+@mailjot/queue:dev: - Business Hours:
+@mailjot/queue:dev:   • Start: 09:00
+@mailjot/queue:dev:   • End: 17:00
+@mailjot/queue:dev:   • Timezone: Asia/Karachi
+@mailjot/queue:dev: - Rate Limit Attempts: 0

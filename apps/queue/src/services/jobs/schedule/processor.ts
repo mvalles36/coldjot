@@ -3,8 +3,7 @@ import { BaseProcessor } from "../base-processor";
 import { logger } from "@/lib/log";
 import { prisma } from "@mailjot/database";
 import { randomUUID } from "crypto";
-import { rateLimiter } from "@/services/v1/rate-limit/rate-limiter";
-import { schedulingService } from "@/services/v1/schedule/scheduling-service";
+import { rateLimitService } from "@/services/core/rate-limit/service";
 import { scheduleGenerator } from "@/lib/schedule";
 
 import {
@@ -298,7 +297,7 @@ export class ScheduleProcessor extends BaseProcessor<any> {
         contactId: contact.id,
       });
 
-      const { allowed, info } = await rateLimiter.checkRateLimit(
+      const { allowed, info } = await rateLimitService.checkRateLimit(
         sequence.userId,
         sequence.id,
         contact.id
@@ -517,7 +516,7 @@ export class ScheduleProcessor extends BaseProcessor<any> {
       // 8. Increment rate limit counters
       logger.debug("🔄 Incrementing rate limit counters");
 
-      await rateLimiter.incrementCounters(
+      await rateLimitService.incrementCounters(
         sequence.userId,
         sequence.id,
         contact.id
@@ -660,7 +659,8 @@ export class ScheduleProcessor extends BaseProcessor<any> {
       });
 
       // Use scheduling service to advance time
-      schedulingService.advanceTimeTo(targetTime);
+      // TODO : implement this
+      // rateLimitService.advanceTimeTo(targetTime);
 
       // Trigger immediate check
       await this.processScheduledEmails();

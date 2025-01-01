@@ -7,7 +7,7 @@ import {
   getUserGoogleAccount,
   getDefaultBusinessHours,
   updateSequenceContactStatus,
-} from "@/services/v1/sequence/helper";
+} from "@/services/jobs/sequence/helper";
 
 import { CONTACT_PROCESSING_CONFIG } from "@/config";
 import { QUEUE_NAMES } from "@/config/queue/queue";
@@ -15,8 +15,8 @@ import { getWorkerOptions } from "@/config/queue/processor";
 
 import { ServiceManager } from "@/services/service-manager";
 
-import { schedulingService } from "@/services/v1/schedule/scheduling-service";
-import { rateLimiter } from "@/services/v1/rate-limit/rate-limiter";
+import { scheduleGenerator } from "@/lib/schedule";
+import { rateLimitService } from "@/services/core/rate-limit/service";
 
 import { SequenceContactStatusEnum, type EmailJob } from "@mailjot/types";
 
@@ -144,7 +144,7 @@ export class ContactProcessor extends BaseProcessor<ContactProcessingJob> {
 
     try {
       // 1. Check rate limits
-      const { allowed, info } = await rateLimiter.checkRateLimit(
+      const { allowed, info } = await rateLimitService.checkRateLimit(
         sequence.userId,
         sequence.id,
         contactDetails.id
@@ -178,7 +178,7 @@ export class ContactProcessor extends BaseProcessor<ContactProcessingJob> {
 
       // TODO: Do we really need this to check time here insteaf of while sending emails?
       // 5. Calculate send time using scheduling service
-      const sendTime = await schedulingService.calculateNextRun(
+      const sendTime = await scheduleGenerator.calculateNextRun(
         new Date(),
         firstStep,
         sequence.businessHours || getDefaultBusinessHours()
@@ -216,7 +216,7 @@ export class ContactProcessor extends BaseProcessor<ContactProcessingJob> {
       );
 
       // 9. Increment rate limit counters
-      await rateLimiter.incrementCounters(
+      await rateLimitService.incrementCounters(
         sequence.userId,
         sequence.id,
         contactDetails.id

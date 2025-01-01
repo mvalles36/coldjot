@@ -7,6 +7,16 @@ export interface ProcessorConfig {
     maxPerSecond: number;
     maxPerMinute: number;
   };
+  queueOptions: {
+    removeOnComplete: {
+      count: number;
+      age: number; // in seconds
+    };
+    removeOnFail: {
+      count: number;
+      age: number; // in seconds
+    };
+  };
 }
 
 export const PROCESSOR_CONFIG = {
@@ -26,6 +36,16 @@ export const PROCESSOR_CONFIG = {
       maxPerSecond: 50,
       maxPerMinute: 500,
     },
+    queueOptions: {
+      removeOnComplete: {
+        count: 1000, // Keep last 1000 completed jobs
+        age: 24 * 60 * 60, // Remove after 24 hours
+      },
+      removeOnFail: {
+        count: 5000, // Keep last 5000 failed jobs
+        age: 7 * 24 * 60 * 60, // Remove after 7 days
+      },
+    },
   },
   [QUEUE_NAMES.SEQUENCE]: {
     worker: {
@@ -42,6 +62,16 @@ export const PROCESSOR_CONFIG = {
     rateLimits: {
       maxPerSecond: 100,
       maxPerMinute: 1000,
+    },
+    queueOptions: {
+      removeOnComplete: {
+        count: 1000,
+        age: 24 * 60 * 60,
+      },
+      removeOnFail: {
+        count: 5000,
+        age: 7 * 24 * 60 * 60,
+      },
     },
   },
   [QUEUE_NAMES.THREAD_WATCHER]: {
@@ -60,6 +90,16 @@ export const PROCESSOR_CONFIG = {
       maxPerSecond: 50,
       maxPerMinute: 1000,
     },
+    queueOptions: {
+      removeOnComplete: {
+        count: 1000,
+        age: 24 * 60 * 60,
+      },
+      removeOnFail: {
+        count: 5000,
+        age: 7 * 24 * 60 * 60,
+      },
+    },
   },
   [QUEUE_NAMES.CONTACT]: {
     worker: {
@@ -76,6 +116,16 @@ export const PROCESSOR_CONFIG = {
     rateLimits: {
       maxPerSecond: 100,
       maxPerMinute: 1000,
+    },
+    queueOptions: {
+      removeOnComplete: {
+        count: 1000,
+        age: 24 * 60 * 60,
+      },
+      removeOnFail: {
+        count: 5000,
+        age: 7 * 24 * 60 * 60,
+      },
     },
   },
   [QUEUE_NAMES.EMAIL_SCHEDULE]: {
@@ -94,6 +144,16 @@ export const PROCESSOR_CONFIG = {
       maxPerSecond: 100,
       maxPerMinute: 1000,
     },
+    queueOptions: {
+      removeOnComplete: {
+        count: 1000,
+        age: 24 * 60 * 60,
+      },
+      removeOnFail: {
+        count: 5000,
+        age: 7 * 24 * 60 * 60,
+      },
+    },
   },
 } as const;
 
@@ -111,4 +171,11 @@ export function getWorkerOptions(
  */
 export function getRateLimits(processorName: keyof typeof PROCESSOR_CONFIG) {
   return PROCESSOR_CONFIG[processorName].rateLimits;
+}
+
+/**
+ * Get queue options for a processor
+ */
+export function getQueueOptions(processorName: keyof typeof PROCESSOR_CONFIG) {
+  return PROCESSOR_CONFIG[processorName].queueOptions;
 }

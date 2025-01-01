@@ -1,12 +1,13 @@
 import { Request, Response } from "express";
-import { QueueService } from "@/services/v1/queue/queue-service";
-import { MonitoringService } from "@/services/v1/monitor/monitoring-service";
 import { logger } from "@/lib/log";
 import Redis from "ioredis";
+import { ServiceManager } from "@/services/service-manager";
+import { MonitoringService } from "@/services/monitor/service";
 
+// TODO : recheck this file
 // Initialize services
-const queueService = QueueService.getInstance();
-const monitoringService = new MonitoringService(queueService);
+const serviceManager = ServiceManager.getInstance();
+const monitoringService = new MonitoringService(serviceManager);
 const redis = new Redis({
   host: process.env.REDIS_HOST || "localhost",
   port: parseInt(process.env.REDIS_PORT || "6379"),
@@ -18,8 +19,24 @@ export async function checkHealth(req: Request, res: Response) {
     // Check Redis connection
     const redisStatus = await redis.ping();
 
-    // Check queue status
-    const queueStatus = await queueService.getDetailedQueueStatus();
+    // Get queues from service manager
+    const sequenceQueue = serviceManager.getQueue("sequence-processing");
+    const emailQueue = serviceManager.getQueue("email-sending");
+
+    if (!sequenceQueue || !emailQueue) {
+      throw new Error("Required queues not initialized");
+    }
+
+    // Get queue status
+    const [sequenceJobCounts, emailJobCounts] = await Promise.all([
+      sequenceQueue.getJobCounts(),
+      emailQueue.getJobCounts(),
+    ]);
+
+    const queueStatus = {
+      sequence: sequenceJobCounts,
+      email: emailJobCounts,
+    };
 
     // Get queue metrics
     const metrics = await monitoringService.getSystemMetrics();
@@ -44,10 +61,33 @@ export async function checkHealth(req: Request, res: Response) {
 
 export async function getQueueStatus(req: Request, res: Response) {
   try {
-    const [detailedStatus, jobCounts] = await Promise.all([
-      queueService.getDetailedQueueStatus(),
-      queueService.getJobCounts(),
+    // Get queues from service manager
+    const sequenceQueue = serviceManager.getQueue("sequence-processing");
+    const emailQueue = serviceManager.getQueue("email-sending");
+
+    if (!sequenceQueue || !emailQueue) {
+      throw new Error("Required queues not initialized");
+    }
+
+    // Get detailed status
+    const [sequenceJobCounts, emailJobCounts] = await Promise.all([
+      sequenceQueue.getJobCounts(),
+      emailQueue.getJobCounts(),
     ]);
+
+    const detailedStatus = {
+      sequence: sequenceJobCounts,
+      email: emailJobCounts,
+    };
+
+    // Get total job counts
+    const jobCounts = {
+      waiting: sequenceJobCounts.waiting + emailJobCounts.waiting,
+      active: sequenceJobCounts.active + emailJobCounts.active,
+      completed: sequenceJobCounts.completed + emailJobCounts.completed,
+      failed: sequenceJobCounts.failed + emailJobCounts.failed,
+      delayed: sequenceJobCounts.delayed + emailJobCounts.delayed,
+    };
 
     res.json({
       sequence: {

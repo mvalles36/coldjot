@@ -2,8 +2,8 @@ import { Request, Response } from "express";
 import { prisma } from "@mailjot/database";
 import { ServiceManager } from "@/services/service-manager";
 import { MonitoringService } from "@/services/monitor/service";
-import { rateLimiter } from "@/services/v1/rate-limit/rate-limiter";
-import { resetSequence } from "@/services/v1/sequence/helper";
+import { rateLimitService } from "@/services/core/rate-limit/service";
+import { resetSequence } from "@/services/jobs/sequence/helper";
 import { logger } from "@/lib/log";
 import { ProcessingJobEnum, BusinessScheduleEnum } from "@mailjot/types";
 import type { BusinessHours, ProcessingJob } from "@mailjot/types";
@@ -211,7 +211,7 @@ export async function resetSequenceHandler(req: Request, res: Response) {
     logger.info(`Stopped monitoring sequence ${id}`);
 
     // Reset rate limits
-    await rateLimiter.resetLimits(userId, id);
+    await rateLimitService.resetLimits(userId, id);
     logger.info(`Rate limits reset for sequence ${id}`);
 
     // Reset sequence data
