@@ -15,7 +15,6 @@ export * from "./business/hours";
 
 // Monitor
 export * from "./monitor/constants";
-export * from "./monitor/alert";
 
 // Contact Processing
 export * from "./contact/constants";

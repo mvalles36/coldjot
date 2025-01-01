@@ -7,7 +7,7 @@ import {
   EmailEventEnum,
   SequenceContactStatusEnum,
 } from "@mailjot/types";
-import { MONITOR_CONFIG } from "@/config/monitor/constants";
+import { THREAD_CONFIG } from "@/config/thread/constants";
 import { getWorkerOptions, getRateLimits } from "@/config/queue/processor";
 import { GmailClientService } from "@/lib/google";
 import { DateTime } from "luxon";
@@ -30,9 +30,8 @@ const CURRENT_ENV = (process.env.NODE_ENV?.toUpperCase() ||
   "DEVELOPMENT") as Environment;
 const IS_DEMO_MODE = process.env.DEMO_MODE === "true";
 
-// Use monitor config constants
-const { CHECK_FREQUENCIES, AGE_THRESHOLDS, BATCH, RETRY } =
-  MONITOR_CONFIG.THREAD;
+// Use thread config constants
+const { CHECK_FREQUENCIES, AGE_THRESHOLDS, BATCH, RETRY } = THREAD_CONFIG;
 
 interface ThreadCheckJob {
   type: "CHECK_THREADS";
@@ -96,12 +95,12 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
           data: {
             type: "CHECK_THREADS",
             batchSize: BATCH.MIN_SIZE,
-            priority: MONITOR_CONFIG.THREAD.PRIORITY.RECENT_HIGH_ENGAGEMENT,
+            priority: THREAD_CONFIG.PRIORITY.RECENT_HIGH_ENGAGEMENT,
           },
           opts: {
             removeOnComplete: true,
             removeOnFail: true,
-            priority: MONITOR_CONFIG.THREAD.PRIORITY.RECENT_HIGH_ENGAGEMENT,
+            priority: THREAD_CONFIG.PRIORITY.RECENT_HIGH_ENGAGEMENT,
           },
         }
       );
