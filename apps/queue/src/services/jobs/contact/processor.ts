@@ -56,16 +56,19 @@ export class ContactProcessor extends BaseProcessor<ContactProcessingJob> {
         }
       );
       logger.info(
-        `📅 Contact processing scheduler initialized with ${this.checkInterval}ms interval`
+        `👳‍♂️ Contact processing scheduler initialized with ${this.checkInterval}ms interval`
       );
     } catch (error) {
-      logger.error("❌ Failed to setup contact processing scheduler:", error);
+      logger.error(
+        "👳‍♂️ ❌ Failed to setup contact processing scheduler:",
+        error
+      );
       throw error;
     }
   }
 
   protected async process(job: Job<ContactProcessingJob>): Promise<void> {
-    logger.info(`Processing contact job ${job.id}`);
+    logger.info(`💁‍♂️ Processing contact job ${job.id}`);
     try {
       // if (job.data.type === "CHECK_NEW_CONTACTS") {
       await this.processNewContacts();
@@ -81,7 +84,7 @@ export class ContactProcessor extends BaseProcessor<ContactProcessingJob> {
    */
   private async processNewContacts(): Promise<void> {
     try {
-      logger.info("🔍 Checking for new contacts to process");
+      logger.info("👳‍♂️ Checking for new contacts to process");
 
       // Find contacts that haven't been processed yet
       const newContacts = await prisma.sequenceContact.findMany({
@@ -105,7 +108,7 @@ export class ContactProcessor extends BaseProcessor<ContactProcessingJob> {
         take: this.batchSize,
       });
 
-      logger.info(`📥 Found ${newContacts.length} new contacts to process`);
+      logger.info(`👳‍♂️ Found ${newContacts.length} new contacts to process`);
 
       // Process each contact
       for (const contact of newContacts) {
@@ -121,9 +124,9 @@ export class ContactProcessor extends BaseProcessor<ContactProcessingJob> {
         }
       }
 
-      logger.info("✅ Completed processing batch of new contacts");
+      logger.info("👳‍♂️ ✅ Completed processing batch of new contacts");
     } catch (error) {
-      logger.error("❌ Error in processNewContacts:", error);
+      logger.error("👳‍♂️ ❌ Error in processNewContacts:", error);
       throw error;
     }
   }

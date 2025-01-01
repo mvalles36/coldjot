@@ -71,7 +71,7 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
     // Initialize concurrency limiter
     this.concurrencyLimiter = pLimit(BATCH.CONCURRENCY);
 
-    logger.info("🧵 Thread Monitoring Processor initialized", {
+    logger.info("🧶 Thread Monitoring Processor initialized", {
       batchConfig: BATCH,
       retryConfig: RETRY,
       rateLimits,
@@ -105,10 +105,10 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
         }
       );
       logger.info(
-        `📅 Thread monitoring scheduler initialized with ${checkInterval}ms interval`
+        `🧶 Thread monitoring scheduler initialized with ${checkInterval}ms interval`
       );
     } catch (error) {
-      logger.error("❌ Failed to setup thread monitoring scheduler:", error);
+      logger.error("🧶 ❌ Failed to setup thread monitoring scheduler:", error);
       throw error;
     }
   }
@@ -118,7 +118,10 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
       const batchSize = this.calculateDynamicBatchSize(job.data.batchSize);
       await this.processThreadBatch(batchSize, job.data);
     } catch (error) {
-      logger.error(`Failed to process thread monitoring job ${job.id}:`, error);
+      logger.error(
+        `🧶 ❌ Failed to process thread monitoring job ${job.id}:`,
+        error
+      );
       throw error;
     }
   }
@@ -140,7 +143,7 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
     jobData: ThreadCheckJob
   ): Promise<void> {
     try {
-      logger.info("🔍 Starting thread batch processing", {
+      logger.info("🧶 Starting thread batch processing", {
         batchSize,
         priority: jobData.priority,
         threadAge: jobData.threadAge,
@@ -150,7 +153,7 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
       // Find threads that need checking
       const threadsToCheck = await this.findThreadsToCheck(batchSize, jobData);
 
-      logger.info(`📨 Found ${threadsToCheck.length} threads to check`);
+      logger.info(`🧶 Found ${threadsToCheck.length} threads to check`);
 
       // Process threads in parallel with rate limiting
       const results = await Promise.allSettled(
@@ -164,7 +167,7 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
                 await this.scheduleRetry(thread, error);
               } else {
                 logger.error(
-                  `Permanent error checking thread ${thread.threadId}:`,
+                  `🧶 ❌ Permanent error checking thread ${thread.threadId}:`,
                   error
                 );
               }
@@ -183,14 +186,14 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
         (r) => r.status === "rejected"
       ).length;
 
-      logger.info("✅ Completed thread monitoring batch", {
+      logger.info("🧶 ✅ Completed thread monitoring batch", {
         total: threadsToCheck.length,
         success: successCount,
         failures: failureCount,
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
-      logger.error(error, "❌ Error in processThreadBatch:");
+      logger.error(error, "🧶 ❌ Error in processThreadBatch:");
       throw error;
     }
   }
@@ -438,7 +441,7 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
       );
 
       logger.info(
-        `Scheduled retry #${retryCount} for thread ${thread.threadId} in ${delay}ms`
+        `🧶 Scheduled retry #${retryCount} for thread ${thread.threadId} in ${delay}ms`
       );
     }
   }
@@ -495,12 +498,12 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
       // Update thread metadata
       await this.updateThreadMetadata(thread, threadAge, hasNewEvents);
 
-      logger.info(`✅ Checked thread ${thread.threadId}`, {
+      logger.info(`🧶 ✅ Checked thread ${thread.threadId}`, {
         hasNewEvents,
         threadAge,
       });
     } catch (error) {
-      logger.error(`Error checking thread ${thread.threadId}:`, error);
+      logger.error(`🧶 ❌ Error checking thread ${thread.threadId}:`, error);
       throw error;
     }
   }
@@ -530,7 +533,7 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
 
     try {
       logger.info(
-        `🔍 Fetching thread ${data.threadId} for user ${data.userId}`
+        `🧶 Fetching thread ${data.threadId} for user ${data.userId}`
       );
 
       const thread = await gmail.users.threads.get({
@@ -539,12 +542,12 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
       });
 
       if (!thread.data.messages) {
-        logger.warn(`⚠️ No messages found in thread ${data.threadId}`);
+        logger.warn(`🧶 No messages found in thread ${data.threadId}`);
         return false;
       }
 
       logger.info(
-        `📨 Found ${thread.data.messages.length} messages in thread ${data.threadId}`
+        `🧶 Found ${thread.data.messages.length} messages in thread ${data.threadId}`
       );
       let foundNewEvent = false;
 
@@ -553,7 +556,7 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
         if (!message.id) continue;
 
         logger.debug(
-          `🔍 Checking message ${message.id} in thread ${data.threadId}`
+          `🧶 Checking message ${message.id} in thread ${data.threadId}`
         );
 
         const messageDetails = await gmail.users.messages.get({
@@ -576,14 +579,14 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
         const headers = messageDetails.data.payload?.headers || [];
         const labelIds = messageDetails.data.labelIds || [];
 
-        logger.debug("📧 Message headers details");
+        logger.debug("🧶 Message headers details");
 
         // Check for bounces
         const isBounce = isBounceMessage(headers);
-        logger.debug(`🔍 Bounce check for message ${message.id}: ${isBounce}`);
+        logger.debug(`🧶 Bounce check for message ${message.id}: ${isBounce}`);
 
         if (isBounce) {
-          logger.info(`📭 Found bounce in message ${message.id}`);
+          logger.info(`🧶 Found bounce in message ${message.id}`);
           await this.processBounce(data, message.id, headers);
           foundNewEvent = true;
           break;
@@ -604,12 +607,12 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
               senderEmail,
               isOwner: isSenderSequenceOwner(senderEmail, data.userId),
             },
-            "👤 Sender check"
+            "🧶 Sender check"
           );
 
           if (!isSenderSequenceOwner(senderEmail, data.userId)) {
             logger.info(
-              `💬 Found reply in message ${message.id} from ${senderEmail}`
+              `🧶 Found reply in message ${message.id} from ${senderEmail}`
             );
             await this.processReply(
               data,

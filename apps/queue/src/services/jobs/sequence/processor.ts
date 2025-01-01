@@ -210,19 +210,17 @@ export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
     data: ProcessingJobData,
     googleAccount: any
   ): Promise<void> {
-    logger.info(`👤 Processing contact: ${sequenceContact.contact.email}`, {
-      sequence: sequence.name,
-    });
+    logger.info(`👤 Processing contact: ${sequenceContact.contact.email}`);
 
     // Check contact rate limit
-    const contactRateLimit = await this.rateLimitService.checkRateLimit(
+    const { allowed, info } = await this.rateLimitService.checkRateLimit(
       data.userId,
       data.sequenceId,
       sequenceContact.contact.id
     );
 
-    if (!contactRateLimit.allowed) {
-      logger.warn("⚠️ Contact rate limit exceeded:", contactRateLimit.info);
+    if (!allowed) {
+      logger.warn("⚠️ Contact rate limit exceeded:", info);
       return;
     }
 
@@ -337,18 +335,6 @@ export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
       },
       `📬 Creating email job`
     );
-
-    // await this.queue.add(QUEUE_NAMES.EMAIL, emailJob.data, {
-    //   jobId: emailJob.id,
-    //   priority: emailJob.priority,
-    //   delay: nextSendTime ? nextSendTime.getTime() - Date.now() : 0,
-    // });
-
-    // await this.queue.add(
-    //   "wall",
-    //   { color: "pink" },
-    //   { delay: 10000, removeOnComplete: false, removeOnFail: false }
-    // );
 
     logger.info(
       emailJob,
