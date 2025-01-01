@@ -14,6 +14,8 @@ import { prisma } from "@mailjot/database";
 import { RATE_LIMIT_CONFIG } from "@/config/rate-limit/constants";
 import { isDevelopment, DEMO_MODE } from "@/config";
 import { DEFAULT_BUSINESS_HOURS } from "@/config";
+import * as fs from "fs";
+import * as path from "path";
 
 export interface ScheduleGenerator {
   calculateNextRun(
@@ -66,27 +68,43 @@ export class ScheduleGenerator implements ScheduleGenerator {
     isDemoMode: boolean = false
   ): Promise<Date> {
     try {
-      // Always use the provided current time
+      // Clear the log file at the start of each run
+      if (isDevelopment) {
+        const logPath = path.join(
+          process.cwd(),
+          "src",
+          "lib",
+          "schedule",
+          "log.txt"
+        );
+        fs.writeFileSync(logPath, ""); // Clear the file
+      }
+
       const effectiveCurrentTime = currentTime;
 
-      logger.info(
+      this.logAndSave(
         `
 ---
 🔄 Starting Next Run Calculation
-- Current Time: ${effectiveCurrentTime.toISOString()}
+- Current Time UTC: ${effectiveCurrentTime.toISOString()}
+- Current Time ${businessHours?.timezone || "Local"}: ${DateTime.fromJSDate(
+          effectiveCurrentTime
+        )
+          .setZone(businessHours?.timezone || "local")
+          .toISO()}
 - Step Type: ${step.stepType}
 - Timing: ${step.timing}
 - Delay Amount: ${step.delayAmount || "N/A"}
 - Delay Unit: ${step.delayUnit || "N/A"}
 - Demo Mode: ${isDemoMode}
 - Has Business Hours: ${!!businessHours}
-- Business Hours Timezone: ${businessHours.timezone}
+- Business Hours Timezone: ${businessHours?.timezone}
 - Development Mode: ${isDevelopment}
 ---`
       );
 
       const baseDelayMinutes = this.calculateBaseDelay(step, isDemoMode);
-      logger.info(
+      this.logAndSave(
         `
 ---
 📊 Base Delay Calculation
@@ -95,22 +113,24 @@ export class ScheduleGenerator implements ScheduleGenerator {
 ---`
       );
 
+      // Start with UTC
       const utcNow = DateTime.fromJSDate(effectiveCurrentTime, { zone: "utc" });
       let targetTime = utcNow.plus({ minutes: baseDelayMinutes });
 
-      logger.info(
+      this.logAndSave(
         `
 ---
 🎯 Initial Target Time
 - UTC Now: ${utcNow.toISO()}
-- Target Time: ${targetTime.toISO()}
+- Target Time UTC: ${targetTime.toISO()}
+- Target Time ${businessHours?.timezone || "Local"}: ${targetTime.setZone(businessHours?.timezone || "local").toISO()}
 - Added Minutes: ${baseDelayMinutes}
 - Time Difference: ${targetTime.diff(utcNow).toHuman()}
 ---`
       );
 
       if (!businessHours) {
-        logger.info(
+        this.logAndSave(
           `
 ---
 ⏭️ No Business Hours Defined
@@ -121,22 +141,43 @@ export class ScheduleGenerator implements ScheduleGenerator {
         return targetTime.toJSDate();
       }
 
-      // With business hours: Convert to local timezone and adjust
-      logger.info(
+      // Convert target time to business timezone for checks
+      let localTarget = targetTime.setZone(businessHours.timezone);
+
+      this.logAndSave(
         `
 ---
 🌐 Converting to Business Hours Timezone
 - From UTC: ${targetTime.toISO()}
-- To Timezone: ${businessHours.timezone}
+- To ${businessHours.timezone}: ${localTarget.toISO()}
 - Business Hours: ${businessHours.workHoursStart} - ${businessHours.workHoursEnd}
 - Work Days: ${businessHours.workDays.join(", ")}
 ---`
       );
 
-      let localTarget = this.adjustToBusinessHours(
-        targetTime.setZone(businessHours.timezone),
-        businessHours
-      );
+      // Check if the target time needs business hours adjustment
+      if (!this.isValidBusinessTime(localTarget, businessHours)) {
+        const originalTarget = localTarget;
+        localTarget = this.adjustToBusinessHours(localTarget, businessHours);
+        this.logAndSave(
+          `
+---
+⚡ Business Hours Adjustment Required
+- Original Local Time: ${originalTarget.toISO()}
+- Adjusted Local Time: ${localTarget.toISO()}
+- Adjustment: ${localTarget.diff(originalTarget).toHuman()}
+---`
+        );
+      } else {
+        this.logAndSave(
+          `
+---
+✅ Target Time Already Within Business Hours
+- Local Time: ${localTarget.toISO()}
+- No Adjustment Needed
+---`
+        );
+      }
 
       // Check rate limits and adjust if needed
       let attempts = 0;
@@ -150,13 +191,13 @@ export class ScheduleGenerator implements ScheduleGenerator {
           break;
         }
 
-        logger.info(
+        this.logAndSave(
           `
 ---
 ⚖️ Rate Limit Adjustment (Attempt ${attempts + 1})
 - Minute Available: ${minuteAvailable}
 - Hour Available: ${hourAvailable}
-- Current Time: ${localTarget.toISO()}
+- Current Local Time: ${localTarget.toISO()}
 ---`
         );
 
@@ -166,12 +207,12 @@ export class ScheduleGenerator implements ScheduleGenerator {
             Math.random() * RATE_LIMIT_CONFIG.SCHEDULING.DISTRIBUTION_WINDOW
           );
           localTarget = localTarget.plus({ minutes: distributionMinutes });
-          logger.info(
+          this.logAndSave(
             `
 ---
 ⏱️ Minute Rate Limit Adjustment
 - Added Minutes: ${distributionMinutes}
-- New Target: ${localTarget.toISO()}
+- New Local Target: ${localTarget.toISO()}
 ---`
           );
         }
@@ -180,13 +221,13 @@ export class ScheduleGenerator implements ScheduleGenerator {
           localTarget = localTarget.plus({ hours: 1 });
           const distributionMinutes = Math.floor(Math.random() * 60);
           localTarget = localTarget.set({ minute: distributionMinutes });
-          logger.info(
+          this.logAndSave(
             `
 ---
 ⏰ Hour Rate Limit Adjustment
 - Added Hours: 1
 - Random Minutes: ${distributionMinutes}
-- New Target: ${localTarget.toISO()}
+- New Local Target: ${localTarget.toISO()}
 ---`
           );
         }
@@ -195,13 +236,13 @@ export class ScheduleGenerator implements ScheduleGenerator {
         if (!this.isValidBusinessTime(localTarget, businessHours)) {
           const oldTarget = localTarget;
           localTarget = this.nextBusinessStart(localTarget, businessHours);
-          logger.info(
+          this.logAndSave(
             `
 ---
-📅 Business Hours Adjustment
+📅 Business Hours Adjustment After Rate Limit
 - Outside Business Hours Detected
-- Old Target: ${oldTarget.toISO()}
-- New Target: ${localTarget.toISO()}
+- Old Local Target: ${oldTarget.toISO()}
+- New Local Target: ${localTarget.toISO()}
 - Adjustment: ${localTarget.diff(oldTarget).toHuman()}
 ---`
           );
@@ -210,15 +251,17 @@ export class ScheduleGenerator implements ScheduleGenerator {
         attempts++;
       }
 
-      // Convert back to UTC
+      // Convert back to UTC for storage
       const finalUtc = localTarget.toUTC();
 
-      logger.info(
+      this.logAndSave(
         `
 ---
 ✅ Final Calculation Complete
-- Original Time: ${effectiveCurrentTime.toISOString()}
-- Final Time (UTC): ${finalUtc.toISO()}
+- Original Time UTC: ${effectiveCurrentTime.toISOString()}
+- Original Time ${businessHours.timezone}: ${DateTime.fromJSDate(effectiveCurrentTime).setZone(businessHours.timezone).toISO()}
+- Final Time UTC: ${finalUtc.toISO()}
+- Final Time ${businessHours.timezone}: ${localTarget.toISO()}
 - Total Delay: ${finalUtc.diff(utcNow, ["hours", "minutes"]).toHuman()}
 - Business Hours:
   • Start: ${businessHours.workHoursStart}
@@ -230,7 +273,7 @@ export class ScheduleGenerator implements ScheduleGenerator {
 
       return finalUtc.toJSDate();
     } catch (error) {
-      logger.error(
+      this.logErrorAndSave(
         `
 ---
 ❌ Error Calculating Next Run
@@ -250,15 +293,7 @@ export class ScheduleGenerator implements ScheduleGenerator {
     limits: RateLimits = this.defaultRateLimits
   ): ProcessingJob[] {
     try {
-      logger.debug("🔄 Distributing load", {
-        jobCount: jobs.length,
-        window: {
-          start: window.start.toISOString(),
-          end: window.end.toISOString(),
-          currentLoad: window.currentLoad,
-          maxJobsPerWindow: window.maxJobsPerWindow,
-        },
-      });
+      this.logAndSave("🔄 Distributing load");
 
       // Sort by priority
       const sortedJobs = [...jobs].sort((a, b) => a.priority - b.priority);
@@ -270,33 +305,24 @@ export class ScheduleGenerator implements ScheduleGenerator {
       );
 
       if (window.currentLoad >= maxJobsForWindow) {
-        logger.debug("⚠️ Window at capacity");
+        this.logAndSave("⚠️ Window at capacity");
         return [];
       }
 
       const availableCapacity = maxJobsForWindow - window.currentLoad;
       const selectedJobs = sortedJobs.slice(0, availableCapacity);
 
-      logger.debug("✅ Load distribution complete", {
-        availableCapacity,
-        selectedJobCount: selectedJobs.length,
-      });
+      this.logAndSave("✅ Load distribution complete");
 
       return selectedJobs;
     } catch (error) {
-      logger.error("Error distributing load:", error);
+      this.logErrorAndSave("Error distributing load:");
       return [];
     }
   }
 
   private calculateBaseDelay(step: SequenceStep, isDemoMode: boolean): number {
-    logger.info("⌛ Starting base delay calculation", {
-      stepType: step.stepType,
-      timing: step.timing,
-      delayAmount: step.delayAmount,
-      delayUnit: step.delayUnit,
-      isDemoMode,
-    });
+    this.logAndSave("⌛ Starting base delay calculation");
 
     let delay: number;
 
@@ -304,14 +330,10 @@ export class ScheduleGenerator implements ScheduleGenerator {
       case StepTypeEnum.WAIT:
         if (!step.delayAmount || !step.delayUnit) {
           delay = RATE_LIMIT_CONFIG.SCHEDULING.DEFAULT_DELAY;
-          logger.debug("Using default delay for WAIT step", { delay });
+          this.logDebugAndSave("Using default delay for WAIT step");
         } else {
           delay = this.convertToMinutes(step.delayAmount, step.delayUnit);
-          logger.debug("⏳ Calculated WAIT delay", {
-            originalAmount: step.delayAmount,
-            originalUnit: step.delayUnit,
-            resultMinutes: delay,
-          });
+          this.logDebugAndSave("⏳ Calculated WAIT delay");
         }
         break;
 
@@ -319,55 +341,37 @@ export class ScheduleGenerator implements ScheduleGenerator {
       case StepTypeEnum.AUTOMATED_EMAIL:
         if (step.timing === TimingType.IMMEDIATE) {
           delay = 0; // No delay for immediate
-          logger.debug("⚡ Immediate email, no delay");
+          this.logDebugAndSave("⚡ Immediate email, no delay");
         } else if (step.timing === TimingType.DELAY && step.delayAmount) {
           // Use exact delay if specified
           delay = step.delayAmount;
-          logger.debug("⏰ Using exact specified delay", {
-            specifiedDelay: step.delayAmount,
-          });
+          this.logDebugAndSave("⏰ Using exact specified delay");
         } else {
           delay = RATE_LIMIT_CONFIG.SCHEDULING.DEFAULT_DELAY;
-          logger.debug("⚠️ No timing specified, using default delay", {
-            delay,
-          });
+          this.logDebugAndSave("⚠️ No timing specified, using default delay");
         }
         break;
 
       default:
         delay = RATE_LIMIT_CONFIG.SCHEDULING.DEFAULT_DELAY;
-        logger.debug("⚠️ Unknown step type, using default delay", { delay });
+        this.logDebugAndSave("⚠️ Unknown step type, using default delay");
     }
 
     // Only apply minimum delay if it's more than DEFAULT_DELAY
     if (delay > RATE_LIMIT_CONFIG.SCHEDULING.DEFAULT_DELAY) {
       delay = Math.max(delay, RATE_LIMIT_CONFIG.SCHEDULING.MIN_DELAY);
-      logger.debug("📊 Applied minimum delay threshold", {
-        finalDelay: delay,
-        reason: "Delay > 30 minutes",
-      });
+      this.logAndSave("📊 Applied minimum delay threshold");
     } else {
-      logger.debug("📊 Using exact delay", {
-        delay,
-        reason: "Delay <= 30 minutes",
-      });
+      this.logAndSave("📊 Using exact delay");
     }
 
     if (isDemoMode) {
       const originalDelay = delay;
       delay = Math.min(delay, 480); // Cap at 8 hours for demo mode
-      logger.info("🎮 Demo mode delay adjustment", {
-        originalDelay,
-        cappedDelay: delay,
-        wasAdjusted: originalDelay !== delay,
-      });
+      this.logAndSave("🎮 Demo mode delay adjustment");
     }
 
-    logger.info("✅ Final base delay calculated", {
-      finalDelayMinutes: delay,
-      inHours: delay / 60,
-      isDemoMode,
-    });
+    this.logAndSave("✅ Final base delay calculated");
 
     return delay;
   }
@@ -391,7 +395,7 @@ export class ScheduleGenerator implements ScheduleGenerator {
   ): boolean {
     // If in demo mode, always return true
     if (DEMO_MODE) {
-      logger.debug("🎮 Demo mode: Bypassing business hours check");
+      this.logDebugAndSave("🎮 Demo mode: Bypassing business hours check");
       return true;
     }
 
@@ -421,15 +425,7 @@ export class ScheduleGenerator implements ScheduleGenerator {
 
     const isWithinHours = dt >= dayStart && dt <= dayEnd;
 
-    logger.debug("🔍 Checking business time validity", {
-      dateTime: dt.toISO(),
-      isHoliday,
-      isWorkDay,
-      isWithinHours,
-      dayStart: dayStart.toISO(),
-      dayEnd: dayEnd.toISO(),
-      demoMode: DEMO_MODE,
-    });
+    this.logDebugAndSave("🔍 Checking business time validity");
 
     return !isHoliday && isWorkDay && isWithinHours;
   }
@@ -438,20 +434,11 @@ export class ScheduleGenerator implements ScheduleGenerator {
     date: DateTime,
     businessHours: BusinessHours
   ): DateTime {
-    logger.info("🕒 Starting business hours adjustment", {
-      inputDate: date.toISO(),
-      timezone: businessHours.timezone,
-      workHours: {
-        start: businessHours.workHoursStart,
-        end: businessHours.workHoursEnd,
-      },
-      workDays: businessHours.workDays,
-      demoMode: DEMO_MODE,
-    });
+    this.logAndSave("🕒 Starting business hours adjustment");
 
     // If in demo mode, return the date as is
     if (DEMO_MODE) {
-      logger.debug("🎮 Demo mode: Skipping business hours adjustment");
+      this.logDebugAndSave("🎮 Demo mode: Skipping business hours adjustment");
       return date;
     }
 
@@ -466,9 +453,7 @@ export class ScheduleGenerator implements ScheduleGenerator {
 
     // First check if the current time is already valid
     if (this.isValidBusinessTime(result, businessHours)) {
-      logger.debug("✅ Time is already within business hours", {
-        time: result.toISO(),
-      });
+      this.logDebugAndSave("✅ Time is already within business hours");
       return result;
     }
 
@@ -477,9 +462,7 @@ export class ScheduleGenerator implements ScheduleGenerator {
       iteration < maxIterations
     ) {
       iteration++;
-      logger.debug(`🔄 Adjustment iteration ${iteration}`, {
-        currentDateTime: result.toISO(),
-      });
+      this.logDebugAndSave(`🔄 Adjustment iteration ${iteration}`);
 
       const dayStart = result.set({
         hour: startHour,
@@ -500,12 +483,7 @@ export class ScheduleGenerator implements ScheduleGenerator {
         ) ||
         result < dayStart
       ) {
-        logger.debug("📅 Invalid business day or before hours", {
-          isWorkDay: workDays.includes(result.weekday % 7),
-          isBeforeStart: result < dayStart,
-          currentTime: result.toISO(),
-          dayStart: dayStart.toISO(),
-        });
+        this.logDebugAndSave("📅 Invalid business day or before hours");
         // Move to the start of the next valid day
         result = this.nextBusinessStart(result, businessHours);
         continue;
@@ -513,10 +491,7 @@ export class ScheduleGenerator implements ScheduleGenerator {
 
       // If after business hours
       if (result > dayEnd) {
-        logger.debug("🌙 After business hours", {
-          currentTime: result.toISO(),
-          dayEnd: dayEnd.toISO(),
-        });
+        this.logDebugAndSave("🌙 After business hours");
         result = this.nextBusinessStart(
           result.plus({ days: 1 }),
           businessHours
@@ -543,12 +518,7 @@ export class ScheduleGenerator implements ScheduleGenerator {
         .plus({ minutes: distributionMinutes });
     }
 
-    logger.info("✅ Business hours adjustment complete", {
-      inputDate: date.toISO(),
-      adjustedDate: result.toISO(),
-      timezone: businessHours.timezone,
-      demoMode: DEMO_MODE,
-    });
+    this.logAndSave("✅ Business hours adjustment complete");
 
     return result;
   }
@@ -591,10 +561,7 @@ export class ScheduleGenerator implements ScheduleGenerator {
     date: DateTime,
     businessHours: BusinessHours
   ): DateTime {
-    logger.debug("🔄 Finding next business day start", {
-      fromDate: date.toISO(),
-      timezone: businessHours.timezone,
-    });
+    this.logAndSave("🔄 Finding next business day start");
 
     const { workHoursStart, workDays, holidays, timezone } = businessHours;
     const [startHour, startMinute] = workHoursStart.split(":").map(Number);
@@ -612,18 +579,12 @@ export class ScheduleGenerator implements ScheduleGenerator {
       );
       const isWorkDay = workDays.includes(candidate.weekday % 7);
 
-      logger.debug(`📅 Checking candidate day (iteration ${iteration})`, {
-        candidateDate: candidate.toISO(),
-        isHoliday,
-        isWorkDay,
-        weekday: candidate.weekday,
-      });
+      this.logDebugAndSave(
+        `📅 Checking candidate day (iteration ${iteration})`
+      );
 
       if (!isHoliday && isWorkDay) {
-        logger.debug("✅ Valid business day found", {
-          date: candidate.toISO(),
-          iterations: iteration,
-        });
+        this.logDebugAndSave("✅ Valid business day found");
         return candidate;
       }
 
@@ -632,13 +593,50 @@ export class ScheduleGenerator implements ScheduleGenerator {
         .set({ hour: startHour, minute: startMinute });
     }
 
-    logger.warn("⚠️ Max iterations reached while finding next business day", {
-      startDate: date.toISO(),
-      finalCandidate: candidate.toISO(),
-      iterations: iteration,
-    });
+    this.logAndSave(
+      "⚠️ Max iterations reached while finding next business day"
+    );
 
     return candidate;
+  }
+
+  private saveToLogFile(message: string) {
+    if (isDevelopment) {
+      try {
+        const logPath = path.join(
+          process.cwd(),
+          "src",
+          "lib",
+          "schedule",
+          "log.txt"
+        );
+        const logDir = path.dirname(logPath);
+
+        // Create directory if it doesn't exist
+        if (!fs.existsSync(logDir)) {
+          fs.mkdirSync(logDir, { recursive: true });
+        }
+
+        fs.appendFileSync(logPath, `@mailjot/queue:dev: ${message}\n`);
+      } catch (error) {
+        logger.error("Error writing to log file:", error);
+      }
+    }
+  }
+
+  private logAndSave(message: string) {
+    logger.info(message);
+    this.saveToLogFile(message);
+  }
+
+  private logDebugAndSave(message: string) {
+    logger.debug(message);
+    this.saveToLogFile(message);
+  }
+
+  private logErrorAndSave(message: string) {
+    logger.error(message);
+    this.saveToLogFile(message);
   }
 }
 
