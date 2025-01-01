@@ -8,16 +8,15 @@ import {
   SequenceContactStatusEnum,
 } from "@mailjot/types";
 import { MONITOR_CONFIG } from "@/config/monitor/constants";
+import { getWorkerOptions, getRateLimits } from "@/config/queue/processor";
 import { GmailClientService } from "@/lib/google";
 import { DateTime } from "luxon";
 import type { MessagePartHeader } from "@mailjot/types";
 import { updateSequenceStats } from "@/lib/stats";
 import { QUEUE_NAMES } from "@/config/queue/queue";
-
 import { Prisma } from "@prisma/client";
 import pLimit from "p-limit";
 import { RateLimiter } from "@/lib/rate-limiter";
-
 import {
   extractEmailFromHeader,
   isBounceMessage,
@@ -56,22 +55,18 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
   private readonly concurrencyLimiter: pLimit.Limit;
 
   constructor(queue: Queue) {
-    super(queue, QUEUE_NAMES.THREAD_WATCHER, {
-      concurrency: BATCH.CONCURRENCY,
-      limiter: {
-        max: BATCH.RATE_LIMIT.MAX_PER_SECOND,
-        duration: 1000,
-      },
-      connection: {
-        maxRetriesPerRequest: null,
-        enableReadyCheck: false,
-      },
-    });
+    super(
+      queue,
+      QUEUE_NAMES.THREAD_WATCHER,
+      getWorkerOptions(QUEUE_NAMES.THREAD_WATCHER)
+    );
+
+    const rateLimits = getRateLimits(QUEUE_NAMES.THREAD_WATCHER);
 
     // Initialize rate limiter
     this.rateLimiter = new RateLimiter({
-      maxPerSecond: BATCH.RATE_LIMIT.MAX_PER_SECOND,
-      maxPerMinute: BATCH.RATE_LIMIT.MAX_PER_MINUTE,
+      maxPerSecond: rateLimits.maxPerSecond,
+      maxPerMinute: rateLimits.maxPerMinute,
     });
 
     // Initialize concurrency limiter
@@ -80,6 +75,7 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
     logger.info("🧵 Thread Monitoring Processor initialized", {
       batchConfig: BATCH,
       retryConfig: RETRY,
+      rateLimits,
       environment: CURRENT_ENV,
     });
 

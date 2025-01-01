@@ -20,23 +20,14 @@ import {
 } from "@/services/jobs/sequence/helper";
 import { emailService } from "@/lib/email";
 import { QUEUE_NAMES } from "@/config/queue/queue";
+import { getWorkerOptions } from "@/config/queue/processor";
 
 export class EmailProcessor extends BaseProcessor<EmailJob> {
   private serviceManager = ServiceManager.getInstance();
   private jobManager = this.serviceManager.getJobManager();
 
   constructor(queue: Queue) {
-    super(queue, QUEUE_NAMES.EMAIL, {
-      concurrency: 5,
-      limiter: {
-        max: 100,
-        duration: 1000, // 1 second
-      },
-      connection: {
-        maxRetriesPerRequest: null,
-        enableReadyCheck: false,
-      },
-    });
+    super(queue, QUEUE_NAMES.EMAIL, getWorkerOptions(QUEUE_NAMES.EMAIL));
   }
 
   protected async process(job: Job<EmailJob>): Promise<void> {

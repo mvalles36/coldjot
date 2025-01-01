@@ -21,6 +21,7 @@ import {
 } from "@mailjot/types";
 import { EMAIL_SCHEDULER_CONFIG } from "@/config";
 import { QUEUE_NAMES } from "@/config/queue/queue";
+import { getWorkerOptions } from "@/config/queue/processor";
 import { ServiceManager } from "@/services/service-manager";
 // Define the type for what we actually need from the sequence
 type SequenceWithRelations = {
@@ -58,17 +59,11 @@ export class ScheduleProcessor extends BaseProcessor<any> {
   private jobManager = this.serviceManager.getJobManager();
 
   constructor(queue: Queue) {
-    super(queue, QUEUE_NAMES.EMAIL_SCHEDULE, {
-      concurrency: 5,
-      limiter: {
-        max: 100,
-        duration: 1000, // 1 second
-      },
-      connection: {
-        maxRetriesPerRequest: null,
-        enableReadyCheck: false,
-      },
-    });
+    super(
+      queue,
+      QUEUE_NAMES.EMAIL_SCHEDULE,
+      getWorkerOptions(QUEUE_NAMES.EMAIL_SCHEDULE)
+    );
 
     logger.info("📧 Email Scheduling Processor initialized", {
       checkInterval: this.checkInterval,

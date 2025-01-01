@@ -28,6 +28,7 @@ import {
   getContactProgress,
 } from "./helper";
 import { QUEUE_NAMES } from "@/config/queue/queue";
+import { getWorkerOptions } from "@/config/queue/processor";
 import { BaseProcessor } from "../base-processor";
 import { ServiceManager } from "@/services/service-manager";
 
@@ -89,17 +90,8 @@ export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
   private jobManager = this.serviceManager.getJobManager();
 
   constructor(queue: Queue) {
-    super(queue, QUEUE_NAMES.SEQUENCE, {
-      concurrency: 5,
-      limiter: {
-        max: 100,
-        duration: 1000, // 1 second
-      },
-      connection: {
-        maxRetriesPerRequest: null,
-        enableReadyCheck: false,
-      },
-    });
+    super(queue, QUEUE_NAMES.SEQUENCE, getWorkerOptions(QUEUE_NAMES.SEQUENCE));
+
     this.rateLimitService = RateLimitService.getInstance();
     this.scheduleGenerator = scheduleGenerator;
   }
