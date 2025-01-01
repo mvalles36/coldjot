@@ -320,8 +320,7 @@ export function SequenceContacts({
                         <TooltipTrigger>
                           <div className="flex items-center gap-2">
                             <div className="text-sm font-medium">
-                              Step {sequenceContact.currentStep + 1} of{" "}
-                              {totalSteps}
+                              Step {sequenceContact.currentStep} of {totalSteps}
                             </div>
                           </div>
                         </TooltipTrigger>

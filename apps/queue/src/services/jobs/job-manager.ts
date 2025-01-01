@@ -39,14 +39,35 @@ export class JobManager {
     if (!queue) {
       throw new Error("Email queue not initialized");
     }
+
     logger.info(`Adding email job to queue`);
+
+    // Calculate delay if scheduledTime exists
+    let delay: number | undefined;
+    if (job.scheduledTime) {
+      const scheduledTime = new Date(job.scheduledTime);
+      const now = new Date();
+      delay = Math.max(0, scheduledTime.getTime() - now.getTime());
+
+      logger.info(`
+---
+⏰ Email Job Scheduling
+- Current Time: ${now.toISOString()}
+- Scheduled Time: ${scheduledTime.toISOString()}
+- Delay (ms): ${delay}
+- Delay (minutes): ${(delay / (1000 * 60)).toFixed(2)}
+- To: ${job.to}
+- Subject: ${job.subject}
+---`);
+    }
+
     return await queue.add(QUEUE_NAMES.EMAIL, job, {
-      //   jobId: customJobId,
+      delay,
       removeOnComplete: {
         count: 5,
       },
       removeOnFail: {
-        count: 5, // Keep last 3 failed jobs
+        count: 5, // Keep last 5 failed jobs
       },
     });
   }

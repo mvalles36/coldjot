@@ -18,9 +18,17 @@ import {
  */
 export function shouldRefreshToken(credentials: GmailCredentials): boolean {
   // If expiryDate exists and is within 5 minutes of expiring
-  const needsRefresh =
-    credentials.expiryDate &&
-    credentials.expiryDate < Date.now() + 5 * 60 * 1000; // 5 minutes buffer
+  // const needsRefresh =
+  // credentials.expiryDate &&
+  // credentials.expiryDate < Date.now() + 5 * 60 * 1000; // 5 minutes buffer
+
+  // Convert expiryDate to Date object and get local time
+  const expiryDate = credentials.expiryDate
+    ? credentials.expiryDate * 1000
+    : new Date().getDate();
+
+  const now = new Date().getTime() + 5 * 60 * 1000;
+  const needsRefresh = expiryDate && expiryDate < now;
 
   if (needsRefresh) {
     logger.info("🔄 Token expired or about to expire, refreshing...");
