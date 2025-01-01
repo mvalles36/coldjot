@@ -47,7 +47,7 @@ const getCallerFile = () => {
 
 // Create a fixed-width formatter for the file name
 const formatFileName = (fileName: string) => {
-  const maxWidth = 50; // Increased to accommodate full paths
+  const maxWidth = 35; // Increased to accommodate full paths
   const dots = "-".repeat(Math.max(1, maxWidth - fileName.length - 2)); // -2 for the brackets, ensure at least 1 dot
   return `${fileName} ${dots}`;
 };

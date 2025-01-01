@@ -65,14 +65,14 @@ export abstract class BaseProcessor<T = any> {
   protected abstract process(job: Job<T>): Promise<void>;
 
   protected async onCompleted(job: Job<T>): Promise<void> {
-    logger.info(`✅ Job completed: ${job.id}`, {
+    logger.info(`🚧 ✅ Job completed: ${job.id}`, {
       queue: job.queueName,
       data: job.data,
     });
   }
 
   protected async onFailed(job: Job<T>, error: Error): Promise<void> {
-    logger.error(`❌ Job failed: ${job.id}`, {
+    logger.error(`🚧 ❌ Job failed: ${job.id}`, {
       queue: job.queueName,
       data: job.data,
       error: error.message,
@@ -81,33 +81,33 @@ export abstract class BaseProcessor<T = any> {
   }
 
   protected async onError(error: Error): Promise<void> {
-    logger.error("❌ Worker error:", error);
+    logger.error("🚧 ❌ Worker error:", error);
   }
 
   protected async onActive(job: Job<T>): Promise<void> {
-    logger.info(`🚀 Job started: ${job.id}`, {
+    logger.info(`🚧 🚀 Job started: ${job.id}`, {
       queue: job.queueName,
       data: job.data,
     });
   }
 
   protected async onStalled(jobId: string): Promise<void> {
-    logger.warn(`⚠️ Job stalled: ${jobId}`);
+    logger.warn(`🚧 ⚠️ Job stalled: ${jobId}`);
   }
 
   public async pause(): Promise<void> {
     await this.worker.pause();
-    logger.info(`⏸️ Worker paused: ${this.worker.name}`);
+    logger.info(`🚧 ⏸️ Worker paused: ${this.worker.name}`);
   }
 
   public async resume(): Promise<void> {
     await this.worker.resume();
-    logger.info(`▶️ Worker resumed: ${this.worker.name}`);
+    logger.info(`🚧 ▶️ Worker resumed: ${this.worker.name}`);
   }
 
   public async close(): Promise<void> {
     await this.worker.close();
-    logger.info(`🛑 Worker closed: ${this.worker.name}`);
+    logger.info(`🚧 🛑 Worker closed: ${this.worker.name}`);
   }
 
   public async getJobCounts(): Promise<{
@@ -140,7 +140,7 @@ export abstract class BaseProcessor<T = any> {
     const job = await this.queue.getJob(jobId);
     if (job) {
       await job.remove();
-      logger.info(`🗑️ Job removed: ${jobId}`, {
+      logger.info(`🚧 🗑️ Job removed: ${jobId}`, {
         queue: this.queue.name,
       });
     }
@@ -150,7 +150,7 @@ export abstract class BaseProcessor<T = any> {
     const job = await this.queue.getJob(jobId);
     if (job) {
       await job.retry();
-      logger.info(`🔄 Job retried: ${jobId}`, {
+      logger.info(`🚧 🔄 Job retried: ${jobId}`, {
         queue: this.queue.name,
       });
     }
@@ -162,7 +162,7 @@ export abstract class BaseProcessor<T = any> {
     const periodInSeconds = Math.floor(gracePeriod / 1000);
     await this.queue.clean(periodInSeconds, 100, "completed");
     await this.queue.clean(periodInSeconds, 100, "failed");
-    logger.info(`🧹 Cleaned old jobs from queue: ${this.queue.name}`, {
+    logger.info(`🚧 🧹 Cleaned old jobs from queue: ${this.queue.name}`, {
       gracePeriod: periodInSeconds,
     });
   }
