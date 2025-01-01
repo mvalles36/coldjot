@@ -285,6 +285,19 @@ export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
       "🚀 ~ SequenceProcessor ~ processContact ~ nextStep:"
     );
 
+    // Also calculate the schedule time for the current step
+    const currentStepScheduleTime =
+      await this.scheduleGenerator.calculateNextRun(
+        new Date(),
+        currentStep as SequenceStep,
+        sequence.businessHours || getDefaultBusinessHours()
+      );
+
+    logger.info(
+      currentStepScheduleTime,
+      "🚀 ~ SequenceProcessor ~ processContact ~ currentStepScheduleTime:"
+    );
+
     // Calculate next send time using scheduling service
     let nextSendTime = null;
     if (nextStep) {
@@ -324,7 +337,7 @@ export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
       subject: subject || "",
       threadId: sequenceContact.threadId || undefined,
       testMode: data.testMode || false,
-      scheduledTime: nextSendTime?.toISOString(),
+      scheduledTime: currentStepScheduleTime?.toISOString(),
     };
 
     // Add email job to queue
