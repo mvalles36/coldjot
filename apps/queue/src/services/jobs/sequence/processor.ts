@@ -27,8 +27,8 @@ import {
   getSequenceWithDetails,
   getContactProgress,
 } from "./helper";
-import { QUEUE_NAMES } from "@/config/queue/queue";
-import { getWorkerOptions } from "@/config/queue/processor";
+import { QUEUE_NAMES } from "@/config";
+import { getWorkerOptions } from "@/config";
 import { BaseProcessor } from "../base-processor";
 import { ServiceManager } from "@/services/service-manager";
 

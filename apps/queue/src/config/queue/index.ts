@@ -1,4 +1,4 @@
-import { QueueOptions } from "bullmq";
+import { QueueOptions, WorkerOptions } from "bullmq";
 
 // Queue names with their actual queue identifiers
 export const QUEUE_NAMES = {
@@ -102,11 +102,11 @@ export const DEFAULT_QUEUE_OPTIONS: QueueConfig = {
     },
     removeOnComplete: {
       age: CLEANUP_AGE,
-      count: 1, // Keep minimal completed jobs in memory
+      count: 1000, // Keep last 1000 completed jobs
     },
     removeOnFail: {
       age: CLEANUP_AGE,
-      count: 1, // Keep minimal failed jobs in memory
+      count: 5000, // Keep last 5000 failed jobs
     },
   },
 };
@@ -157,6 +157,160 @@ export const PROCESSOR_CONCURRENCY = {
   CONTACT: 5,
   EMAIL_SCHEDULE: 3,
 } as const;
+
+export const PROCESSOR_CONFIG = {
+  "email-sending": {
+    worker: {
+      concurrency: 10,
+      limiter: {
+        max: 50,
+        duration: 1000,
+      },
+      connection: {
+        maxRetriesPerRequest: null,
+        enableReadyCheck: false,
+      },
+    },
+    rateLimits: {
+      maxPerSecond: 50,
+      maxPerMinute: 500,
+    },
+    queueOptions: {
+      removeOnComplete: {
+        count: 1000,
+        age: 24 * 60 * 60,
+      },
+      removeOnFail: {
+        count: 5000,
+        age: 7 * 24 * 60 * 60,
+      },
+    },
+  },
+  "sequence-processing": {
+    worker: {
+      concurrency: 5,
+      limiter: {
+        max: 100,
+        duration: 1000,
+      },
+      connection: {
+        maxRetriesPerRequest: null,
+        enableReadyCheck: false,
+      },
+    },
+    rateLimits: {
+      maxPerSecond: 100,
+      maxPerMinute: 1000,
+    },
+    queueOptions: {
+      removeOnComplete: {
+        count: 1000,
+        age: 24 * 60 * 60,
+      },
+      removeOnFail: {
+        count: 5000,
+        age: 7 * 24 * 60 * 60,
+      },
+    },
+  },
+  "thread-watcher": {
+    worker: {
+      concurrency: 10,
+      limiter: {
+        max: 50,
+        duration: 1000,
+      },
+      connection: {
+        maxRetriesPerRequest: null,
+        enableReadyCheck: false,
+      },
+    },
+    rateLimits: {
+      maxPerSecond: 50,
+      maxPerMinute: 1000,
+    },
+    queueOptions: {
+      removeOnComplete: {
+        count: 1000,
+        age: 24 * 60 * 60,
+      },
+      removeOnFail: {
+        count: 5000,
+        age: 7 * 24 * 60 * 60,
+      },
+    },
+  },
+  "contact-processing": {
+    worker: {
+      concurrency: 5,
+      limiter: {
+        max: 100,
+        duration: 1000,
+      },
+      connection: {
+        maxRetriesPerRequest: null,
+        enableReadyCheck: false,
+      },
+    },
+    rateLimits: {
+      maxPerSecond: 100,
+      maxPerMinute: 1000,
+    },
+    queueOptions: {
+      removeOnComplete: {
+        count: 1000,
+        age: 24 * 60 * 60,
+      },
+      removeOnFail: {
+        count: 5000,
+        age: 7 * 24 * 60 * 60,
+      },
+    },
+  },
+  "email-schedule": {
+    worker: {
+      concurrency: 5,
+      limiter: {
+        max: 100,
+        duration: 1000,
+      },
+      connection: {
+        maxRetriesPerRequest: null,
+        enableReadyCheck: false,
+      },
+    },
+    rateLimits: {
+      maxPerSecond: 100,
+      maxPerMinute: 1000,
+    },
+    queueOptions: {
+      removeOnComplete: {
+        count: 1000,
+        age: 24 * 60 * 60,
+      },
+      removeOnFail: {
+        count: 5000,
+        age: 7 * 24 * 60 * 60,
+      },
+    },
+  },
+} as const;
+
+// Helper functions
+export function getWorkerOptions(processorName: string): WorkerOptions {
+  return PROCESSOR_CONFIG[processorName as keyof typeof PROCESSOR_CONFIG]
+    .worker;
+}
+
+export function getRateLimits(processorName: string) {
+  return PROCESSOR_CONFIG[processorName as keyof typeof PROCESSOR_CONFIG]
+    .rateLimits;
+}
+
+export function getQueueOptions(processorName: string) {
+  return PROCESSOR_CONFIG[processorName as keyof typeof PROCESSOR_CONFIG]
+    .queueOptions;
+}
 
 // Export types for type safety
 export type JobAttempts = typeof JOB_ATTEMPTS;

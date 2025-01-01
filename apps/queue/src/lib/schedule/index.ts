@@ -13,7 +13,7 @@ import { logger } from "@/lib/log";
 import { prisma } from "@mailjot/database";
 import { RATE_LIMIT_CONFIG } from "@/config/rate-limit/constants";
 import { isDevelopment, DEMO_MODE } from "@/config";
-import { DEFAULT_BUSINESS_HOURS } from "@/config/business/hours";
+import { DEFAULT_BUSINESS_HOURS } from "@/config";
 
 export interface ScheduleGenerator {
   calculateNextRun(

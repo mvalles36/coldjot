@@ -8,12 +8,12 @@ import {
   SequenceContactStatusEnum,
 } from "@mailjot/types";
 import { THREAD_CONFIG } from "@/config/thread/constants";
-import { getWorkerOptions, getRateLimits } from "@/config/queue/processor";
+import { getWorkerOptions, getRateLimits } from "@/config";
 import { GmailClientService } from "@/lib/google";
 import { DateTime } from "luxon";
 import type { MessagePartHeader } from "@mailjot/types";
 import { updateSequenceStats } from "@/lib/stats";
-import { QUEUE_NAMES } from "@/config/queue/queue";
+import { QUEUE_NAMES } from "@/config";
 import { Prisma } from "@prisma/client";
 import pLimit from "p-limit";
 import { RateLimiter } from "@/lib/rate-limiter";

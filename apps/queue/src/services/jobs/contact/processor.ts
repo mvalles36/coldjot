@@ -10,8 +10,8 @@ import {
 } from "@/services/jobs/sequence/helper";
 
 import { CONTACT_PROCESSING_CONFIG } from "@/config";
-import { QUEUE_NAMES } from "@/config/queue/queue";
-import { getWorkerOptions } from "@/config/queue/processor";
+import { QUEUE_NAMES } from "@/config";
+import { getWorkerOptions } from "@/config";
 
 import { ServiceManager } from "@/services/service-manager";
 

@@ -19,8 +19,8 @@ import {
   updateSequenceContactStatus,
 } from "@/services/jobs/sequence/helper";
 import { emailService } from "@/lib/email";
-import { QUEUE_NAMES } from "@/config/queue/queue";
-import { getWorkerOptions } from "@/config/queue/processor";
+import { QUEUE_NAMES } from "@/config";
+import { getWorkerOptions } from "@/config";
 
 export class EmailProcessor extends BaseProcessor<EmailJob> {
   private serviceManager = ServiceManager.getInstance();

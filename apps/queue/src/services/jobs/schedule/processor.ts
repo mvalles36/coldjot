@@ -19,8 +19,8 @@ import {
   EmailJobEnum,
 } from "@mailjot/types";
 import { EMAIL_SCHEDULER_CONFIG } from "@/config";
-import { QUEUE_NAMES } from "@/config/queue/queue";
-import { getWorkerOptions } from "@/config/queue/processor";
+import { QUEUE_NAMES } from "@/config";
+import { getWorkerOptions } from "@/config";
 import { ServiceManager } from "@/services/service-manager";
 // Define the type for what we actually need from the sequence
 type SequenceWithRelations = {
