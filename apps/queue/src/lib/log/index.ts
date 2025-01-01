@@ -2,6 +2,9 @@ import pino from "pino";
 import { env } from "@/config";
 import path from "path";
 
+// Get the number of parent folders to show from environment or default to showing all
+const LOG_PATH_DEPTH = env.LOG_PATH_DEPTH ? parseInt(env.LOG_PATH_DEPTH) : 2; // 0 means show all
+
 // Get the caller file name
 const getCallerFile = () => {
   const err = new Error();
@@ -14,18 +17,38 @@ const getCallerFile = () => {
     const fileName = call.getFileName();
     return (
       fileName &&
-      !fileName.includes("logger.ts") &&
+      !fileName.includes("/lib/log/") &&
       !fileName.includes("node_modules/pino")
     );
   });
 
-  return caller ? path.basename(caller.getFileName() || "") : "unknown";
+  if (!caller) return "unknown";
+
+  const fileName = caller.getFileName() || "";
+
+  // Find the position of /src/ in the path
+  const srcIndex = fileName.indexOf("/src/");
+  if (srcIndex !== -1) {
+    // Get everything after /src/
+    const relativePath = fileName.slice(srcIndex + 5);
+
+    // If LOG_PATH_DEPTH is 0, return the full path
+    if (LOG_PATH_DEPTH === 0) {
+      return relativePath;
+    }
+
+    // Split the path and take the last N parts based on LOG_PATH_DEPTH
+    const parts = relativePath.split("/");
+    return parts.slice(Math.max(0, parts.length - LOG_PATH_DEPTH)).join("/");
+  }
+
+  return path.basename(fileName);
 };
 
 // Create a fixed-width formatter for the file name
 const formatFileName = (fileName: string) => {
-  const maxWidth = 25; // Adjust this value based on your longest filename
-  const dots = "-".repeat(maxWidth - fileName.length - 2); // -2 for the brackets
+  const maxWidth = 50; // Increased to accommodate full paths
+  const dots = "-".repeat(Math.max(1, maxWidth - fileName.length - 2)); // -2 for the brackets, ensure at least 1 dot
   return `${fileName} ${dots}`;
 };
 

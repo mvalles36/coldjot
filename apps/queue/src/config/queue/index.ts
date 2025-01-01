@@ -11,24 +11,6 @@ export const QUEUE_NAMES = {
 
 export type QueueName = keyof typeof QUEUE_NAMES;
 
-// Queue processor paths mapping
-export const QUEUE_PATHS = {
-  EMAIL: "email",
-  SEQUENCE: "sequence",
-  THREAD_WATCHER: "thread", // Note: processor is in thread folder
-  CONTACT: "contact",
-  EMAIL_SCHEDULE: "schedule", // Note: processor is in schedule folder
-} as const;
-
-// Job priorities for all queues
-export const JOB_PRIORITIES = {
-  HIGH: 1,
-  MEDIUM: 2,
-  LOW: 3,
-} as const;
-
-export type JobPriority = (typeof JOB_PRIORITIES)[keyof typeof JOB_PRIORITIES];
-
 // Job attempts per queue type
 export const JOB_ATTEMPTS = {
   SEQUENCE: 3,
@@ -159,7 +141,7 @@ export const PROCESSOR_CONCURRENCY = {
 } as const;
 
 export const PROCESSOR_CONFIG = {
-  "email-sending": {
+  [QUEUE_NAMES.EMAIL]: {
     worker: {
       concurrency: 10,
       limiter: {
@@ -186,7 +168,7 @@ export const PROCESSOR_CONFIG = {
       },
     },
   },
-  "sequence-processing": {
+  [QUEUE_NAMES.SEQUENCE]: {
     worker: {
       concurrency: 5,
       limiter: {
@@ -213,7 +195,7 @@ export const PROCESSOR_CONFIG = {
       },
     },
   },
-  "thread-watcher": {
+  [QUEUE_NAMES.THREAD_WATCHER]: {
     worker: {
       concurrency: 10,
       limiter: {
@@ -240,7 +222,7 @@ export const PROCESSOR_CONFIG = {
       },
     },
   },
-  "contact-processing": {
+  [QUEUE_NAMES.CONTACT]: {
     worker: {
       concurrency: 5,
       limiter: {
@@ -267,7 +249,7 @@ export const PROCESSOR_CONFIG = {
       },
     },
   },
-  "email-schedule": {
+  [QUEUE_NAMES.EMAIL_SCHEDULE]: {
     worker: {
       concurrency: 5,
       limiter: {

@@ -1,5 +1,5 @@
 import { logger } from "@/lib/log";
-import { REDIS_KEYS } from "@/services/shared/redis/keys";
+import { REDIS_KEYS } from "@/config";
 import { RedisConnection } from "@/services/shared/redis/connection";
 
 export class RateLimitService {
