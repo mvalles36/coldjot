@@ -88,6 +88,7 @@ export async function updateSequenceContactStatus(
       },
       data: {
         status,
+        completed: status === SequenceContactStatusEnum.COMPLETED,
         completedAt,
         updatedAt: date,
         lastProcessedAt: date,

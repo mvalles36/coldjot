@@ -335,7 +335,10 @@ export class EmailProcessor extends BaseProcessor<EmailJob> {
       await updateSequenceContactStatus(
         data.sequenceId,
         data.contactId,
-        SequenceContactStatusEnum.COMPLETED
+        SequenceContactStatusEnum.COMPLETED,
+        {
+          nextScheduledAt: null,
+        }
       );
     }
 

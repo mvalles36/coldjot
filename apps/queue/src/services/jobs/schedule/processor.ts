@@ -17,6 +17,7 @@ import {
   type SequenceStep,
   type BusinessHours,
   EmailJobEnum,
+  SequenceContactStatusEnum,
 } from "@mailjot/types";
 import { EMAIL_SCHEDULER_CONFIG } from "@/config";
 import { QUEUE_NAMES } from "@/config";
@@ -119,10 +120,21 @@ export class ScheduleProcessor extends BaseProcessor<any> {
       // Find emails that are due to be sent with the correct structure
       const dueEmails = await prisma.sequenceContact.findMany({
         where: {
-          nextScheduledAt: {
-            lte: new Date(),
-          },
-          completed: false,
+          AND: [
+            {
+              nextScheduledAt: {
+                lte: new Date(),
+                not: null,
+              },
+            },
+            {
+              AND: [
+                { completed: false },
+                // { status: { not: SequenceContactStatusEnum.COMPLETED } },
+                { status: SequenceContactStatusEnum.SCHEDULED },
+              ],
+            },
+          ],
         },
         select: {
           id: true,
@@ -201,17 +213,7 @@ export class ScheduleProcessor extends BaseProcessor<any> {
         );
       }
 
-      logger.info("📥 Found emails to process", {
-        count: dueEmails.length,
-        emails: dueEmails.map((e) => ({
-          id: e.id,
-          sequenceId: e.sequenceId,
-          contactId: e.contactId,
-          currentStep: e.currentStep,
-          email: e.contact.email,
-          scheduledTime: e.nextScheduledAt?.toISOString(),
-        })),
-      });
+      logger.info(`📥 Found ${dueEmails.length} emails to process`);
 
       // Process each email
       for (const email of dueEmails) {
@@ -230,18 +232,6 @@ export class ScheduleProcessor extends BaseProcessor<any> {
               })),
             },
           };
-
-          logger.debug(
-            {
-              id: email.id,
-              sequenceId: email.sequenceId,
-              contactId: email.contactId,
-              currentStep: email.currentStep,
-              email: email.contact.email,
-              step: emailWithStatus.sequence.steps[email.currentStep - 1],
-            },
-            "🔄 Processing email"
-          );
 
           await this.processEmail(emailWithStatus);
         } catch (error) {
@@ -295,12 +285,7 @@ export class ScheduleProcessor extends BaseProcessor<any> {
     try {
       // 1. Check rate limits
       logger.debug(
-        {
-          userId: sequence.userId,
-          sequenceId: sequence.id,
-          contactId: contact.id,
-        },
-        "🔍 Checking rate limits"
+        `🔍 Checking rate limits for email user: ${sequence.userId} | sequence: ${sequence.id} | contact: ${contact.id}`
       );
 
       const { allowed, info } = await rateLimitService.checkRateLimit(
@@ -332,7 +317,7 @@ export class ScheduleProcessor extends BaseProcessor<any> {
             currentStep: email.currentStep,
             totalSteps: sequence.steps.length,
           },
-          "❌ Step not found"
+          `❌ Step not found for sequence: ${sequence.id} | currentStep: ${email.currentStep} with total steps: ${sequence.steps.length}`
         );
 
         // Verify if the step still exists in the database
@@ -515,16 +500,16 @@ export class ScheduleProcessor extends BaseProcessor<any> {
         "📝 Updating sequence progress"
       );
 
-      await prisma.sequenceContact.update({
-        where: { id: email.id },
-        data: {
-          lastProcessedAt: new Date(),
-          nextScheduledAt: isLastStep ? null : nextSendTime,
-          currentStep: email.currentStep + 1,
-          completed: isLastStep,
-          completedAt: isLastStep ? new Date() : null,
-        },
-      });
+      // await prisma.sequenceContact.update({
+      //   where: { id: email.id },
+      //   data: {
+      //     lastProcessedAt: new Date(),
+      //     nextScheduledAt: isLastStep ? null : nextSendTime,
+      //     currentStep: email.currentStep + 1,
+      //     completed: isLastStep,
+      //     completedAt: isLastStep ? new Date() : null,
+      //   },
+      // });
 
       // 8. Increment rate limit counters
       logger.debug("🔄 Incrementing rate limit counters");
@@ -541,7 +526,7 @@ export class ScheduleProcessor extends BaseProcessor<any> {
           sequenceId: sequence.id,
           contactId: contact.id,
           email: contact.email,
-          nextStep: email.currentStep + 1,
+          nextStep: email.currentStep,
           isComplete: isLastStep,
         },
         "✅ Successfully processed email"
