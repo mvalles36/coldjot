@@ -54,7 +54,7 @@ export async function POST(
         content,
         includeSignature,
         note,
-        order: sequence.steps.length,
+        order: sequence.steps.length + 1,
         replyToThread,
         previousStepId,
       },

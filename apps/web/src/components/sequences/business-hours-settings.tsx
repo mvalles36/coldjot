@@ -9,11 +9,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Clock } from "lucide-react";
+import { Clock, Check, ChevronsUpDown } from "lucide-react";
 import { toast } from "react-hot-toast";
 import type { BusinessHours } from "@mailjot/types";
 import { TimePicker } from "@/components/ui/time-picker";
 import { cn } from "@/lib/utils";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface BusinessHoursSettingsProps {
   sequenceId: string;
@@ -55,6 +67,7 @@ BusinessHoursSettingsProps) {
     initialScheduleType
   );
   const [isLoading, setIsLoading] = useState(false);
+  const [open, setOpen] = useState(false);
 
   const handleWorkDayToggle = (day: number) => {
     const newWorkDays = settings.workDays.includes(day)
@@ -73,6 +86,7 @@ BusinessHoursSettingsProps) {
 
   const handleTimezoneChange = (value: string) => {
     setSettings({ ...settings, timezone: value });
+    setOpen(false);
   };
 
   const handleScheduleTypeChange = (value: "business" | "custom") => {
@@ -148,22 +162,45 @@ BusinessHoursSettingsProps) {
         <div className="space-y-4">
           <div>
             <Label>Timezone</Label>
-            <Select
-              value={settings.timezone}
-              onValueChange={handleTimezoneChange}
-              disabled={isLoading}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select timezone" />
-              </SelectTrigger>
-              <SelectContent>
-                {Intl.supportedValuesOf("timeZone").map((zone) => (
-                  <SelectItem key={zone} value={zone}>
-                    {zone}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover open={open} onOpenChange={setOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={open}
+                  className="w-full justify-between"
+                  disabled={isLoading}
+                >
+                  {settings.timezone}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[400px] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Search timezone..." />
+                  <CommandEmpty>No timezone found.</CommandEmpty>
+                  <CommandGroup className="max-h-[300px] overflow-auto">
+                    {Intl.supportedValuesOf("timeZone").map((zone) => (
+                      <CommandItem
+                        key={zone}
+                        value={zone}
+                        onSelect={handleTimezoneChange}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            settings.timezone === zone
+                              ? "opacity-100"
+                              : "opacity-0"
+                          )}
+                        />
+                        {zone}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div>

@@ -28,12 +28,13 @@ export async function POST(
     }
 
     // Update all steps in a transaction
+    // TODO : check order + 1 if needed
     await prisma.$transaction(
       steps.map((step: any) =>
         prisma.sequenceStep.update({
           where: { id: step.id },
           data: {
-            order: step.order,
+            order: step.order + 1,
             previousStepId: step.previousStepId,
           },
         })

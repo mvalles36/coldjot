@@ -223,6 +223,7 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
       veryOld: this.calculateTimeThreshold(CHECK_FREQUENCIES[env].VERY_OLD),
     };
 
+    // TODO : check if proper index is created for lastCheckedAt
     // Build the where clause based on thread age and status
     const where: Prisma.EmailThreadWhereInput = {
       // Check threads based on their last check time and age

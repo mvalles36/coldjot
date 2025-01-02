@@ -17,17 +17,23 @@ import { ServiceManager } from "@/services/service-manager";
 import {
   updateSequenceContactThreadId,
   updateSequenceContactStatus,
+  getDefaultBusinessHours,
 } from "@/services/jobs/sequence/helper";
 import { emailService } from "@/lib/email";
 import { QUEUE_NAMES } from "@/config";
 import { getWorkerOptions } from "@/config";
+import { ScheduleGenerator, scheduleGenerator } from "@/lib/schedule";
 
 export class EmailProcessor extends BaseProcessor<EmailJob> {
   private serviceManager = ServiceManager.getInstance();
   private jobManager = this.serviceManager.getJobManager();
 
+  private scheduleGenerator: ScheduleGenerator;
+
   constructor(queue: Queue) {
     super(queue, QUEUE_NAMES.EMAIL, getWorkerOptions(QUEUE_NAMES.EMAIL));
+
+    this.scheduleGenerator = scheduleGenerator;
   }
 
   protected async process(job: Job<EmailJob>): Promise<void> {
@@ -162,7 +168,7 @@ export class EmailProcessor extends BaseProcessor<EmailJob> {
         await this.handleSuccessfulEmail(data, emailResult, step);
 
         // Save information in EmailThread
-        if (step.order === 0) {
+        if (step.order === 1) {
           await prisma.emailThread.create({
             data: {
               threadId: emailResult.threadId,
@@ -269,17 +275,63 @@ export class EmailProcessor extends BaseProcessor<EmailJob> {
       where: { sequenceId: data.sequenceId },
     });
 
+    // const currentStepOrder = step.order;
+    // const stepId = step.id;
+    const sequence = await prisma.sequence.findUnique({
+      where: { id: data.sequenceId },
+      include: {
+        businessHours: true,
+      },
+    });
+
+    if (!sequence) {
+      throw new Error(`Sequence ${data.sequenceId} not found`);
+    }
+
     // If the current step is not the last step, update the status to in progress
-    if (step.order < totalSteps - 1) {
+    if (step.order < totalSteps) {
       await updateSequenceContactStatus(
         data.sequenceId,
         data.contactId,
         SequenceContactStatusEnum.IN_PROGRESS
       );
+
+      // calculate the next <step></step>
+      const nextStepOrder = step.order + 1;
+
+      const steps = await prisma.sequenceStep.findMany({
+        where: { sequenceId: data.sequenceId },
+      });
+
+      logger.info(steps, "🚀 ~ EmailProcessor ~ steps:");
+
+      const nextStep = steps[nextStepOrder - 1];
+
+      logger.info(nextStep, "🚀 ~ EmailProcessor ~ nextStep:");
+
+      // calculate the nextRunTime
+      const nextRunTime = await this.scheduleGenerator.calculateNextRun(
+        new Date(),
+        nextStep as SequenceStep,
+        sequence.businessHours || getDefaultBusinessHours()
+      );
+
+      logger.info(nextRunTime, "🚀 ~ EmailProcessor ~ nextRunTime:");
+
+      // update the next step to scheduled
+      await updateSequenceContactStatus(
+        data.sequenceId,
+        data.contactId,
+        SequenceContactStatusEnum.SCHEDULED,
+        {
+          currentStep: nextStepOrder,
+          nextScheduledAt: nextRunTime,
+        }
+      );
     }
 
     // if the current step is the last step, update the status to completed
-    if (step.order === totalSteps - 1) {
+    if (step.order === totalSteps) {
       await updateSequenceContactStatus(
         data.sequenceId,
         data.contactId,
@@ -287,12 +339,14 @@ export class EmailProcessor extends BaseProcessor<EmailJob> {
       );
     }
 
+    //
+
     logger.info(
       {
         messageId: result.messageId,
         threadId: result.threadId,
         to: data.to,
-        step: step.order + 1,
+        step: step.order,
       },
       "✅ Email sent successfully"
     );

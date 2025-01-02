@@ -244,7 +244,7 @@ export async function resetSequence(sequenceId: string): Promise<void> {
         currentStep: 0,
         nextScheduledAt: null,
         completed: false,
-        startedAt: new Date(),
+        startedAt: null,
       },
     });
     logger.info(`✓ Sequence contacts reset`);

@@ -267,7 +267,7 @@ export function SequenceContacts({
               <TableHead>Progress</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Started At</TableHead>
-              <TableHead>Next Run</TableHead>
+              <TableHead>Run Time</TableHead>
               <TableHead>Timeline</TableHead>
               <TableHead className="w-[50px]"></TableHead>
             </TableRow>
@@ -338,13 +338,22 @@ export function SequenceContacts({
                   <TableCell>{getStatusDetails(sequenceContact)}</TableCell>
                   <TableCell>
                     <div className="text-sm">
-                      {format(
-                        new Date(sequenceContact.startedAt),
-                        "MMM d, yyyy"
+                      {sequenceContact.startedAt ? (
+                        <>
+                          {format(
+                            new Date(sequenceContact.startedAt),
+                            "MMM d, yyyy"
+                          )}
+                          <div className="text-xs text-muted-foreground">
+                            {format(
+                              new Date(sequenceContact.startedAt),
+                              "h:mm a"
+                            )}
+                          </div>
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
                       )}
-                      <div className="text-xs text-muted-foreground">
-                        {format(new Date(sequenceContact.startedAt), "h:mm a")}
-                      </div>
                     </div>
                   </TableCell>
                   <TableCell>

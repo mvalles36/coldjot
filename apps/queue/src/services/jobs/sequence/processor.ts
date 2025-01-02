@@ -229,34 +229,38 @@ export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
       data.sequenceId,
       sequenceContact.contact.id
     );
-    const currentStepIndex = progress?.currentStep ?? 0;
+    const currentStepOrder = progress?.currentStep ? progress.currentStep : 1;
+    const currentStepIndex = progress?.currentStep
+      ? progress.currentStep - 1
+      : 0;
 
     // Log progress status
     logger.info(`📊 Contact progress:`, {
       contact: sequenceContact.contact.email,
-      currentStep: currentStepIndex + 1,
+      currentStep: currentStepOrder,
       totalSteps: sequence.steps.length,
       hasExistingProgress: !!progress,
     });
 
+    // TODO : check if need to move this code to email processor
     // Check if sequence is completed
-    if (currentStepIndex >= sequence.steps.length) {
-      logger.info(
-        `✅ Sequence completed for contact: ${sequenceContact.contact.email}`
-      );
-      await updateSequenceContactStatus(
-        sequence.id,
-        sequenceContact.contact.id,
-        SequenceContactStatusEnum.COMPLETED
-      );
-      return;
-    }
+    // if (currentStepOrder >= sequence.steps.length) {
+    //   logger.info(
+    //     `✅ Sequence completed for contact: ${sequenceContact.contact.email}`
+    //   );
+    //   await updateSequenceContactStatus(
+    //     sequence.id,
+    //     sequenceContact.contact.id,
+    //     SequenceContactStatusEnum.COMPLETED
+    //   );
+    //   return;
+    // }
 
     // Get current step
     const currentStep = sequence.steps[currentStepIndex];
     if (!currentStep) {
       logger.error(
-        `❌ Step not found at index ${currentStepIndex} for sequence ${sequence.name}`
+        `❌ Step not found at order ${currentStepOrder} for sequence ${sequence.name}`
       );
       return;
     }
@@ -270,8 +274,8 @@ export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
     }
 
     // Log step details
-    logger.info(`📝 Processing step ${currentStepIndex + 1}:`, {
-      step: currentStepIndex + 1,
+    logger.info(`📝 Processing step ${currentStepOrder}:`, {
+      step: currentStepOrder,
       totalSteps: sequence.steps.length,
       timing: currentStep.timing,
       delay: {
@@ -311,7 +315,7 @@ export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
     logger.info(
       `📅 Scheduling email for contact: ${sequenceContact.contact.email}`,
       {
-        step: currentStepIndex + 1,
+        step: currentStepIndex,
         totalSteps: sequence.steps.length,
         sendTime: nextSendTime?.toISOString() || "N/A",
         subject: currentStep.subject,
@@ -319,7 +323,8 @@ export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
     );
 
     // Get previous subject from previous step if replyToThread is true
-    const previousStep = sequence.steps[currentStepIndex - 1];
+    const previousStep =
+      sequence.steps[currentStepIndex >= 1 ? currentStepIndex - 1 : 0];
     const previousSubject = previousStep?.subject || "";
     const subject = currentStep.replyToThread
       ? `Re: ${previousSubject}`
@@ -343,7 +348,7 @@ export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
     // Add email job to queue
     logger.info(
       {
-        step: currentStepIndex + 1,
+        step: currentStepOrder,
         totalSteps: sequence.steps.length,
       },
       `📬 Creating email job`
@@ -356,13 +361,14 @@ export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
 
     await this.jobManager.addEmailJob(emailJob);
 
+    // TODO : check if need to move this code to email processor
     // Update progress
-    await updateSequenceContactProgress(
-      sequence.id,
-      sequenceContact.contact.id,
-      currentStepIndex + 1,
-      nextSendTime || new Date()
-    );
+    // await updateSequenceContactProgress(
+    //   sequence.id,
+    //   sequenceContact.contact.id,
+    //   currentStepOrder + 1,
+    //   nextSendTime || new Date()
+    // );
 
     // Update contact status
     logger.info(
@@ -371,7 +377,12 @@ export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
     await updateSequenceContactStatus(
       sequence.id,
       sequenceContact.contact.id,
-      SequenceContactStatusEnum.SCHEDULED
+      SequenceContactStatusEnum.SCHEDULED,
+      {
+        currentStep: currentStepOrder,
+        nextScheduledAt: currentStepScheduleTime,
+        startedAt: sequenceContact.startedAt || new Date(),
+      }
     );
 
     // Increment rate limit counters

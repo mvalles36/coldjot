@@ -238,7 +238,7 @@ export class ScheduleProcessor extends BaseProcessor<any> {
               contactId: email.contactId,
               currentStep: email.currentStep,
               email: email.contact.email,
-              step: emailWithStatus.sequence.steps[email.currentStep],
+              step: emailWithStatus.sequence.steps[email.currentStep - 1],
             },
             "🔄 Processing email"
           );
@@ -280,22 +280,28 @@ export class ScheduleProcessor extends BaseProcessor<any> {
   ): Promise<void> {
     const { sequence, contact } = email;
 
-    logger.info("📧 Processing email", {
-      id: email.id,
-      sequenceId: sequence.id,
-      contactId: contact.id,
-      email: contact.email,
-      currentStep: email.currentStep,
-      totalSteps: sequence.steps.length,
-    });
+    logger.info(
+      {
+        id: email.id,
+        sequenceId: sequence.id,
+        contactId: contact.id,
+        email: contact.email,
+        currentStep: email.currentStep,
+        totalSteps: sequence.steps.length,
+      },
+      "📧 Processing email"
+    );
 
     try {
       // 1. Check rate limits
-      logger.debug("🔍 Checking rate limits", {
-        userId: sequence.userId,
-        sequenceId: sequence.id,
-        contactId: contact.id,
-      });
+      logger.debug(
+        {
+          userId: sequence.userId,
+          sequenceId: sequence.id,
+          contactId: contact.id,
+        },
+        "🔍 Checking rate limits"
+      );
 
       const { allowed, info } = await rateLimitService.checkRateLimit(
         sequence.userId,
@@ -314,16 +320,20 @@ export class ScheduleProcessor extends BaseProcessor<any> {
       }
 
       // 2. Get current step
-      const currentStep = sequence.steps[email.currentStep] as
+      const currentStepIndex = email.currentStep - 1;
+      const currentStep = sequence.steps[currentStepIndex] as
         | SequenceStep
         | undefined;
 
       if (!currentStep) {
-        logger.error("❌ Step not found", {
-          sequenceId: sequence.id,
-          currentStep: email.currentStep,
-          totalSteps: sequence.steps.length,
-        });
+        logger.error(
+          {
+            sequenceId: sequence.id,
+            currentStep: email.currentStep,
+            totalSteps: sequence.steps.length,
+          },
+          "❌ Step not found"
+        );
 
         // Verify if the step still exists in the database
         const stepExists = await prisma.sequenceStep.findFirst({
@@ -334,35 +344,38 @@ export class ScheduleProcessor extends BaseProcessor<any> {
         });
 
         if (!stepExists) {
-          logger.info("🗑️ Step has been deleted, cleaning up", {
-            sequenceId: sequence.id,
-            currentStep: email.currentStep,
-          });
+          logger.info(
+            {
+              sequenceId: sequence.id,
+              currentStep: email.currentStep,
+            },
+            "🗑️ Step has been deleted, cleaning up"
+          );
 
           // If this was the last step, mark the sequence as completed
-          if (email.currentStep >= sequence.steps.length - 1) {
-            await prisma.sequenceContact.update({
-              where: { id: email.id },
-              data: {
-                completed: true,
-                completedAt: new Date(),
-                nextScheduledAt: null,
-              },
-            });
-            logger.info(
-              "✅ Marked sequence as completed due to deleted last step"
-            );
-          } else {
-            // Skip to the next step
-            await prisma.sequenceContact.update({
-              where: { id: email.id },
-              data: {
-                currentStep: email.currentStep + 1,
-                nextScheduledAt: new Date(), // Schedule immediately
-              },
-            });
-            logger.info("⏭️ Skipped deleted step, moving to next step");
-          }
+          // if (email.currentStep >= sequence.steps.length) {
+          //   await prisma.sequenceContact.update({
+          //     where: { id: email.id },
+          //     data: {
+          //       completed: true,
+          //       completedAt: new Date(),
+          //       nextScheduledAt: null,
+          //     },
+          //   });
+          //   logger.info(
+          //     "✅ Marked sequence as completed due to deleted last step"
+          //   );
+          // } else {
+          //   // Skip to the next step
+          //   await prisma.sequenceContact.update({
+          //     where: { id: email.id },
+          //     data: {
+          //       currentStep: email.currentStep + 1,
+          //       nextScheduledAt: new Date(), // Schedule immediately
+          //     },
+          //   });
+          //   logger.info("⏭️ Skipped deleted step, moving to next step");
+          // }
           return;
         }
 
@@ -403,8 +416,8 @@ export class ScheduleProcessor extends BaseProcessor<any> {
         delay: nextSendTime.getTime() - Date.now(),
       });
 
-      const previousStep = currentStep.order - 1;
-      const previousSubject = sequence.steps[previousStep]?.subject || "";
+      const previousStepIndex = currentStep.order - 1;
+      const previousSubject = sequence.steps[previousStepIndex]?.subject || "";
 
       const subject = currentStep.replyToThread
         ? `Re: ${previousSubject}`
@@ -491,7 +504,7 @@ export class ScheduleProcessor extends BaseProcessor<any> {
       );
 
       // 6. Update sequence progress
-      const isLastStep = email.currentStep + 1 >= sequence.steps.length;
+      const isLastStep = email.currentStep >= sequence.steps.length;
       logger.debug(
         {
           id: email.id,

@@ -81,7 +81,7 @@ export abstract class BaseProcessor<T = any> {
   }
 
   protected async onError(error: Error): Promise<void> {
-    logger.error("🚧 ❌ Worker error:", error);
+    logger.error(error, "🚧 ❌ Worker error:");
   }
 
   protected async onActive(job: Job<T>): Promise<void> {
