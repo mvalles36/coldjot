@@ -43,6 +43,7 @@ export async function getGoogleAccount(
 // -----------------------------------------
 // -----------------------------------------
 
+// TODO :  halt everything if this fails
 export async function refreshAccessToken(
   userId: string,
   refreshToken: string,

@@ -516,10 +516,10 @@ export class ScheduleProcessor extends BaseProcessor<any> {
       await updateSequenceContactStatus(
         sequence.id,
         contact.id,
-        SequenceContactStatusEnum.IN_PROGRESS,
+        SequenceContactStatusEnum.SCHEDULED,
         {
           lastProcessedAt: new Date(),
-          nextScheduledAt: null, // Set to null to prevent duplicate jobs
+          // nextScheduledAt: null, // Set to null to prevent duplicate jobs
           // currentStep: email.currentStep + 1,
           // completed: isLastStep,
           // completedAt: isLastStep ? new Date() : null,

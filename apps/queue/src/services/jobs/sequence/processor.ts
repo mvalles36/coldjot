@@ -247,20 +247,6 @@ export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
       hasExistingProgress: !!progress,
     });
 
-    // TODO : check if need to move this code to email processor
-    // Check if sequence is completed
-    // if (currentStepOrder >= sequence.steps.length) {
-    //   logger.info(
-    //     `✅ Sequence completed for contact: ${sequenceContact.contact.email}`
-    //   );
-    //   await updateSequenceContactStatus(
-    //     sequence.id,
-    //     sequenceContact.contact.id,
-    //     SequenceContactStatusEnum.COMPLETED
-    //   );
-    //   return;
-    // }
-
     // Get current step
     const currentStep = sequence.steps[currentStepIndex];
     if (!currentStep) {
@@ -279,20 +265,7 @@ export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
     }
 
     // Log step details
-    logger.info(`📝 Processing step ${currentStepOrder}:`, {
-      step: currentStepOrder,
-      totalSteps: sequence.steps.length,
-      timing: currentStep.timing,
-      delay: {
-        amount: currentStep.delayAmount || 0,
-        unit: currentStep.delayUnit || "minutes",
-      },
-    });
-
-    logger.info(
-      nextStep,
-      "🚀 ~ SequenceProcessor ~ processContact ~ nextStep:"
-    );
+    logger.info(`📝 Processing step ${currentStepOrder}:`);
 
     // Also calculate the schedule time for the current step
     const currentStepScheduleTime =
@@ -306,26 +279,6 @@ export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
       currentStepScheduleTime,
       "🚀 ~ SequenceProcessor ~ processContact ~ currentStepScheduleTime:"
     );
-
-    // Calculate next send time using scheduling service
-    // let nextSendTime = null;
-    // if (nextStep) {
-    //   nextSendTime = await this.scheduleGenerator.calculateNextRun(
-    //     new Date(),
-    //     nextStep as SequenceStep,
-    //     sequence.businessHours || getDefaultBusinessHours()
-    //   );
-    // }
-
-    // logger.info(
-    //   `📅 Scheduling email for contact: ${sequenceContact.contact.email}`,
-    //   {
-    //     step: currentStepIndex,
-    //     totalSteps: sequence.steps.length,
-    //     sendTime: nextSendTime?.toISOString() || "N/A",
-    //     subject: currentStep.subject,
-    //   }
-    // );
 
     // Get previous subject from previous step if replyToThread is true
     const previousStep =
@@ -365,15 +318,6 @@ export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
     );
 
     await this.jobManager.addEmailJob(emailJob);
-
-    // TODO : check if need to move this code to email processor
-    // Update progress
-    // await updateSequenceContactProgress(
-    //   sequence.id,
-    //   sequenceContact.contact.id,
-    //   currentStepOrder + 1,
-    //   nextSendTime || new Date()
-    // );
 
     // Update contact status
     logger.info(

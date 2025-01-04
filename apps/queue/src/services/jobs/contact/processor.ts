@@ -8,7 +8,7 @@ import {
   getDefaultBusinessHours,
   updateSequenceContactStatus,
 } from "@/services/jobs/sequence/helper";
-
+// import { SequenceStatusEnum } from "@mailjot/types";
 import { CONTACT_PROCESSING_CONFIG } from "@/config";
 import { QUEUE_NAMES } from "@/config";
 import { getWorkerOptions } from "@/config";
@@ -134,6 +134,8 @@ export class ContactProcessor extends BaseProcessor<ContactProcessingJob> {
   /**
    * Process an individual contact
    */
+
+  // TODO : add a way to not check the contacts if parent sequence is paused
   private async processContact(contact: any): Promise<void> {
     const { sequence, contact: contactDetails } = contact;
 
@@ -144,6 +146,13 @@ export class ContactProcessor extends BaseProcessor<ContactProcessingJob> {
       },
       `👤 Processing contact: ${contactDetails.email}`
     );
+
+    if (sequence.status !== "active") {
+      logger.info(
+        `👤 Sequence ${sequence.id} is paused. Skipping contact ${contactDetails.email}`
+      );
+      return;
+    }
 
     try {
       // 1. Check rate limits
@@ -215,6 +224,8 @@ export class ContactProcessor extends BaseProcessor<ContactProcessingJob> {
         SequenceContactStatusEnum.SCHEDULED,
         {
           currentStep: 1,
+          nextScheduledAt: sendTime,
+          startedAt: new Date(),
         }
       );
 
