@@ -18,6 +18,7 @@ import {
   type BusinessHours,
   EmailJobEnum,
   SequenceContactStatusEnum,
+  SequenceStatus,
 } from "@mailjot/types";
 import { EMAIL_SCHEDULER_CONFIG } from "@/config";
 import { QUEUE_NAMES } from "@/config";
@@ -131,8 +132,12 @@ export class ScheduleProcessor extends BaseProcessor<any> {
             {
               AND: [
                 { completed: false },
-                // { status: { not: SequenceContactStatusEnum.COMPLETED } },
                 { status: SequenceContactStatusEnum.IN_PROGRESS },
+                {
+                  sequence: {
+                    status: SequenceStatus.ACTIVE,
+                  },
+                },
               ],
             },
           ],
@@ -152,6 +157,7 @@ export class ScheduleProcessor extends BaseProcessor<any> {
             select: {
               id: true,
               userId: true,
+              status: true,
               steps: {
                 orderBy: {
                   order: "asc",
