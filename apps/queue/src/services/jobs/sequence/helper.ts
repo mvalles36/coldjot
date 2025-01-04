@@ -7,6 +7,9 @@ import {
 } from "@mailjot/types";
 import { GoogleAccount } from "@mailjot/types";
 import { logger } from "@/lib/log";
+import { rateLimitService } from "@/services/core/rate-limit/service";
+import { scheduleGenerator } from "@/lib/schedule";
+import { EmailJob } from "@mailjot/types";
 
 /**
  * Get user's Google account details
@@ -275,3 +278,157 @@ export async function resetSequence(sequenceId: string): Promise<void> {
     throw error;
   }
 }
+
+/**
+ * Shared interface for contact processing options
+ */
+interface ProcessContactOptions {
+  sequence: {
+    id: string;
+    userId: string;
+    steps: any[];
+    businessHours?: any;
+    status?: string;
+  };
+  contact: {
+    id: string;
+    email: string;
+  };
+  currentStep?: number;
+  testMode?: boolean;
+  threadId?: string;
+  startedAt?: Date;
+}
+
+/**
+ * Shared function to process a contact across different processors
+ */
+export const processContactShared = async (
+  options: ProcessContactOptions,
+  jobManager: any
+): Promise<void> => {
+  const { sequence, contact, currentStep = 1, testMode = false } = options;
+
+  logger.info(
+    {
+      sequenceId: sequence.id,
+      contactId: contact.id,
+    },
+    `👤 Processing contact: ${contact.email}`
+  );
+
+  // Check if sequence is active (early return if not)
+  if (sequence.status && sequence.status !== "active") {
+    logger.info(
+      `👤 Sequence ${sequence.id} is paused. Skipping contact ${contact.email}`
+    );
+    return;
+  }
+
+  try {
+    // 1. Check rate limits
+    const { allowed, info } = await rateLimitService.checkRateLimit(
+      sequence.userId,
+      sequence.id,
+      contact.id
+    );
+
+    if (!allowed) {
+      logger.warn("⚠️ Rate limit exceeded:", info);
+      return;
+    }
+
+    // 2. Update status to processing/pending
+    await updateSequenceContactStatus(
+      sequence.id,
+      contact.id,
+      SequenceContactStatusEnum.PENDING
+    );
+
+    // 3. Get current step
+    const currentStepIndex = currentStep - 1;
+    const step = sequence.steps[currentStepIndex];
+    if (!step) {
+      throw new Error("Step not found");
+    }
+
+    // 4. Get user's Google account
+    const googleAccount = await getUserGoogleAccount(sequence.userId);
+    if (!googleAccount) {
+      throw new Error(
+        `No valid email account found for user ${sequence.userId}`
+      );
+    }
+
+    // 5. Calculate send time using scheduling service
+    const sendTime = await scheduleGenerator.calculateNextRun(
+      new Date(),
+      step,
+      sequence.businessHours || getDefaultBusinessHours()
+    );
+
+    if (!sendTime) {
+      throw new Error("Could not calculate send time");
+    }
+
+    // Handle subject and thread ID logic
+    const previousStepIndex = currentStepIndex >= 1 ? currentStepIndex - 1 : 0;
+    const previousSubject = sequence.steps[previousStepIndex]?.subject || "";
+    const subject = step.replyToThread
+      ? `Re: ${previousSubject}`
+      : step.subject;
+
+    // 6. Create email job
+    const emailJob: EmailJob = {
+      sequenceId: sequence.id,
+      contactId: contact.id,
+      stepId: step.id,
+      userId: sequence.userId,
+      to: testMode
+        ? process.env.TEST_EMAIL || googleAccount.email || ""
+        : contact.email,
+      subject: subject || "",
+      threadId: options.threadId,
+      scheduledTime: sendTime.toISOString(),
+      testMode,
+    };
+
+    // 7. Add to queue
+    await jobManager.addEmailJob(emailJob);
+
+    logger.info(`📧 Created email job for contact: ${contact.email}`);
+
+    // 8. Update contact status and progress
+    await updateSequenceContactStatus(
+      sequence.id,
+      contact.id,
+      SequenceContactStatusEnum.SCHEDULED,
+      {
+        currentStep,
+        nextScheduledAt: sendTime,
+        startedAt: options.startedAt || new Date(),
+      }
+    );
+
+    // 9. Increment rate limit counters
+    await rateLimitService.incrementCounters(
+      sequence.userId,
+      sequence.id,
+      contact.id
+    );
+
+    logger.info(`✅ Successfully processed contact: ${contact.email}`);
+  } catch (error) {
+    logger.error(error, `❌ Error processing contact ${contact.email}:`);
+
+    // Update status to failed
+    await updateSequenceContactStatus(
+      sequence.id,
+      contact.id,
+      SequenceContactStatusEnum.FAILED
+    );
+
+    // Re-throw error for higher-level handling
+    throw error;
+  }
+};

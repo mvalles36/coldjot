@@ -7,6 +7,7 @@ import {
   getUserGoogleAccount,
   getDefaultBusinessHours,
   updateSequenceContactStatus,
+  processContactShared,
 } from "@/services/jobs/sequence/helper";
 // import { SequenceStatusEnum } from "@mailjot/types";
 import { CONTACT_PROCESSING_CONFIG } from "@/config";
@@ -139,119 +140,14 @@ export class ContactProcessor extends BaseProcessor<ContactProcessingJob> {
   private async processContact(contact: any): Promise<void> {
     const { sequence, contact: contactDetails } = contact;
 
-    logger.info(
+    await processContactShared(
       {
-        sequenceId: sequence.id,
-        contactId: contactDetails.id,
+        sequence,
+        contact: contactDetails,
+        currentStep: 1, // Contact processor always starts with step 1
+        startedAt: new Date(),
       },
-      `👤 Processing contact: ${contactDetails.email}`
+      this.jobManager
     );
-
-    if (sequence.status !== "active") {
-      logger.info(
-        `👤 Sequence ${sequence.id} is paused. Skipping contact ${contactDetails.email}`
-      );
-      return;
-    }
-
-    try {
-      // 1. Check rate limits
-      const { allowed, info } = await rateLimitService.checkRateLimit(
-        sequence.userId,
-        sequence.id,
-        contactDetails.id
-      );
-
-      if (!allowed) {
-        logger.warn("⚠️ Rate limit exceeded:", info);
-        return;
-      }
-
-      // 2. Update status to processing
-      await updateSequenceContactStatus(
-        sequence.id,
-        contact.contact.id,
-        SequenceContactStatusEnum.PENDING
-      );
-
-      // 3. Get first step of sequence
-      const firstStep = sequence.steps[0];
-      if (!firstStep) {
-        throw new Error("Sequence has no steps");
-      }
-
-      // 4. Get user's Google account
-      const googleAccount = await getUserGoogleAccount(sequence.userId);
-      if (!googleAccount) {
-        throw new Error(
-          `No valid email account found for user ${sequence.userId}`
-        );
-      }
-
-      // TODO: Do we really need this to check time here insteaf of while sending emails?
-      // 5. Calculate send time using scheduling service
-      const sendTime = await scheduleGenerator.calculateNextRun(
-        new Date(),
-        firstStep,
-        sequence.businessHours || getDefaultBusinessHours()
-      );
-
-      if (!sendTime) {
-        throw new Error("Could not calculate send time");
-      }
-
-      // 6. Create email job
-      const emailJob: EmailJob = {
-        sequenceId: sequence.id,
-        contactId: contactDetails.id,
-        stepId: firstStep.id,
-        userId: sequence.userId,
-        to: contactDetails.email,
-        subject: firstStep.subject || "",
-        scheduledTime: sendTime.toISOString(),
-      };
-
-      // 7. Add to queue
-      // await this.queueService.addEmailJob(emailJob);
-      await this.jobManager.addEmailJob(emailJob);
-
-      logger.info(`📧 Created email job for contact: ${contactDetails.email}`);
-
-      // 8. Update contact status and progress
-      await updateSequenceContactStatus(
-        sequence.id,
-        contact.contact.id,
-        SequenceContactStatusEnum.SCHEDULED,
-        {
-          currentStep: 1,
-          nextScheduledAt: sendTime,
-          startedAt: new Date(),
-        }
-      );
-
-      // 9. Increment rate limit counters
-      await rateLimitService.incrementCounters(
-        sequence.userId,
-        sequence.id,
-        contactDetails.id
-      );
-
-      logger.info(`✅ Successfully processed contact: ${contactDetails.email}`);
-    } catch (error) {
-      logger.error(
-        error,
-        `❌ Error processing contact ${contactDetails.email}:`
-      );
-
-      // Update status to failed
-      await updateSequenceContactStatus(
-        sequence.id,
-        contact.contact.id,
-        SequenceContactStatusEnum.FAILED
-      );
-
-      // Re-throw error for higher-level handling
-      throw error;
-    }
   }
 }

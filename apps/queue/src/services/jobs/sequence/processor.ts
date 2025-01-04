@@ -31,6 +31,7 @@ import { QUEUE_NAMES } from "@/config";
 import { getWorkerOptions } from "@/config";
 import { BaseProcessor } from "../base-processor";
 import { ServiceManager } from "@/services/service-manager";
+import { processContactShared } from "./helper";
 
 // Define our sequence processing types
 interface SequenceWithRelations {
@@ -212,150 +213,16 @@ export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
     data: ProcessingJobData,
     googleAccount: any
   ): Promise<void> {
-    logger.info(`👤 Processing contact: ${sequenceContact.contact.email}`);
-
-    // TODO : Check if this is needed
-    // Check contact rate limit
-    const { allowed, info } = await this.rateLimitService.checkRateLimit(
-      data.userId,
-      data.sequenceId,
-      sequenceContact.contact.id
-    );
-
-    if (!allowed) {
-      logger.warn("⚠️ Contact rate limit exceeded:", info);
-      return;
-    }
-
-    // Get contact's progress
-    const progress = await getContactProgress(
-      data.sequenceId,
-      sequenceContact.contact.id
-    );
-    const currentStepOrder = progress?.currentStep ? progress.currentStep : 1;
-
-    // TODO : Improve the check for current step index
-    const currentStepIndex = progress?.currentStep
-      ? progress.currentStep - 1
-      : 0;
-
-    // Log progress status
-    logger.info(`📊 Contact progress:`, {
-      contact: sequenceContact.contact.email,
-      currentStep: currentStepOrder,
-      totalSteps: sequence.steps.length,
-      hasExistingProgress: !!progress,
-    });
-
-    // TODO : check if need to move this code to email processor
-    // Check if sequence is completed
-    // if (currentStepOrder >= sequence.steps.length) {
-    //   logger.info(
-    //     `✅ Sequence completed for contact: ${sequenceContact.contact.email}`
-    //   );
-    //   await updateSequenceContactStatus(
-    //     sequence.id,
-    //     sequenceContact.contact.id,
-    //     SequenceContactStatusEnum.COMPLETED
-    //   );
-    //   return;
-    // }
-
-    // Get current step
-    const currentStep = sequence.steps[currentStepIndex];
-    if (!currentStep) {
-      logger.error(
-        `❌ Step not found at order ${currentStepOrder} for sequence ${sequence.name}`
-      );
-      return;
-    }
-
-    // Get next step
-    const nextStep = sequence.steps[currentStepIndex + 1];
-    if (!nextStep) {
-      logger.info(
-        `ℹ️ No next step found - this is the last step for sequence ${sequence.name}`
-      );
-    }
-
-    // Log step details
-    logger.info(`📝 Processing step ${currentStepOrder}:`);
-
-    // Also calculate the schedule time for the current step
-    const currentStepScheduleTime =
-      await this.scheduleGenerator.calculateNextRun(
-        new Date(),
-        currentStep as SequenceStep,
-        sequence.businessHours || getDefaultBusinessHours()
-      );
-
-    logger.info(
-      currentStepScheduleTime,
-      "🚀 ~ SequenceProcessor ~ processContact ~ currentStepScheduleTime:"
-    );
-
-    // Get previous subject from previous step if replyToThread is true
-    const previousStep =
-      sequence.steps[currentStepIndex >= 1 ? currentStepIndex - 1 : 0];
-    const previousSubject = previousStep?.subject || "";
-    const subject = currentStep.replyToThread
-      ? `Re: ${previousSubject}`
-      : currentStep.subject;
-
-    // Create email job
-    const emailJob: EmailJob = {
-      sequenceId: sequence.id,
-      contactId: sequenceContact.contact.id,
-      stepId: currentStep.id,
-      userId: data.userId,
-      to: data.testMode
-        ? process.env.TEST_EMAIL || googleAccount.email || ""
-        : sequenceContact.contact.email,
-      subject: subject || "",
-      threadId: sequenceContact.threadId || undefined,
-      testMode: data.testMode || false,
-      scheduledTime: currentStepScheduleTime?.toISOString(),
-    };
-
-    // Add email job to queue
-    logger.info(
+    await processContactShared(
       {
-        step: currentStepOrder,
-        totalSteps: sequence.steps.length,
+        sequence,
+        contact: sequenceContact.contact,
+        currentStep: sequenceContact.currentStep || 1,
+        testMode: data.testMode,
+        threadId: sequenceContact.threadId,
+        startedAt: sequenceContact.startedAt,
       },
-      `📬 Creating email job`
+      this.jobManager
     );
-
-    logger.info(
-      emailJob,
-      `🚀 ~ SequenceProcessor ~ processContact ~ emailJob:`
-    );
-
-    await this.jobManager.addEmailJob(emailJob);
-
-    // Update contact status
-    logger.info(
-      `📊 Updating contact status: ${sequenceContact.contact.id} to SCHEDULED`
-    );
-    await updateSequenceContactStatus(
-      sequence.id,
-      sequenceContact.contact.id,
-      SequenceContactStatusEnum.SCHEDULED,
-      {
-        currentStep: currentStepOrder,
-        nextScheduledAt: currentStepScheduleTime,
-        startedAt: sequenceContact.startedAt || new Date(),
-      }
-    );
-
-    // Increment rate limit counters
-    await this.rateLimitService.incrementCounters(
-      data.userId,
-      sequence.id,
-      sequenceContact.contact.id
-    );
-
-    // Add rate limiting delay between contacts
-    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 }
