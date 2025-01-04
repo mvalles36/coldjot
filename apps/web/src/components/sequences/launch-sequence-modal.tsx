@@ -13,31 +13,31 @@ import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { CheckCircle2 } from "lucide-react";
+import { SequenceStatus } from "@mailjot/types";
 
 interface LaunchSequenceModalProps {
-  sequenceId: string;
   open: boolean;
   onClose: () => void;
+  sequenceId: string;
   contactCount: number;
-  onLaunch?: () => void;
-  testMode?: boolean;
+  testMode: boolean;
+  onStatusChange?: (newStatus: SequenceStatus) => void;
 }
 
 export function LaunchSequenceModal({
-  sequenceId,
   open,
   onClose,
+  sequenceId,
   contactCount,
-  onLaunch,
-  testMode = false,
+  testMode,
+  onStatusChange,
 }: LaunchSequenceModalProps) {
-  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
   const handleLaunch = async () => {
     try {
       setIsLoading(true);
-
       const response = await fetch(`/api/sequences/${sequenceId}/launch`, {
         method: "POST",
         headers: {
@@ -50,15 +50,12 @@ export function LaunchSequenceModal({
 
       if (!response.ok) throw new Error("Failed to launch sequence");
 
+      onStatusChange?.(SequenceStatus.ACTIVE);
+      onClose();
       toast({
         title: "Sequence Launched",
-        description: testMode
-          ? "Sequence started in test mode"
-          : "Sequence started successfully",
+        description: "Your sequence has been launched successfully",
       });
-
-      onLaunch?.();
-      onClose();
     } catch (error) {
       console.error("Error launching sequence:", error);
       toast({

@@ -4,21 +4,24 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { PlayIcon, PauseIcon } from "lucide-react";
+import { SequenceStatus } from "@mailjot/types";
 
 interface SequenceControlsProps {
   sequenceId: string;
-  initialStatus: string;
+  initialStatus: SequenceStatus;
+  onStatusChange: (newStatus: SequenceStatus) => void;
 }
 
 export function SequenceControls({
   sequenceId,
   initialStatus,
+  onStatusChange,
 }: SequenceControlsProps) {
-  const [status, setStatus] = useState(initialStatus);
+  const [status, setStatus] = useState<SequenceStatus>(initialStatus);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleControl = async (action: "pause" | "resume") => {
+  const handleControl = async (action: SequenceStatus) => {
     try {
       setIsLoading(true);
       const response = await fetch(`/api/sequences/${sequenceId}/control`, {
@@ -31,8 +34,12 @@ export function SequenceControls({
 
       if (!response.ok) throw new Error("Failed to update sequence");
 
-      const newStatus = action === "pause" ? "paused" : "active";
+      const newStatus: SequenceStatus =
+        action === SequenceStatus.PAUSED
+          ? SequenceStatus.PAUSED
+          : SequenceStatus.ACTIVE;
       setStatus(newStatus);
+      onStatusChange(newStatus);
 
       toast({
         title: "Sequence Updated",
@@ -56,7 +63,13 @@ export function SequenceControls({
     <Button
       variant="outline"
       size="default"
-      onClick={() => handleControl(status === "active" ? "pause" : "resume")}
+      onClick={() =>
+        handleControl(
+          status === SequenceStatus.ACTIVE
+            ? SequenceStatus.PAUSED
+            : SequenceStatus.ACTIVE
+        )
+      }
       disabled={isLoading}
       className="min-w-[100px]"
     >

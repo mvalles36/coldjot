@@ -29,6 +29,7 @@ import { SequenceStats } from "@/components/sequences/sequence-stats";
 import { SequenceTabs } from "@/components/sequences/sequence-tabs";
 import { BusinessHoursSettings } from "@/components/sequences/business-hours-settings";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { SequenceStatus } from "@mailjot/types";
 
 import type {
   Sequence,
@@ -67,6 +68,9 @@ export default function SequencePageClient({
 }: SequencePageClientProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("overview");
+  const [sequenceStatus, setSequenceStatus] = useState<SequenceStatus>(
+    sequence.status as SequenceStatus
+  );
   const {
     steps,
     setSteps,
@@ -219,19 +223,23 @@ export default function SequencePageClient({
     bounceRate: stats?.bounceRate || 0,
   });
 
+  const handleStatusChange = (newStatus: SequenceStatus) => {
+    setSequenceStatus(newStatus);
+  };
+
   return (
     <div className="max-w-7xl mx-auto py-8 space-y-6">
       <div className="flex justify-between items-center">
         <div className="space-y-1">
           <h2 className="text-2xl font-semibold">{sequence.name}</h2>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <SequenceStatusBadge status={sequence.status} />
+            <SequenceStatusBadge status={sequenceStatus} />
             <span>•</span>
             <span>{sequence._count.contacts} contacts</span>
           </div>
         </div>
         <div className="flex gap-3">
-          {sequence.status !== "active" && (
+          {sequenceStatus !== "active" && (
             <Button
               variant="default"
               onClick={() => setShowLaunchModal(true)}
@@ -242,7 +250,8 @@ export default function SequencePageClient({
           )}
           <SequenceControls
             sequenceId={sequence.id}
-            initialStatus={sequence.status}
+            initialStatus={sequenceStatus}
+            onStatusChange={handleStatusChange}
           />
         </div>
       </div>
@@ -294,7 +303,7 @@ export default function SequencePageClient({
         <TabsContent value="contacts" className="mt-6">
           <SequenceContacts
             sequenceId={sequence.id}
-            isActive={sequence.status === "active"}
+            isActive={sequenceStatus === "active"}
           />
         </TabsContent>
 
@@ -381,6 +390,7 @@ export default function SequencePageClient({
         sequenceId={sequence.id}
         contactCount={sequence._count.contacts}
         testMode={sequence.testMode}
+        onStatusChange={handleStatusChange}
       />
     </div>
   );

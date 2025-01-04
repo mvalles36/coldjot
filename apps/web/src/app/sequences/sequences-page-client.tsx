@@ -3,13 +3,14 @@
 import { PageHeader } from "@/components/layout/PageHeader";
 import { SequenceList } from "@/components/sequences/sequence-list";
 import { Button } from "@/components/ui/button";
+import { SequenceStatus } from "@mailjot/types";
 import { Plus } from "lucide-react";
 import { useState } from "react";
 
 interface Sequence {
   id: string;
   name: string;
-  status: string;
+  status: SequenceStatus;
   accessLevel: string;
   scheduleType: string;
   steps: any[];

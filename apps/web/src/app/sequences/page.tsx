@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { SequenceList } from "@/components/sequences/sequence-list";
 import { prisma } from "@mailjot/database";
 import { SequencesPageClient } from "./sequences-page-client";
+import { SequenceStatus } from "@mailjot/types";
 
 export default async function SequencesPage() {
   const session = await auth();
@@ -39,6 +40,7 @@ export default async function SequencesPage() {
   // Transform the data to match the expected interface
   const transformedSequences = sequences.map((sequence) => ({
     ...sequence,
+    status: sequence.status as SequenceStatus,
     contacts: sequence.contacts.map((sc) => sc.contact),
     _count: {
       ...sequence._count,

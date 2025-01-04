@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { prisma } from "@mailjot/database";
 import { queueApi } from "@/lib/queue/queue-api-client";
 import { NextResponse } from "next/server";
+import { SequenceStatus } from "@mailjot/types";
 
 export async function POST(
   req: Request,
@@ -28,6 +29,7 @@ export async function POST(
         },
         contacts: {
           where: {
+            // TODO: Update enum
             status: {
               notIn: ["completed", "opted_out"],
             },
@@ -57,7 +59,7 @@ export async function POST(
     await prisma.sequence.update({
       where: { id },
       data: {
-        status: "active",
+        status: SequenceStatus.ACTIVE,
         testMode,
       },
     });

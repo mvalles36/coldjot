@@ -9,11 +9,12 @@ import { toast } from "react-hot-toast";
 import Link from "next/link";
 import { SequenceStatusBadge } from "@/components/sequences/sequence-status-badge";
 import { SequenceControls } from "@/components/sequences/sequence-controls";
+import { SequenceStatus } from "@mailjot/types";
 
 interface Sequence {
   id: string;
   name: string;
-  status: string;
+  status: SequenceStatus;
   accessLevel: string;
   scheduleType: string;
   steps: any[];
@@ -93,13 +94,19 @@ export function SequenceList({
 }
 
 function SequenceListItem({ sequence }: { sequence: Sequence }) {
+  const [status, setStatus] = useState<SequenceStatus>(sequence.status);
+
+  const handleStatusChange = (newStatus: SequenceStatus) => {
+    setStatus(newStatus);
+  };
+
   return (
     <div className="p-4 border rounded-lg">
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <h3 className="font-medium">{sequence.name}</h3>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <SequenceStatusBadge status={sequence.status} />
+            <SequenceStatusBadge status={status} />
             <span>•</span>
             <span>{sequence._count.contacts} contacts</span>
           </div>
@@ -107,7 +114,8 @@ function SequenceListItem({ sequence }: { sequence: Sequence }) {
         <div className="flex items-center gap-2">
           <SequenceControls
             sequenceId={sequence.id}
-            initialStatus={sequence.status}
+            initialStatus={status}
+            onStatusChange={handleStatusChange}
           />
           <Button variant="outline" size="sm" asChild>
             <Link href={`/sequences/${sequence.id}`}>View</Link>
