@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { prisma } from "@mailjot/database";
+import { SequenceStatus } from "@mailjot/types";
 import { NextResponse } from "next/server";
 
 export async function POST(
@@ -15,7 +16,7 @@ export async function POST(
     const { action } = await req.json();
     const { id } = await params;
 
-    if (!["pause", "resume"].includes(action)) {
+    if (![SequenceStatus.PAUSED, SequenceStatus.ACTIVE].includes(action)) {
       return new NextResponse("Invalid action", { status: 400 });
     }
 
@@ -26,7 +27,10 @@ export async function POST(
         userId: session.user.id,
       },
       data: {
-        status: action === "pause" ? "paused" : "active",
+        status:
+          action === SequenceStatus.PAUSED
+            ? SequenceStatus.PAUSED
+            : SequenceStatus.ACTIVE,
       },
     });
 

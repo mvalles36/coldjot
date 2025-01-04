@@ -47,7 +47,7 @@ export function SequenceControls({
 
       toast({
         title: "Sequence Updated",
-        description: `Sequence ${action}d successfully`,
+        description: `Sequence ${action} successfully`,
       });
     } catch (error) {
       console.error("Error controlling sequence:", error);
