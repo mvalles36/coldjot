@@ -19,7 +19,7 @@ export const SequenceTabs = ({
 
   return (
     <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-      <TabsList className="w-full h-14 bg-transparent p-0 mb-6 relative">
+      <TabsList className="w-full h-14 bg-transparent p-0 mb-2 relative">
         <div className="flex gap-0 max-w-7xl mx-auto border-b w-full">
           <TabsTrigger value="overview" className={tabStyle}>
             Overview

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Mail, Settings } from "lucide-react";
+import { Mail } from "lucide-react";
 import { CreateSequenceModal } from "./create-sequence-modal";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
@@ -24,12 +24,17 @@ interface Sequence {
 
 interface SequenceListProps {
   initialSequences: Sequence[];
+  showCreateModal: boolean;
+  onCloseCreateModal: () => void;
 }
 
-export function SequenceList({ initialSequences }: SequenceListProps) {
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showStepEditor, setShowStepEditor] = useState(false);
+export function SequenceList({
+  initialSequences,
+  showCreateModal,
+  onCloseCreateModal,
+}: SequenceListProps) {
   const [sequences, setSequences] = useState<Sequence[]>(initialSequences);
+  const [showStepEditor, setShowStepEditor] = useState(false);
   const [selectedSequence, setSelectedSequence] = useState<Sequence | null>(
     null
   );
@@ -41,7 +46,7 @@ export function SequenceList({ initialSequences }: SequenceListProps) {
       if (!response.ok) throw new Error("Failed to fetch sequences");
       const data = await response.json();
       setSequences(data);
-      setShowCreateModal(false);
+      onCloseCreateModal();
       toast.success("Sequence created successfully");
       router.refresh();
     } catch (error) {
@@ -56,13 +61,6 @@ export function SequenceList({ initialSequences }: SequenceListProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
-        <Button onClick={() => setShowCreateModal(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Sequence
-        </Button>
-      </div>
-
       {sequences.length === 0 ? (
         <div className="text-center py-12">
           <div className="flex justify-center mb-4">
@@ -75,9 +73,7 @@ export function SequenceList({ initialSequences }: SequenceListProps) {
             Build custom campaigns to automate emails, set more meetings, and
             convert more customers.
           </p>
-          <Button onClick={() => setShowCreateModal(true)}>
-            Create a sequence
-          </Button>
+          <Button onClick={onCloseCreateModal}>Create a sequence</Button>
         </div>
       ) : (
         <div className="space-y-4">
@@ -89,7 +85,7 @@ export function SequenceList({ initialSequences }: SequenceListProps) {
 
       <CreateSequenceModal
         open={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
+        onClose={onCloseCreateModal}
         onSuccess={handleCreateSuccess}
       />
     </div>

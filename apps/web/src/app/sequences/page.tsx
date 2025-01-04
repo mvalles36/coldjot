@@ -3,6 +3,7 @@ import { Separator } from "@/components/ui/separator";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { SequenceList } from "@/components/sequences/sequence-list";
 import { prisma } from "@mailjot/database";
+import { SequencesPageClient } from "./sequences-page-client";
 
 export default async function SequencesPage() {
   const session = await auth();
@@ -45,17 +46,5 @@ export default async function SequencesPage() {
     },
   }));
 
-  return (
-    <div className="max-w-7xl mx-auto py-8 space-y-6">
-      <div className="flex items-center justify-between pb-6 border-b">
-        <div>
-          <PageHeader
-            title="Sequences"
-            description="Create and manage automated email sequences."
-          />
-        </div>
-      </div>
-      <SequenceList initialSequences={transformedSequences} />
-    </div>
-  );
+  return <SequencesPageClient initialSequences={transformedSequences} />;
 }
