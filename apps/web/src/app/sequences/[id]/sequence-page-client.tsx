@@ -231,11 +231,6 @@ export default function SequencePageClient({
           </div>
         </div>
         <div className="flex gap-3">
-          <AddSequenceStep
-            sequenceId={sequence.id}
-            onStepAdded={handleStepAdded}
-            steps={steps}
-          />
           {sequence.status !== "active" && (
             <Button
               variant="default"
@@ -273,14 +268,24 @@ export default function SequencePageClient({
                   </div>
                 </div>
               ) : (
-                <SequenceStepList
-                  steps={steps}
-                  onReorder={handleStepReorder}
-                  onEdit={handleStepEdit}
-                  onEditTemplate={handleTemplateEdit}
-                  onDuplicate={duplicateStep}
-                  onDelete={deleteStep}
-                />
+                <>
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-lg font-semibold">Sequence Steps</h2>
+                  </div>
+                  <SequenceStepList
+                    steps={steps}
+                    onReorder={handleStepReorder}
+                    onEdit={handleStepEdit}
+                    onEditTemplate={handleTemplateEdit}
+                    onDuplicate={duplicateStep}
+                    onDelete={deleteStep}
+                  />
+                  <AddSequenceStep
+                    sequenceId={sequence.id}
+                    onStepAdded={handleStepAdded}
+                    steps={steps}
+                  />
+                </>
               )}
             </div>
           </div>
