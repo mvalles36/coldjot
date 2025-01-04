@@ -501,28 +501,12 @@ export class ScheduleProcessor extends BaseProcessor<any> {
         "📝 Updating sequence progress"
       );
 
-      // await prisma.sequenceContact.update({
-      //   where: { id: email.id },
-      //   data: {
-      //     lastProcessedAt: new Date(),
-      //     nextScheduledAt: null, // Set to null to prevent duplicate jobs
-      //     status: SequenceContactStatusEnum.IN_PROGRESS,
-      //     currentStep: email.currentStep + 1,
-      //     completed: isLastStep,
-      //     completedAt: isLastStep ? new Date() : null,
-      //   },
-      // });
-
       await updateSequenceContactStatus(
         sequence.id,
         contact.id,
         SequenceContactStatusEnum.SCHEDULED,
         {
           lastProcessedAt: new Date(),
-          // nextScheduledAt: null, // Set to null to prevent duplicate jobs
-          // currentStep: email.currentStep + 1,
-          // completed: isLastStep,
-          // completedAt: isLastStep ? new Date() : null,
         }
       );
 

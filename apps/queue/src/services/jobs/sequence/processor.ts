@@ -247,6 +247,20 @@ export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
       hasExistingProgress: !!progress,
     });
 
+    // TODO : check if need to move this code to email processor
+    // Check if sequence is completed
+    // if (currentStepOrder >= sequence.steps.length) {
+    //   logger.info(
+    //     `✅ Sequence completed for contact: ${sequenceContact.contact.email}`
+    //   );
+    //   await updateSequenceContactStatus(
+    //     sequence.id,
+    //     sequenceContact.contact.id,
+    //     SequenceContactStatusEnum.COMPLETED
+    //   );
+    //   return;
+    // }
+
     // Get current step
     const currentStep = sequence.steps[currentStepIndex];
     if (!currentStep) {
