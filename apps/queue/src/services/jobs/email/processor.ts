@@ -32,13 +32,11 @@ export class EmailProcessor extends BaseProcessor<EmailJob> {
 
   constructor(queue: Queue) {
     super(queue, QUEUE_NAMES.EMAIL, getWorkerOptions(QUEUE_NAMES.EMAIL));
-
     this.scheduleGenerator = scheduleGenerator;
   }
 
   protected async process(job: Job<EmailJob>): Promise<void> {
     try {
-      logger.info(job.data, `📨 Starting to process email job`);
       const result = await this.processEmail(job.data);
       if (!result.success) {
         throw new Error(result.error || "Failed to process email");
@@ -56,6 +54,7 @@ export class EmailProcessor extends BaseProcessor<EmailJob> {
 
     try {
       // Check if thread has already received a reply or bounce
+      // TODO : Also remove the job from the queue if it has already been processed
       const shouldProceed = await this.checkThreadEvents(data);
       if (!shouldProceed) {
         logger.info("📭 Skipping email send due to existing thread events");
@@ -69,10 +68,12 @@ export class EmailProcessor extends BaseProcessor<EmailJob> {
       await this.validateRateLimits(data);
 
       // Get current step with sequence info
+      // TODO : Check if the step is available
       logger.info(`🔍 Fetching sequence step ${data.stepId}`);
       const step = await this.getAndValidateSequenceStep(data.stepId);
 
       // Get contact info
+      // TODO : Check if the contact is available
       logger.info(`🔍 Fetching contact info ${data.contactId}`);
       const contact = await prisma.contact.findUnique({
         where: { id: data.contactId },
@@ -275,8 +276,6 @@ export class EmailProcessor extends BaseProcessor<EmailJob> {
       where: { sequenceId: data.sequenceId },
     });
 
-    // const currentStepOrder = step.order;
-    // const stepId = step.id;
     const sequence = await prisma.sequence.findUnique({
       where: { id: data.sequenceId },
       include: {
@@ -290,13 +289,14 @@ export class EmailProcessor extends BaseProcessor<EmailJob> {
 
     // If the current step is not the last step, update the status to in progress
     if (step.order < totalSteps) {
+      // First update to IN_PROGRESS to indicate email was sent
       await updateSequenceContactStatus(
         data.sequenceId,
         data.contactId,
         SequenceContactStatusEnum.IN_PROGRESS
       );
 
-      // calculate the next <step></step>
+      // calculate the next step
       const nextStepOrder = step.order + 1;
 
       const steps = await prisma.sequenceStep.findMany({
@@ -318,41 +318,29 @@ export class EmailProcessor extends BaseProcessor<EmailJob> {
 
       logger.info(nextRunTime, "🚀 ~ EmailProcessor ~ nextRunTime:");
 
-      // update the next step to scheduled
+      // update the next step to scheduled with nextScheduledAt
       await updateSequenceContactStatus(
         data.sequenceId,
         data.contactId,
-        SequenceContactStatusEnum.SCHEDULED,
+        SequenceContactStatusEnum.IN_PROGRESS,
         {
           currentStep: nextStepOrder,
           nextScheduledAt: nextRunTime,
         }
       );
-    }
-
-    // if the current step is the last step, update the status to completed
-    if (step.order === totalSteps) {
+    } else {
+      // This was the last step, mark as completed
       await updateSequenceContactStatus(
         data.sequenceId,
         data.contactId,
         SequenceContactStatusEnum.COMPLETED,
         {
+          completed: true,
+          completedAt: new Date(),
           nextScheduledAt: null,
         }
       );
     }
-
-    //
-
-    logger.info(
-      {
-        messageId: result.messageId,
-        threadId: result.threadId,
-        to: data.to,
-        step: step.order,
-      },
-      "✅ Email sent successfully"
-    );
   }
 
   private async handleEmailError(error: unknown, data: EmailJob) {

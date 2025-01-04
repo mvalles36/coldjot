@@ -85,10 +85,8 @@ export abstract class BaseProcessor<T = any> {
   }
 
   protected async onActive(job: Job<T>): Promise<void> {
-    logger.info(`🚧 🚀 Job started: ${job.id}`, {
-      queue: job.queueName,
-      data: job.data,
-    });
+    console.log("\n\n");
+    logger.info(`🚧 🚀 Job started: ${job.id}`);
   }
 
   protected async onStalled(jobId: string): Promise<void> {

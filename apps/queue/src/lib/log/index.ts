@@ -1,9 +1,17 @@
 import pino from "pino";
 import { env } from "@/config";
 import path from "path";
+import fs from "fs";
 
 // Get the number of parent folders to show from environment or default to showing all
-const LOG_PATH_DEPTH = env.LOG_PATH_DEPTH ? parseInt(env.LOG_PATH_DEPTH) : 2; // 0 means show all
+const LOG_PATH_DEPTH = env.LOG_PATH_DEPTH
+  ? parseInt(env.LOG_PATH_DEPTH.toString())
+  : 2; // 0 means show all
+
+// Create logs directory if it doesn't exist
+if (env.LOG_TO_FILE && !fs.existsSync(env.LOG_DIR)) {
+  fs.mkdirSync(env.LOG_DIR, { recursive: true });
+}
 
 // Get the caller file name
 const getCallerFile = () => {
@@ -52,36 +60,53 @@ const formatFileName = (fileName: string) => {
   return `${fileName} ${dots}`;
 };
 
-export const logger = pino({
-  level: env.LOG_LEVEL || "debug",
-  transport: {
-    target: "pino-pretty",
-    options: {
-      colorize: true,
-      ignore: env.LOG_SHOW_TIME
-        ? "pid,hostname,fileName,paddedFileName"
-        : "pid,hostname,fileName,paddedFileName,time",
-      translateTime: env.LOG_SHOW_TIME ? "yyyy-mm-dd HH:MM:ss" : false,
-      messageFormat: "{paddedFileName} {msg}",
-      customLevels: "error:30,warn:40,info:50,debug:60,trace:70",
-      customColors: "error:red,warn:yellow,info:blue,debug:green,trace:gray",
+// Setup destinations
+const destinations = [
+  {
+    stream: pino.transport({
+      target: "pino-pretty",
+      options: {
+        colorize: true,
+        ignore: env.LOG_SHOW_TIME
+          ? "pid,hostname,fileName,paddedFileName"
+          : "pid,hostname,fileName,paddedFileName,time",
+        translateTime: env.LOG_SHOW_TIME ? "yyyy-mm-dd HH:MM:ss" : false,
+        messageFormat: "{paddedFileName} {msg}",
+      },
+    }),
+  },
+];
+
+// Add file destination if enabled
+if (env.LOG_TO_FILE) {
+  const logFile = path.join(
+    env.LOG_DIR,
+    `${env.APP_ENV}-${new Date().toISOString().split("T")[0]}.log`
+  );
+  destinations.push({ stream: fs.createWriteStream(logFile, { flags: "a" }) });
+}
+
+// Create the logger instance
+export const logger = pino(
+  {
+    level: env.LOG_LEVEL || "debug",
+    formatters: {
+      level: (label) => ({ level: label.toUpperCase() }),
+      bindings: () => ({}),
+    },
+    mixin() {
+      const fileName = getCallerFile();
+      return {
+        fileName,
+        paddedFileName: formatFileName(fileName),
+      };
+    },
+    serializers: {
+      err: pino.stdSerializers.err,
+      error: pino.stdSerializers.err,
+      req: pino.stdSerializers.req,
+      res: pino.stdSerializers.res,
     },
   },
-  formatters: {
-    level: (label) => ({ level: label.toUpperCase() }),
-    bindings: () => ({}),
-  },
-  mixin() {
-    const fileName = getCallerFile();
-    return {
-      fileName,
-      paddedFileName: formatFileName(fileName),
-    };
-  },
-  serializers: {
-    err: pino.stdSerializers.err,
-    error: pino.stdSerializers.err,
-    req: pino.stdSerializers.req,
-    res: pino.stdSerializers.res,
-  },
-});
+  pino.multistream(destinations)
+);

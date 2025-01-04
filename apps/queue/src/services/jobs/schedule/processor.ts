@@ -23,6 +23,7 @@ import { EMAIL_SCHEDULER_CONFIG } from "@/config";
 import { QUEUE_NAMES } from "@/config";
 import { getWorkerOptions } from "@/config";
 import { ServiceManager } from "@/services/service-manager";
+import { updateSequenceContactStatus } from "../sequence/helper";
 // Define the type for what we actually need from the sequence
 type SequenceWithRelations = {
   id: string;
@@ -131,7 +132,7 @@ export class ScheduleProcessor extends BaseProcessor<any> {
               AND: [
                 { completed: false },
                 // { status: { not: SequenceContactStatusEnum.COMPLETED } },
-                { status: SequenceContactStatusEnum.SCHEDULED },
+                { status: SequenceContactStatusEnum.IN_PROGRESS },
               ],
             },
           ],
@@ -504,12 +505,26 @@ export class ScheduleProcessor extends BaseProcessor<any> {
       //   where: { id: email.id },
       //   data: {
       //     lastProcessedAt: new Date(),
-      //     nextScheduledAt: isLastStep ? null : nextSendTime,
+      //     nextScheduledAt: null, // Set to null to prevent duplicate jobs
+      //     status: SequenceContactStatusEnum.IN_PROGRESS,
       //     currentStep: email.currentStep + 1,
       //     completed: isLastStep,
       //     completedAt: isLastStep ? new Date() : null,
       //   },
       // });
+
+      await updateSequenceContactStatus(
+        sequence.id,
+        contact.id,
+        SequenceContactStatusEnum.IN_PROGRESS,
+        {
+          lastProcessedAt: new Date(),
+          nextScheduledAt: null, // Set to null to prevent duplicate jobs
+          // currentStep: email.currentStep + 1,
+          // completed: isLastStep,
+          // completedAt: isLastStep ? new Date() : null,
+        }
+      );
 
       // 8. Increment rate limit counters
       logger.debug("🔄 Incrementing rate limit counters");

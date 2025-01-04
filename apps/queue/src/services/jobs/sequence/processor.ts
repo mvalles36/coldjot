@@ -157,6 +157,7 @@ export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
         businessHours: sequence.businessHours ? "✓" : "✗",
       });
 
+      // TODO :  Make this a separate job in batch
       // Get active contacts
       const contacts = await getActiveSequenceContacts(data.sequenceId);
       logger.info(`👥 Processing contacts:`, {
@@ -164,6 +165,7 @@ export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
         sequence: sequence.name,
       });
 
+      // TODO : Check if this is needed
       // Get user's Google account
       const googleAccount = await getUserGoogleAccount(data.userId);
       if (!googleAccount) {
@@ -212,6 +214,7 @@ export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
   ): Promise<void> {
     logger.info(`👤 Processing contact: ${sequenceContact.contact.email}`);
 
+    // TODO : Check if this is needed
     // Check contact rate limit
     const { allowed, info } = await this.rateLimitService.checkRateLimit(
       data.userId,
@@ -230,6 +233,8 @@ export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
       sequenceContact.contact.id
     );
     const currentStepOrder = progress?.currentStep ? progress.currentStep : 1;
+
+    // TODO : Improve the check for current step index
     const currentStepIndex = progress?.currentStep
       ? progress.currentStep - 1
       : 0;
@@ -303,24 +308,24 @@ export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
     );
 
     // Calculate next send time using scheduling service
-    let nextSendTime = null;
-    if (nextStep) {
-      nextSendTime = await this.scheduleGenerator.calculateNextRun(
-        new Date(),
-        nextStep as SequenceStep,
-        sequence.businessHours || getDefaultBusinessHours()
-      );
-    }
+    // let nextSendTime = null;
+    // if (nextStep) {
+    //   nextSendTime = await this.scheduleGenerator.calculateNextRun(
+    //     new Date(),
+    //     nextStep as SequenceStep,
+    //     sequence.businessHours || getDefaultBusinessHours()
+    //   );
+    // }
 
-    logger.info(
-      `📅 Scheduling email for contact: ${sequenceContact.contact.email}`,
-      {
-        step: currentStepIndex,
-        totalSteps: sequence.steps.length,
-        sendTime: nextSendTime?.toISOString() || "N/A",
-        subject: currentStep.subject,
-      }
-    );
+    // logger.info(
+    //   `📅 Scheduling email for contact: ${sequenceContact.contact.email}`,
+    //   {
+    //     step: currentStepIndex,
+    //     totalSteps: sequence.steps.length,
+    //     sendTime: nextSendTime?.toISOString() || "N/A",
+    //     subject: currentStep.subject,
+    //   }
+    // );
 
     // Get previous subject from previous step if replyToThread is true
     const previousStep =

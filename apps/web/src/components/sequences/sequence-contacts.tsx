@@ -182,7 +182,7 @@ export function SequenceContacts({
   }, [sequenceId, isActive]);
 
   const getStatusDetails = (contact: ExtendedSequenceContact) => {
-    if (contact.completedAt) {
+    if (contact.completed) {
       return (
         <div className="flex items-center gap-2 text-green-600">
           <CheckCircle2 className="w-4 h-4" />

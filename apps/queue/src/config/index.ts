@@ -36,4 +36,7 @@ export const env = {
   LOG_PATH_DEPTH: process.env.LOG_PATH_DEPTH,
   LOG_SHOW_TIME: process.env.LOG_SHOW_TIME,
   LOG_LEVEL: process.env.LOG_LEVEL,
+  LOG_TO_FILE: process.env.LOG_TO_FILE === "true" ? true : true,
+  LOG_DIR: process.env.LOG_DIR || "logs",
+  APP_ENV: process.env.APP_ENV || "development",
 } as const;
