@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PlayIcon, PauseIcon } from "lucide-react";
 import { SequenceStatus } from "@mailjot/types";
 
@@ -21,6 +21,10 @@ export function SequenceControls({
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
+  useEffect(() => {
+    setStatus(initialStatus);
+  }, [initialStatus]);
+
   const handleControl = async (action: SequenceStatus) => {
     try {
       setIsLoading(true);
@@ -34,7 +38,7 @@ export function SequenceControls({
 
       if (!response.ok) throw new Error("Failed to update sequence");
 
-      const newStatus: SequenceStatus =
+      const newStatus =
         action === SequenceStatus.PAUSED
           ? SequenceStatus.PAUSED
           : SequenceStatus.ACTIVE;
@@ -57,7 +61,10 @@ export function SequenceControls({
     }
   };
 
-  if (status !== "active" && status !== "paused") return null;
+  // Only show controls for active or paused sequences
+  if (status !== SequenceStatus.ACTIVE && status !== SequenceStatus.PAUSED) {
+    return null;
+  }
 
   return (
     <Button
@@ -73,7 +80,7 @@ export function SequenceControls({
       disabled={isLoading}
       className="min-w-[100px]"
     >
-      {status === "active" ? (
+      {status === SequenceStatus.ACTIVE ? (
         <>
           <PauseIcon className="h-4 w-4 mr-2" />
           Pause

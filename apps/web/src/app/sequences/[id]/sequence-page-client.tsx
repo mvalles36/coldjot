@@ -239,7 +239,7 @@ export default function SequencePageClient({
           </div>
         </div>
         <div className="flex gap-3">
-          {sequenceStatus !== "active" && (
+          {sequenceStatus !== SequenceStatus.ACTIVE && (
             <Button
               variant="default"
               onClick={() => setShowLaunchModal(true)}
@@ -354,6 +354,7 @@ export default function SequencePageClient({
                   onTestModeChange={() => {
                     router.refresh();
                   }}
+                  onStatusChange={handleStatusChange}
                 />
               </div>
             )}

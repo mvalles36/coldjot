@@ -16,11 +16,13 @@ import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
+import { SequenceStatus } from "@mailjot/types";
 
 interface SequenceDevSettingsProps {
   sequenceId: string;
   testMode: boolean;
   onTestModeChange: (checked: boolean) => void;
+  onStatusChange?: (newStatus: SequenceStatus) => void;
 }
 
 interface GmailWatchStatus {
@@ -32,6 +34,7 @@ export function SequenceDevSettings({
   sequenceId,
   testMode,
   onTestModeChange,
+  onStatusChange,
 }: SequenceDevSettingsProps) {
   const { settings, isLoading, updateSettings } = useDevSettings();
   const [newEmail, setNewEmail] = useState("");
@@ -149,6 +152,8 @@ export function SequenceDevSettings({
       if (!response.ok) {
         throw new Error("Failed to reset sequence");
       }
+
+      onStatusChange?.(SequenceStatus.DRAFT);
 
       toast({
         title: "Sequence Reset",
