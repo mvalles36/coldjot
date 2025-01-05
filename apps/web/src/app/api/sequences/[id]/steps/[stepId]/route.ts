@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 export async function PUT(
   req: Request,
-  { params }: { params: Promise<{ sequenceId: string; stepId: string }> }
+  { params }: { params: Promise<{ id: string; stepId: string }> }
 ) {
   try {
     const session = await auth();
@@ -12,7 +12,12 @@ export async function PUT(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { sequenceId } = await params;
+    const { id: sequenceId, stepId } = await params;
+
+    console.log("sequenceId", sequenceId);
+    console.log("stepId", stepId);
+
+    // Verify sequence ownership and existence
     const sequence = await prisma.sequence.findUnique({
       where: {
         id: sequenceId,
@@ -21,13 +26,32 @@ export async function PUT(
     });
 
     if (!sequence) {
-      return new NextResponse("Not found", { status: 404 });
+      return new NextResponse("Sequence not found", { status: 404 });
+    }
+
+    // Verify step belongs to the sequence
+    const existingStep = await prisma.sequenceStep.findUnique({
+      where: {
+        id: stepId,
+        sequenceId: sequenceId,
+      },
+    });
+
+    if (!existingStep) {
+      return new NextResponse("Step not found", { status: 404 });
     }
 
     const json = await req.json();
-    const { stepId } = await params;
+    delete json.sequenceId;
+    delete json.templateId;
+    delete json.type;
+
+    // Update the step
     const step = await prisma.sequenceStep.update({
-      where: { id: stepId },
+      where: {
+        id: stepId,
+        sequenceId: sequenceId, // Extra safety: ensure step belongs to sequence
+      },
       data: json,
     });
 
@@ -42,7 +66,7 @@ export async function PUT(
 
 export async function DELETE(
   req: Request,
-  { params }: { params: Promise<{ id: string; stepId: string }> }
+  { params }: { params: { id: string; stepId: string } }
 ) {
   try {
     const session = await auth();
@@ -50,21 +74,34 @@ export async function DELETE(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { id } = await params;
+    const { id: sequenceId, stepId } = await params;
+
+    // Verify sequence ownership and existence
     const sequence = await prisma.sequence.findUnique({
       where: {
-        id: id,
+        id: sequenceId,
         userId: session.user.id,
       },
     });
 
     if (!sequence) {
-      return new NextResponse("Not found", { status: 404 });
+      return new NextResponse("Sequence not found", { status: 404 });
     }
-    const { stepId } = await params;
+
+    // Verify and delete the step
     await prisma.sequenceStep.delete({
-      where: { id: stepId },
+      where: {
+        id: stepId,
+        sequenceId: sequenceId, // Extra safety: ensure step belongs to sequence
+      },
     });
+
+    // Reset order of steps after deletion
+    // TODO : this is not working
+    // await prisma.sequenceStep.updateMany({
+    //   where: { sequenceId: sequenceId },
+    //   data: { order: { decrement: 1 } },
+    // });
 
     return NextResponse.json({ success: true });
   } catch (error) {

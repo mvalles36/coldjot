@@ -246,7 +246,7 @@ export default function SequencePageClient({
                 onClick={() => setShowLaunchModal(true)}
                 disabled={sequence._count.contacts === 0}
               >
-                Launch
+                Launch Sequence
               </Button>
             )}
           <SequenceControls

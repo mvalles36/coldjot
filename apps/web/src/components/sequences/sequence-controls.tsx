@@ -83,12 +83,12 @@ export function SequenceControls({
       {status === SequenceStatus.ACTIVE ? (
         <>
           <PauseIcon className="h-4 w-4 mr-2" />
-          Pause
+          Pause Sequence
         </>
       ) : (
         <>
           <PlayIcon className="h-4 w-4 mr-2" />
-          Resume
+          Resume Sequence
         </>
       )}
     </Button>

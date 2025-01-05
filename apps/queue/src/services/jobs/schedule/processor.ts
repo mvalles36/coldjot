@@ -118,7 +118,7 @@ export class ScheduleProcessor extends BaseProcessor<any> {
       logger.info("🔍 Checking for scheduled emails to process", {
         timestamp: new Date().toISOString(),
       });
-
+      //
       // Find emails that are due to be sent with the correct structure
       const dueEmails = await prisma.sequenceContact.findMany({
         where: {
