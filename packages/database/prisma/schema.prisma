@@ -40,24 +40,22 @@ model Session {
 }
 
 model User {
-    id             String          @id @default(cuid())
-    name           String?
-    email          String?         @unique
-    emailVerified  DateTime?
-    image          String?
-    accounts       Account[]
-    sessions       Session[]
-    templates      Template[]
-    contacts       Contact[]
-    drafts         Draft[]
-    TestData       TestData[]
-    EmailList      EmailList[]
-    Sequence       Sequence[]
-    devSettings    DevSettings?
-    EmailThread    EmailThread[]
-    Notification   Notification?   @relation(fields: [notificationId], references: [id])
-    notificationId String?
-    businessHours  BusinessHours[]
+    id            String          @id @default(cuid())
+    name          String?
+    email         String?         @unique
+    emailVerified DateTime?
+    image         String?
+    accounts      Account[]
+    sessions      Session[]
+    templates     Template[]
+    contacts      Contact[]
+    drafts        Draft[]
+    TestData      TestData[]
+    EmailList     EmailList[]
+    Sequence      Sequence[]
+    devSettings   DevSettings?
+    EmailThread   EmailThread[]
+    businessHours BusinessHours[]
 }
 
 model Contact {
@@ -395,47 +393,6 @@ model BusinessHours {
 
     @@index([userId])
     @@index([sequenceId])
-}
-
-// Queue metrics
-model QueueMetrics {
-    id        String   @id @default(cuid())
-    timestamp DateTime @default(now())
-    metrics   Json
-}
-
-// Queue alerts
-model QueueAlert {
-    id        String   @id @default(cuid())
-    type      String
-    queueName String
-    value     String
-    threshold String
-    timestamp DateTime @default(now())
-}
-
-model QueueError {
-    id        String   @id @default(cuid())
-    jobId     String
-    queueName String
-    error     String
-    stack     String
-    attempt   Int
-    timestamp DateTime @default(now())
-}
-
-model Notification {
-    id        String   @id @default(cuid())
-    type      String
-    title     String
-    message   String
-    metadata  Json
-    read      Boolean  @default(false)
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-
-    // User relationship
-    users User[]
 }
 
 model TestData {
