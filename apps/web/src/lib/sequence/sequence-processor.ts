@@ -1,4 +1,4 @@
-import { prisma } from "@mailjot/database";
+import { prisma } from "@coldjot/database";
 import { logger } from "@/lib/logger";
 import { queueApi } from "@/lib/queue/queue-api-client";
 

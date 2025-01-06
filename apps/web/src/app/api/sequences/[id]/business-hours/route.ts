@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@mailjot/database";
+import { prisma } from "@coldjot/database";
 import { auth } from "@/auth";
-import type { BusinessHours } from "@mailjot/types";
+import type { BusinessHours } from "@coldjot/types";
 
 interface UpdateBusinessHoursBody extends Omit<BusinessHours, "holidays"> {
   scheduleType: "business" | "custom";

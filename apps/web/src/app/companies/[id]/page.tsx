@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { prisma } from "@mailjot/database";
+import { prisma } from "@coldjot/database";
 import { notFound, redirect } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Separator } from "@/components/ui/separator";

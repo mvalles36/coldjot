@@ -1,4 +1,4 @@
-const PREFIX = "mailjot:";
+const PREFIX = "coldjot:";
 
 // TODO: Move to shared package
 export const REDIS_KEYS = {

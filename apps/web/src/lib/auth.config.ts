@@ -1,7 +1,7 @@
 import type { NextAuthConfig } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import { prisma } from "@mailjot/database";
+import { prisma } from "@coldjot/database";
 import { setupGmailWatch } from "@/lib/google/gmail-watch";
 
 declare module "next-auth" {

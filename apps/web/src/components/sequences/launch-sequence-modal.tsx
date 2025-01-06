@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { CheckCircle2 } from "lucide-react";
-import { SequenceStatus } from "@mailjot/types";
+import { SequenceStatus } from "@coldjot/types";
 
 interface LaunchSequenceModalProps {
   open: boolean;

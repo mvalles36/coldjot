@@ -1,5 +1,5 @@
 import { env } from "@/env";
-import type { BusinessHours } from "@mailjot/types";
+import type { BusinessHours } from "@coldjot/types";
 
 const QUEUE_API_URL = env.QUEUE_API_URL || "http://localhost:3001/api";
 

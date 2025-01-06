@@ -8,9 +8,9 @@ import {
   BusinessHours,
   ProcessingWindow,
   StepTypeEnum,
-} from "@mailjot/types";
+} from "@coldjot/types";
 import { logger } from "@/lib/log";
-import { prisma } from "@mailjot/database";
+import { prisma } from "@coldjot/database";
 import { RATE_LIMIT_CONFIG } from "@/config/rate-limit/constants";
 import { isDevelopment, DEMO_MODE } from "@/config";
 import { DEFAULT_BUSINESS_HOURS } from "@/config";
@@ -617,7 +617,7 @@ export class ScheduleGenerator implements ScheduleGenerator {
           fs.mkdirSync(logDir, { recursive: true });
         }
 
-        fs.appendFileSync(logPath, `@mailjot/queue:dev: ${message}\n`);
+        fs.appendFileSync(logPath, `@coldjot/queue:dev: ${message}\n`);
       } catch (error) {
         logger.error("Error writing to log file:", error);
       }

@@ -36,9 +36,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { SequenceContact, StepStatus } from "@mailjot/types";
-import { SequenceContactStatusEnum } from "@mailjot/types";
-import type { SequenceContactStatusType } from "@mailjot/types";
+import type { SequenceContact, StepStatus } from "@coldjot/types";
+import { SequenceContactStatusEnum } from "@coldjot/types";
+import type { SequenceContactStatusType } from "@coldjot/types";
 
 interface ContactWithCompany {
   id: string;

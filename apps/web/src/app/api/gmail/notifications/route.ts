@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
-import { prisma } from "@mailjot/database";
+import { prisma } from "@coldjot/database";
 // import { trackEmailEvent } from "@/lib/tracking/tracking-service";
 import { verifyPubSubJwt } from "@/lib/auth/pubsub";
 import { refreshAccessToken, oauth2Client } from "@/lib/google/google-account";
@@ -22,8 +22,8 @@ import type {
   Gmail,
   Message,
   SequenceContactStatusType,
-} from "@mailjot/types";
-import { SequenceContactStatusEnum } from "@mailjot/types";
+} from "@coldjot/types";
+import { SequenceContactStatusEnum } from "@coldjot/types";
 
 interface NotificationData {
   emailAddress: string;

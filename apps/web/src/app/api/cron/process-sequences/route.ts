@@ -1,7 +1,7 @@
 // import { queueService } from "@/lib/queue/queue-service";
 // import { JOB_PRIORITIES } from "@/lib/queue/queue-config";
 // import type { ProcessingJob } from "@/lib/queue/types";
-import { prisma } from "@mailjot/database";
+import { prisma } from "@coldjot/database";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {

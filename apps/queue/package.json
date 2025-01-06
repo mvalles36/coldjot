@@ -1,5 +1,5 @@
 {
-    "name": "@mailjot/queue",
+    "name": "@coldjot/queue",
     "version": "0.1.0",
     "private": true,
     "type": "module",
@@ -16,8 +16,8 @@
         "dev:debug-2": "NODE_OPTIONS='--max-old-space-size=4096 --inspect' nodemon --watch src -e ts,json --exec \"npm run build && npm run start\""
     },
     "dependencies": {
-        "@mailjot/database": "*",
-        "@mailjot/types": "*",
+        "@coldjot/database": "*",
+        "@coldjot/types": "*",
         "@types/nodemailer": "^6.4.17",
         "bull": "^4.11.3",
         "cors": "^2.8.5",

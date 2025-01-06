@@ -1,4 +1,4 @@
-import { prisma } from "@mailjot/database";
+import { prisma } from "@coldjot/database";
 import { sleep } from "@/utils";
 import { google } from "googleapis";
 

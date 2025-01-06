@@ -1,6 +1,6 @@
-import { prisma } from "@mailjot/database";
-import type { EmailEventType } from "@mailjot/types";
-import { EmailEventEnum } from "@mailjot/types";
+import { prisma } from "@coldjot/database";
+import type { EmailEventType } from "@coldjot/types";
+import { EmailEventEnum } from "@coldjot/types";
 import type { Prisma } from "@prisma/client";
 import { logger } from "@/lib/log";
 

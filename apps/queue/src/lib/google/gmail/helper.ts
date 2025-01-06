@@ -6,7 +6,7 @@ import {
   GmailMessage,
   MessageHeader,
   ThreadHeaders,
-} from "@mailjot/types";
+} from "@coldjot/types";
 
 // -----------------------------------------
 // -----------------------------------------

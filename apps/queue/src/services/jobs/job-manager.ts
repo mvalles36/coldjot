@@ -1,7 +1,7 @@
 import { Queue, Job } from "bullmq";
 import { logger } from "@/lib/log";
 import { QUEUE_NAMES } from "@/config";
-import type { ProcessingJob, EmailJob } from "@mailjot/types";
+import type { ProcessingJob, EmailJob } from "@coldjot/types";
 import { ServiceManager } from "../service-manager";
 
 export class JobManager {

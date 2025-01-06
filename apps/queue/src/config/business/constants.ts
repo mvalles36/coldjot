@@ -1,4 +1,4 @@
-import type { BusinessHours } from "@mailjot/types";
+import type { BusinessHours } from "@coldjot/types";
 
 export const DEFAULT_BUSINESS_HOURS: BusinessHours = {
   timezone: "UTC",

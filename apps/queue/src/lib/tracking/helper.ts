@@ -1,4 +1,4 @@
-import type { EmailTrackingMetadata } from "@mailjot/types";
+import type { EmailTrackingMetadata } from "@coldjot/types";
 
 export function generateTrackingMetadata(
   email: string,

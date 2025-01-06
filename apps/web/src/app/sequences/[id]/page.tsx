@@ -1,4 +1,4 @@
-import { prisma } from "@mailjot/database";
+import { prisma } from "@coldjot/database";
 import { notFound } from "next/navigation";
 import SequencePageClient from "./sequence-page-client";
 import type {
@@ -11,7 +11,7 @@ import type {
   StepPriority,
   StepTiming,
   BusinessHours,
-} from "@mailjot/types";
+} from "@coldjot/types";
 
 export default async function SequencePage({
   params,

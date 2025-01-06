@@ -2,7 +2,7 @@ import { google } from "googleapis";
 import quotedPrintable from "quoted-printable";
 import { generateMessageId } from "@/utils";
 import crypto from "crypto";
-import type { EmailResult, ThreadHeaders } from "@mailjot/types";
+import type { EmailResult, ThreadHeaders } from "@coldjot/types";
 
 const quotedPrintableEncode = quotedPrintable.encode;
 const quotedPrintableDecode = quotedPrintable.decode;

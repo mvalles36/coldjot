@@ -1,4 +1,4 @@
-import { ProcessingJobEnum } from "@mailjot/types";
+import { ProcessingJobEnum } from "@coldjot/types";
 
 const QUEUE_API_URL =
   process.env.NEXT_PUBLIC_QUEUE_API_URL || "http://localhost:3001";

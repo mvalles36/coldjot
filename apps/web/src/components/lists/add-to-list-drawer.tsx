@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { EmailList } from "@mailjot/types";
+import { EmailList } from "@coldjot/types";
 import { Search, Plus } from "lucide-react";
 import { toast } from "react-hot-toast";
 

@@ -9,14 +9,14 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Trash2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { DevSettings } from "@mailjot/types";
+import { DevSettings } from "@coldjot/types";
 import { Separator } from "@/components/ui/separator";
 import { useDevSettings } from "@/hooks/use-dev-settings";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
-import { SequenceStatus } from "@mailjot/types";
+import { SequenceStatus } from "@coldjot/types";
 
 interface SequenceDevSettingsProps {
   sequenceId: string;

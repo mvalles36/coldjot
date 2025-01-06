@@ -14,7 +14,7 @@
     "@auth/prisma-adapter": "^2.7.3",
     "@hello-pangea/dnd": "^17.0.0",
     "@hookform/resolvers": "^3.9.1",
-    "@mailjot/database": "*",
+    "@coldjot/database": "*",
     "@radix-ui/react-alert-dialog": "^1.1.2",
     "@radix-ui/react-avatar": "^1.1.1",
     "@radix-ui/react-checkbox": "^1.1.2",

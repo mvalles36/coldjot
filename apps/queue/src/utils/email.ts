@@ -1,6 +1,6 @@
-import type { MessagePartHeader } from "@mailjot/types";
+import type { MessagePartHeader } from "@coldjot/types";
 import crypto from "crypto";
-import { EmailLabelEnum } from "@mailjot/types";
+import { EmailLabelEnum } from "@coldjot/types";
 // Message ID generation
 export const generateMessageId = (): string => {
   const domain = process.env.EMAIL_DOMAIN || "gmail.com";

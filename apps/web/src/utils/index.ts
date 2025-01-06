@@ -1,4 +1,4 @@
-import type { MessagePartHeader } from "@mailjot/types";
+import type { MessagePartHeader } from "@coldjot/types";
 import crypto from "crypto";
 
 // Sleep utility

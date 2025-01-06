@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@mailjot/database";
+import { prisma } from "@coldjot/database";
 
 export async function GET(
   req: NextRequest,

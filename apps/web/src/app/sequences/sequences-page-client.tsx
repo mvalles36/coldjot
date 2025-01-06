@@ -3,7 +3,7 @@
 import { PageHeader } from "@/components/layout/PageHeader";
 import { SequenceList } from "@/components/sequences/sequence-list";
 import { Button } from "@/components/ui/button";
-import { SequenceStatus } from "@mailjot/types";
+import { SequenceStatus } from "@coldjot/types";
 import { Plus } from "lucide-react";
 import { useState } from "react";
 

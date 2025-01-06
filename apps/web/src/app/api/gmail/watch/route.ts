@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { setupGmailWatch, stopGmailWatch } from "@/lib/google/gmail-watch";
 import { auth } from "@/auth";
-import { prisma } from "@mailjot/database";
+import { prisma } from "@coldjot/database";
 import { refreshAccessToken } from "@/lib/google/google-account";
 
 export async function POST(req: NextRequest) {

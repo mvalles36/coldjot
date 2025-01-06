@@ -1,12 +1,12 @@
 import { Request, Response } from "express";
-import { prisma } from "@mailjot/database";
+import { prisma } from "@coldjot/database";
 import { ServiceManager } from "@/services/service-manager";
 import { MonitoringService } from "@/services/monitor/service";
 import { rateLimitService } from "@/services/core/rate-limit/service";
 import { resetSequence } from "@/services/jobs/sequence/helper";
 import { logger } from "@/lib/log";
-import { ProcessingJobEnum, BusinessScheduleEnum } from "@mailjot/types";
-import type { BusinessHours, ProcessingJob } from "@mailjot/types";
+import { ProcessingJobEnum, BusinessScheduleEnum } from "@coldjot/types";
+import type { BusinessHours, ProcessingJob } from "@coldjot/types";
 
 // Initialize services
 const serviceManager = ServiceManager.getInstance();

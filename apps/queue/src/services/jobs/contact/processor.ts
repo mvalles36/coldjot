@@ -1,6 +1,6 @@
 import { Queue, Job } from "bullmq";
 import { BaseProcessor } from "../base-processor";
-import { prisma } from "@mailjot/database";
+import { prisma } from "@coldjot/database";
 import { logger } from "@/lib/log";
 
 import {
@@ -9,7 +9,7 @@ import {
   updateSequenceContactStatus,
   processContactShared,
 } from "@/services/jobs/sequence/helper";
-// import { SequenceStatusEnum } from "@mailjot/types";
+// import { SequenceStatusEnum } from "@coldjot/types";
 import { CONTACT_PROCESSING_CONFIG } from "@/config";
 import { QUEUE_NAMES } from "@/config";
 import { getWorkerOptions } from "@/config";
@@ -19,7 +19,7 @@ import { ServiceManager } from "@/services/service-manager";
 import { scheduleGenerator } from "@/lib/schedule";
 import { rateLimitService } from "@/services/core/rate-limit/service";
 
-import { SequenceContactStatusEnum, type EmailJob } from "@mailjot/types";
+import { SequenceContactStatusEnum, type EmailJob } from "@coldjot/types";
 
 interface ContactProcessingJob {
   type: "CHECK_NEW_CONTACTS";

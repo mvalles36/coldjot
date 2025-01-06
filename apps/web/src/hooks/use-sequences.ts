@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { toast } from "react-hot-toast";
-import { Sequence, SequenceStep } from "@mailjot/types";
+import { Sequence, SequenceStep } from "@coldjot/types";
 
 export const useSequences = () => {
   const [sequences, setSequences] = useState<Sequence[]>([]);

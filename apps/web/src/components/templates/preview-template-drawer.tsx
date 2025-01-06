@@ -1,6 +1,6 @@
 "use client";
 
-import { Template } from "@mailjot/types";
+import { Template } from "@coldjot/types";
 import {
   Sheet,
   SheetContent,

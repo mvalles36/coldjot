@@ -29,14 +29,14 @@ import { SequenceStats } from "@/components/sequences/sequence-stats";
 import { SequenceTabs } from "@/components/sequences/sequence-tabs";
 import { BusinessHoursSettings } from "@/components/sequences/business-hours-settings";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { SequenceStatus } from "@mailjot/types";
+import { SequenceStatus } from "@coldjot/types";
 
 import type {
   Sequence,
   SequenceStats as SequenceStatsType,
   SequenceStep,
   SequenceContact,
-} from "@mailjot/types";
+} from "@coldjot/types";
 
 interface SequencePageClientProps {
   sequence: Sequence;

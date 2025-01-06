@@ -12,12 +12,12 @@ import {
   BusinessHours,
   StepType,
   BusinessScheduleEnum,
-} from "@mailjot/types";
+} from "@coldjot/types";
 import { logger } from "@/lib/log";
 import { RateLimitService } from "@/services/core/rate-limit/service";
 import { ScheduleGenerator, scheduleGenerator } from "@/lib/schedule";
 import { randomUUID } from "crypto";
-import { prisma } from "@mailjot/database";
+import { prisma } from "@coldjot/database";
 import {
   getUserGoogleAccount,
   getDefaultBusinessHours,

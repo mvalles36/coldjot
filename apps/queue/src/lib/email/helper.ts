@@ -1,17 +1,17 @@
 import { encode as base64Encode } from "js-base64";
-import { prisma } from "@mailjot/database";
+import { prisma } from "@coldjot/database";
 import { normalizeSubject } from "@/utils";
 import {
   EmailEventEnum,
   type EmailResult,
   type ThreadHeaders,
-} from "@mailjot/types";
-import type { EmailTracking } from "@mailjot/types";
+} from "@coldjot/types";
+import type { EmailTracking } from "@coldjot/types";
 import { trackEmailEvent } from "@/lib/tracking";
 
 import path from "path";
 import { logger } from "../../lib/log";
-import type { SenderInfo, MessageHeader, GmailMessage } from "@mailjot/types";
+import type { SenderInfo, MessageHeader, GmailMessage } from "@coldjot/types";
 
 export async function getSenderInfoWithId(id: string): Promise<SenderInfo> {
   const account = await prisma.user.findFirst({

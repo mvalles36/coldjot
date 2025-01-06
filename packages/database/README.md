@@ -1,6 +1,6 @@
-# @mailjot/database
+# @coldjot/database
 
-Database package for the Mailjot application. This package handles all database operations, migrations, and seeding.
+Database package for the coldjot application. This package handles all database operations, migrations, and seeding.
 
 ## Documentation
 
@@ -28,20 +28,20 @@ For detailed information about available commands and best practices, please see
 3. Generate Prisma Client:
 
    ```bash
-   turbo run db:generate --filter=@mailjot/database
+   turbo run db:generate --filter=@coldjot/database
    ```
 
 4. Run migrations:
 
    ```bash
    # Development
-   turbo run db:migrate --filter=@mailjot/database
+   turbo run db:migrate --filter=@coldjot/database
 
    # Staging
-   turbo run db:deploy:staging --filter=@mailjot/database
+   turbo run db:deploy:staging --filter=@coldjot/database
 
    # Production
-   turbo run db:deploy:prod --filter=@mailjot/database
+   turbo run db:deploy:prod --filter=@coldjot/database
    ```
 
 ## Environment Variables

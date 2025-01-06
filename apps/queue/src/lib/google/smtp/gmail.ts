@@ -1,4 +1,4 @@
-import { prisma } from "@mailjot/database";
+import { prisma } from "@coldjot/database";
 import { createGmailTransport } from "./nodemailer";
 import { google } from "googleapis";
 import { generateMessageId } from "@/utils";
@@ -27,7 +27,7 @@ import {
   SendGmailOptions,
   GmailResponse,
   UpdateSentEmailOptions,
-} from "@mailjot/types";
+} from "@coldjot/types";
 
 export async function sendGmailSMTP({
   to,

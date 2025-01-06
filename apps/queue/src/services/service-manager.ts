@@ -7,7 +7,7 @@ import {
   DEFAULT_QUEUE_OPTIONS,
   type QueueName,
 } from "@/config/queue";
-import type { ProcessingJob, EmailJob } from "@mailjot/types";
+import type { ProcessingJob, EmailJob } from "@coldjot/types";
 
 // Core services
 import { MemoryMonitor } from "./core/memory/monitor";

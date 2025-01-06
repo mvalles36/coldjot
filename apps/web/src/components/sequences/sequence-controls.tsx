@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { PlayIcon, PauseIcon } from "lucide-react";
-import { SequenceStatus } from "@mailjot/types";
+import { SequenceStatus } from "@coldjot/types";
 
 interface SequenceControlsProps {
   sequenceId: string;

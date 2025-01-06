@@ -1,4 +1,4 @@
-import { AlertConfig } from "@mailjot/types";
+import { AlertConfig } from "@coldjot/types";
 
 export const DEFAULT_ALERT_CONFIG: AlertConfig = {
   errorThreshold: 0.1, // 10% error rate

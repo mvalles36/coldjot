@@ -22,7 +22,7 @@ const envSchema = z.object({
 
   // Queue
   QUEUE_CONCURRENCY: z.coerce.number().default(5),
-  QUEUE_PREFIX: z.string().default("mailjot"),
+  QUEUE_PREFIX: z.string().default("coldjot"),
 
   // Monitoring
   ALERT_EMAIL_TO: z.string().optional(),

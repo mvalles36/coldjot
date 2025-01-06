@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import AddTemplateModal from "./add-template-drawer";
-import { Template } from "@mailjot/types";
+import { Template } from "@coldjot/types";
 
 interface AddTemplateButtonProps {
   onAddTemplate: (template: Template) => void;

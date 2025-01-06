@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
-import { prisma } from "@mailjot/database";
-import { SequenceStatus } from "@mailjot/types";
+import { prisma } from "@coldjot/database";
+import { SequenceStatus } from "@coldjot/types";
 import { NextResponse } from "next/server";
 
 export async function POST(

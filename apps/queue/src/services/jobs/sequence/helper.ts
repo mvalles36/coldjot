@@ -1,15 +1,15 @@
-import { prisma } from "@mailjot/database";
+import { prisma } from "@coldjot/database";
 import {
   BusinessHours,
   SequenceContactStatusEnum,
   SequenceContactStatusType,
   StepStatus,
-} from "@mailjot/types";
-import { GoogleAccount } from "@mailjot/types";
+} from "@coldjot/types";
+import { GoogleAccount } from "@coldjot/types";
 import { logger } from "@/lib/log";
 import { rateLimitService } from "@/services/core/rate-limit/service";
 import { scheduleGenerator } from "@/lib/schedule";
-import { EmailJob } from "@mailjot/types";
+import { EmailJob } from "@coldjot/types";
 
 /**
  * Get user's Google account details

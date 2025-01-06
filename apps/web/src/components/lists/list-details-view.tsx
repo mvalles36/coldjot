@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Mail, User, Trash2, ArrowLeft, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { EmailList } from "@mailjot/types";
+import { EmailList } from "@coldjot/types";
 import { toast } from "react-hot-toast";
 import { PageHeader } from "@/components/layout/PageHeader";
 import {

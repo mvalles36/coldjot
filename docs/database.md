@@ -21,25 +21,25 @@ These commands are for local development only:
 
 ```bash
 # Create and apply a new migration (interactive)
-turbo run db:migrate --filter=@mailjot/database
+turbo run db:migrate --filter=@coldjot/database
 
 # Create a migration without applying it
-turbo run db:migrate:create --filter=@mailjot/database
+turbo run db:migrate:create --filter=@coldjot/database
 
 # Apply migrations (non-interactive)
-turbo run db:deploy --filter=@mailjot/database
+turbo run db:deploy --filter=@coldjot/database
 
 # Push schema changes without migrations
-turbo run db:push --filter=@mailjot/database
+turbo run db:push --filter=@coldjot/database
 
 # Seed the database
-turbo run db:seed --filter=@mailjot/database
+turbo run db:seed --filter=@coldjot/database
 
 # Reset the database (drops all data)
-turbo run db:reset --filter=@mailjot/database
+turbo run db:reset --filter=@coldjot/database
 
 # Open Prisma Studio
-turbo run db:studio --filter=@mailjot/database
+turbo run db:studio --filter=@coldjot/database
 ```
 
 ### Staging Commands
@@ -48,10 +48,10 @@ Safe commands for staging environment:
 
 ```bash
 # Deploy migrations to staging
-turbo run db:deploy:staging --filter=@mailjot/database
+turbo run db:deploy:staging --filter=@coldjot/database
 
 # Seed staging database
-turbo run db:seed:staging --filter=@mailjot/database
+turbo run db:seed:staging --filter=@coldjot/database
 ```
 
 ### Production Commands
@@ -60,10 +60,10 @@ Safe commands for production environment:
 
 ```bash
 # Deploy migrations to production
-turbo run db:deploy:prod --filter=@mailjot/database
+turbo run db:deploy:prod --filter=@coldjot/database
 
 # Seed production database
-turbo run db:seed:prod --filter=@mailjot/database
+turbo run db:seed:prod --filter=@coldjot/database
 ```
 
 ## Command Details

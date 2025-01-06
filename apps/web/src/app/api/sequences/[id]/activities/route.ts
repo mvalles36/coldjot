@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { prisma } from "@mailjot/database";
-import { EmailEventEnum } from "@mailjot/types";
+import { prisma } from "@coldjot/database";
+import { EmailEventEnum } from "@coldjot/types";
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }

@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "react-hot-toast";
 import { cn } from "@/lib/utils";
-import type { SequenceStep } from "@mailjot/types";
+import type { SequenceStep } from "@coldjot/types";
 
 interface Props {
   steps: SequenceStep[];

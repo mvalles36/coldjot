@@ -10,7 +10,7 @@ import {
   GoogleAccount,
   ProcessingJob,
   EmailJob,
-} from "@mailjot/types";
+} from "@coldjot/types";
 
 // Email Types
 export interface EmailResult {
@@ -148,6 +148,6 @@ export interface RetryStrategy {
   shouldRetry?: (error: Error) => boolean;
 }
 
-// Re-export types from @mailjot/types for convenience
+// Re-export types from @coldjot/types for convenience
 // export { StepType };
 export type { StepTiming, StepPriority, BusinessHours };

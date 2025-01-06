@@ -16,7 +16,7 @@ export const getAppBaseUrl = () => {
     }
     return process.env.NODE_ENV === "development"
       ? "http://localhost:3000"
-      : "https://app.mailjot.com";
+      : "https://app.coldjot.com";
   }
   return url;
 };

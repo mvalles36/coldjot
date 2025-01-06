@@ -9,7 +9,7 @@ import { toast } from "react-hot-toast";
 import Link from "next/link";
 import { SequenceStatusBadge } from "@/components/sequences/sequence-status-badge";
 import { SequenceControls } from "@/components/sequences/sequence-controls";
-import { SequenceStatus } from "@mailjot/types";
+import { SequenceStatus } from "@coldjot/types";
 
 interface Sequence {
   id: string;

@@ -1,6 +1,6 @@
 import { google } from "googleapis";
 import { OAuth2Client } from "google-auth-library";
-import { prisma } from "@mailjot/database";
+import { prisma } from "@coldjot/database";
 import { refreshAccessToken } from "@/lib/google/google-account";
 
 interface WatchRequest {

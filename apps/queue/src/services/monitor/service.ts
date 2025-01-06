@@ -1,10 +1,10 @@
-import { prisma } from "@mailjot/database";
+import { prisma } from "@coldjot/database";
 import {
   AlertConfig,
   SequenceHealth,
   SystemMetrics,
   QueueMetrics,
-} from "@mailjot/types";
+} from "@coldjot/types";
 import { logger } from "@/lib/log";
 import { ServiceManager } from "@/services/service-manager";
 import { DEFAULT_ALERT_CONFIG } from "@/config";

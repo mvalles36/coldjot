@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
-import { prisma } from "@mailjot/database";
+import { prisma } from "@coldjot/database";
 import { NextResponse } from "next/server";
-import { StepStatus } from "@mailjot/types";
+import { StepStatus } from "@coldjot/types";
 
 interface SequenceContactWithStatus {
   status: StepStatus;

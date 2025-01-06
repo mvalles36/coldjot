@@ -2,9 +2,9 @@ import { auth } from "@/auth";
 import { Separator } from "@/components/ui/separator";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { SequenceList } from "@/components/sequences/sequence-list";
-import { prisma } from "@mailjot/database";
+import { prisma } from "@coldjot/database";
 import { SequencesPageClient } from "./sequences-page-client";
-import { SequenceStatus } from "@mailjot/types";
+import { SequenceStatus } from "@coldjot/types";
 
 export default async function SequencesPage() {
   const session = await auth();

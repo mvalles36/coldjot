@@ -1,17 +1,17 @@
 import { Queue, Job } from "bullmq";
 import { BaseProcessor } from "../base-processor";
 import { logger } from "@/lib/log";
-import { prisma } from "@mailjot/database";
+import { prisma } from "@coldjot/database";
 import {
   ThreadCheckData,
   EmailEventEnum,
   SequenceContactStatusEnum,
-} from "@mailjot/types";
+} from "@coldjot/types";
 import { THREAD_CONFIG } from "@/config/thread/constants";
 import { getWorkerOptions, getRateLimits } from "@/config";
 import { GmailClientService } from "@/lib/google";
 import { DateTime } from "luxon";
-import type { MessagePartHeader } from "@mailjot/types";
+import type { MessagePartHeader } from "@coldjot/types";
 import { updateSequenceStats } from "@/lib/stats";
 import { QUEUE_NAMES } from "@/config";
 import { Prisma } from "@prisma/client";

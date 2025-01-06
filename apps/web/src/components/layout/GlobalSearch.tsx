@@ -23,7 +23,7 @@ import {
   Loader2,
   ArrowRight,
 } from "lucide-react";
-import { SearchResult, SearchResultType } from "@mailjot/types";
+import { SearchResult, SearchResultType } from "@coldjot/types";
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
 import { v4 as uuidv4 } from "uuid";
 export function GlobalSearch({ isCollapsed }: { isCollapsed?: boolean }) {

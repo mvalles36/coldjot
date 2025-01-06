@@ -4,15 +4,15 @@ import {
   EmailTrackingEnum,
   EmailEventEnum,
   EmailTrackingStatusEnum,
-} from "@mailjot/types";
+} from "@coldjot/types";
 import { nanoid } from "nanoid";
-import { prisma } from "@mailjot/database";
+import { prisma } from "@coldjot/database";
 import { getAppBaseUrl } from "@/utils";
 import { updateSequenceStats } from "@/lib/stats";
 import type { Prisma } from "@prisma/client";
-import { EmailEventType } from "@mailjot/types";
+import { EmailEventType } from "@coldjot/types";
 import { logger } from "@/lib/log";
-import { ProcessingJobEnum } from "@mailjot/types";
+import { ProcessingJobEnum } from "@coldjot/types";
 export async function createEmailTracking(
   metadata: EmailTrackingMetadata
 ): Promise<EmailTracking> {

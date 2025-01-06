@@ -1,8 +1,8 @@
 import { auth } from "@/auth";
-import { prisma } from "@mailjot/database";
+import { prisma } from "@coldjot/database";
 import { queueApi } from "@/lib/queue/queue-api-client";
 import { NextResponse } from "next/server";
-import { SequenceStatus } from "@mailjot/types";
+import { SequenceStatus } from "@coldjot/types";
 
 export async function POST(
   req: Request,

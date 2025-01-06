@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@mailjot/database";
-import type { EmailEventType } from "@mailjot/types";
+import { prisma } from "@coldjot/database";
+import type { EmailEventType } from "@coldjot/types";
 import { getUserAgent } from "@/lib/user-agent";
 import { getIpLocation } from "@/lib/ip-location";
 // import { trackingClient } from "@/lib/queue/tracking-client";

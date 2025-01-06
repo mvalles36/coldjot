@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { prisma } from "@mailjot/database";
+import { prisma } from "@coldjot/database";
 import { NextResponse } from "next/server";
 
 // export async function GET() {

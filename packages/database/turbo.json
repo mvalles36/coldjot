@@ -3,6 +3,16 @@
         "//"
     ],
     "tasks": {
+        "build": {
+            "cache": false,
+            "dependsOn": [
+                "^build",
+                "db:generate"
+            ],
+            "env": [
+                "DATABASE_URL"
+            ]
+        },
         "db:generate": {
             "cache": false
         },

@@ -1,7 +1,7 @@
 import { Queue, Job } from "bullmq";
 import { BaseProcessor } from "../base-processor";
 import { logger } from "@/lib/log";
-import { prisma } from "@mailjot/database";
+import { prisma } from "@coldjot/database";
 import { randomUUID } from "crypto";
 import { rateLimitService } from "@/services/core/rate-limit/service";
 import { scheduleGenerator } from "@/lib/schedule";
@@ -19,7 +19,7 @@ import {
   EmailJobEnum,
   SequenceContactStatusEnum,
   SequenceStatus,
-} from "@mailjot/types";
+} from "@coldjot/types";
 import { EMAIL_SCHEDULER_CONFIG } from "@/config";
 import { QUEUE_NAMES } from "@/config";
 import { getWorkerOptions } from "@/config";

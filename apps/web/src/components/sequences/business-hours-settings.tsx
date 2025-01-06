@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/select";
 import { Clock, Check, ChevronsUpDown } from "lucide-react";
 import { toast } from "react-hot-toast";
-import type { BusinessHours } from "@mailjot/types";
+import type { BusinessHours } from "@coldjot/types";
 import { TimePicker } from "@/components/ui/time-picker";
 import { cn } from "@/lib/utils";
 import {

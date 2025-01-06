@@ -1,7 +1,7 @@
 import { google } from "googleapis";
 import { encode as base64Encode } from "js-base64";
-import { prisma } from "@mailjot/database";
-import { GoogleAccount } from "@mailjot/types";
+import { prisma } from "@coldjot/database";
+import { GoogleAccount } from "@coldjot/types";
 
 import type { gmail_v1 } from "googleapis";
 import { logger } from "@/lib/log";
@@ -16,7 +16,7 @@ import type {
   GmailClientConfig,
   CreateDraftOptions,
   SendDraftOptions,
-} from "@mailjot/types";
+} from "@coldjot/types";
 
 // -------------------------------------------------------
 // -------------------------------------------------------
