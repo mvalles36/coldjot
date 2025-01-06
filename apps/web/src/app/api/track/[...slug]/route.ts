@@ -12,11 +12,11 @@ const TRANSPARENT_PIXEL = Buffer.from(
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { eventType: string } }
+  { params }: { params: Promise<{ eventType: string }> }
 ) {
   try {
     const { emailId } = await req.json();
-    const eventType = params.eventType.toUpperCase();
+    const eventType = (await params).eventType.toUpperCase();
 
     if (!emailId) {
       return NextResponse.json(
