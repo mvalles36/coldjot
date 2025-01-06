@@ -41,7 +41,7 @@
                 "NEXTAUTH_URL",
                 "NEXT_PUBLIC_*",
                 "QUEUE_API_URL",
-                "NGROK_URL",
+                "TRACK_URL",
                 "PUBSUB_*",
                 "CRON_SECRET",
                 "GMAIL_*"

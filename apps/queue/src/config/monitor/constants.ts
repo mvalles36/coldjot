@@ -8,7 +8,8 @@ export const DEFAULT_ALERT_CONFIG: AlertConfig = {
   retryInterval: 60 * 1000, // 1 minute
   maxRetries: 3,
   channels: {
-    email: [process.env.ALERT_EMAIL_TO || ""],
+    //TODO: add email alerts
+    // email: [process.env.ALERT_EMAIL_TO || ""],
   },
 } as const;
 

@@ -21,17 +21,7 @@ const envSchema = z.object({
   REDIS_PASSWORD: z.string().optional(),
 
   // Queue
-  QUEUE_CONCURRENCY: z.coerce.number().default(5),
   QUEUE_PREFIX: z.string().default("coldjot"),
-
-  // Monitoring
-  ALERT_EMAIL_TO: z.string().optional(),
-  ALERT_SLACK_WEBHOOK: z.string().optional(),
-
-  // Error Recovery
-  MAX_RETRIES: z.coerce.number().default(3),
-  RETRY_DELAY: z.coerce.number().default(60000),
-  MAX_RETRY_DELAY: z.coerce.number().default(3600000),
 
   // General
   LOG_LEVEL: z.string().default("info"),

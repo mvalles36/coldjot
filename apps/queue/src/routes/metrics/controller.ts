@@ -28,7 +28,8 @@ export async function getSequenceHealth(req: Request, res: Response) {
       retryInterval: 60 * 1000,
       maxRetries: 3,
       channels: {
-        email: [process.env.ALERT_EMAIL_TO || ""],
+        //TODO: add email alerts
+        // email: [process.env.ALERT_EMAIL_TO || ""],
       },
     });
 
