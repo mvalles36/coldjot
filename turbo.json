@@ -12,6 +12,13 @@
         "SHADOW_DATABASE_URL"
     ],
     "tasks": {
+        "dev": {
+            "dependsOn": [
+                "^build"
+            ],
+            "cache": false,
+            "persistent": true
+        },
         "build": {
             "dependsOn": [
                 "^build"
@@ -21,7 +28,7 @@
                 ".next/**"
             ]
         },
-        "dev": {
+        "start": {
             "dependsOn": [
                 "^build"
             ],

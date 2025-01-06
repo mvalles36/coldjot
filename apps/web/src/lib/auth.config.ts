@@ -45,6 +45,7 @@ export const authConfig: NextAuthConfig = {
     }),
   ],
   adapter: PrismaAdapter(prisma),
+  trustHost: false,
   callbacks: {
     async signIn({ user, account, profile }) {
       if (account?.provider === "google" && account.access_token) {

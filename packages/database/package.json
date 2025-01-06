@@ -28,11 +28,7 @@
         "db:deploy:prod": "dotenv -e env/.env.production -- prisma migrate deploy",
         "db:seed:prod": "dotenv -e env/.env.production -- prisma db seed",
         "lint": "eslint .",
-        "type-check": "tsc --noEmit",
-        "postbuild": "npm run db:deploy",
-        "build:dev": "turbo run build --filter=@coldjot/database && turbo run db:deploy --filter=@coldjot/database",
-        "build:staging": "turbo run build --filter=@coldjot/database && turbo run db:deploy:staging --filter=@coldjot/database",
-        "build:prod": "turbo run build --filter=@coldjot/database && turbo run db:deploy:prod --filter=@coldjot/database"
+        "type-check": "tsc --noEmit"
     },
     "dependencies": {
         "@prisma/client": "^5.7.0"
