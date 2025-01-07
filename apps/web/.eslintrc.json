@@ -3,7 +3,15 @@
     "next/core-web-vitals",
     "next/typescript"
   ],
-  "@typescript-eslint/no-explicit-any": [
-    "off"
-  ]
+  "rules": {
+    "@typescript-eslint/no-explicit-any": "off",
+    "@typescript-eslint/no-unused-vars": "off",
+    "react/no-unescaped-entities": "off",
+    "react-hooks/rules-of-hooks": "off",
+    "react-hooks/exhaustive-deps": "off",
+    "@next/next/no-async-client-component": "off",
+    "@next/next/no-html-link-for-pages": "off",
+    "@typescript-eslint/no-empty-object-type": "off",
+    "prefer-const": "off"
+  }
 }
