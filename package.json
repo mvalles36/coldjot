@@ -7,6 +7,7 @@
         "build": "turbo run build:development && turbo run db:deploy --filter=@coldjot/database",
         "start": "turbo run start:dev",
         "build:prod": "turbo run build:prod && turbo run db:deploy:prod --filter=@coldjot/database",
+        "web#build:prod": "turbo run build:prod --filter=@coldjot/types --filter=@coldjot/database --filter=web",
         "start:prod": "turbo run start:prod",
         "redis:up": "docker-compose up -d redis",
         "redis:down": "docker-compose down",
