@@ -37,16 +37,10 @@
             "cache": false
         },
         "db:deploy": {
-            "cache": false,
-            "env": [
-                "DATABASE_URL"
-            ]
+            "cache": false
         },
         "db:deploy:prod": {
-            "cache": false,
-            "env": [
-                "DATABASE_URL"
-            ]
+            "cache": false
         }
     }
 }

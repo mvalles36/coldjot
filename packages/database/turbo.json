@@ -9,75 +9,42 @@
             "dependsOn": [
                 "^build",
                 "db:generate"
-            ],
-            "env": [
-                "DATABASE_URL"
             ]
         },
         "build:prod": {
             "dependsOn": [
                 "^build:prod"
-            ],
-            "env": [
-                "DATABASE_URL"
             ]
         },
         "db:generate": {
             "cache": false
         },
         "db:migrate": {
-            "cache": false,
-            "env": [
-                "DATABASE_URL"
-            ]
+            "cache": false
         },
         "db:migrate:create": {
-            "cache": false,
-            "env": [
-                "DATABASE_URL"
-            ]
+            "cache": false
         },
         "db:deploy": {
-            "cache": false,
-            "env": [
-                "DATABASE_URL"
-            ]
+            "cache": false
         },
         "db:push": {
-            "cache": false,
-            "env": [
-                "DATABASE_URL"
-            ]
+            "cache": false
         },
         "db:seed": {
-            "cache": false,
-            "env": [
-                "DATABASE_URL"
-            ]
+            "cache": false
         },
         "db:reset": {
-            "cache": false,
-            "env": [
-                "DATABASE_URL"
-            ]
+            "cache": false
         },
         "db:studio": {
-            "cache": false,
-            "env": [
-                "DATABASE_URL"
-            ]
+            "cache": false
         },
         "db:deploy:prod": {
-            "cache": false,
-            "env": [
-                "DATABASE_URL"
-            ]
+            "cache": false
         },
         "db:seed:prod": {
-            "cache": false,
-            "env": [
-                "DATABASE_URL"
-            ]
+            "cache": false
         }
     }
 }
