@@ -3,19 +3,6 @@
         "//"
     ],
     "tasks": {
-        "build": {
-            "env": [
-                "MY_API_URL",
-                "MY_API_KEY"
-            ],
-            "inputs": [
-                "$TURBO_DEFAULT$",
-                ".env.production.local",
-                ".env.local",
-                ".env.production",
-                ".env"
-            ]
-        },
         "dev": {
             "cache": false,
             "persistent": true,
@@ -28,7 +15,22 @@
                 "**/.env",
                 ".env"
             ],
+            "env": []
+        },
+        "build": {
+            "env": [],
+            "inputs": [
+                "$TURBO_DEFAULT$",
+                ".env.production.local",
+                ".env.local",
+                ".env.production",
+                ".env"
+            ]
+        },
+        "build:prod": {
             "env": [
+                "LOG_LEVEL",
+                "NODE_ENV",
                 "USE_SMTP_DUAL_DELIVERY",
                 "NEXTAUTH_SECRET",
                 "PUBSUB_VERIFICATION_TOKEN",
@@ -37,11 +39,43 @@
                 "GOOGLE_*",
                 "NEXTAUTH_URL",
                 "NEXT_PUBLIC_*",
+                "AUTH_TRUST_HOST",
                 "QUEUE_API_URL",
-                "TRACK_URL",
-                "PUBSUB_*",
+                "PUBSUB_AUDIENCE",
                 "CRON_SECRET",
-                "GMAIL_*"
+                "GMAIL_WATCH_TOPIC"
+            ],
+            "inputs": [
+                "$TURBO_DEFAULT$",
+                "**/.env.production.local",
+                "**/.env.local",
+                "**/.env.production",
+                "**/.env"
+            ]
+        },
+        "start:prod": {
+            "env": [
+                "LOG_LEVEL",
+                "NODE_ENV",
+                "USE_SMTP_DUAL_DELIVERY",
+                "NEXTAUTH_SECRET",
+                "PUBSUB_VERIFICATION_TOKEN",
+                "APOLLO_API_KEY",
+                "DATABASE_URL",
+                "GOOGLE_*",
+                "NEXTAUTH_URL",
+                "NEXT_PUBLIC_*",
+                "AUTH_TRUST_HOST",
+                "QUEUE_API_URL",
+                "PUBSUB_AUDIENCE",
+                "CRON_SECRET"
+            ],
+            "inputs": [
+                "$TURBO_DEFAULT$",
+                "**/.env.production.local",
+                "**/.env.local",
+                "**/.env.production",
+                "**/.env"
             ]
         }
     }

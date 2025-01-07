@@ -7,6 +7,8 @@
         "dev": "NODE_OPTIONS='--max-old-space-size=4096' tsx watch src/server.ts",
         "build": "NODE_OPTIONS='--max-old-space-size=4096' tsup",
         "start": "node --expose-gc dist/server.js",
+        "build:prod": "tsup",
+        "start:prod": "node dist/server.js",
         "dev:debug": "NODE_OPTIONS='--max-old-space-size=4096 --inspect' tsx watch --inspect src/server.ts",
         "lint": "eslint \"src/**/*.ts\"",
         "clean": "rimraf .turbo node_modules dist .tsbuildinfo",

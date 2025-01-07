@@ -3,46 +3,87 @@
     "globalDependencies": [
         ".env*"
     ],
-    "globalPassThroughEnv": [
-        "NODE_ENV",
-        "APP_ENV"
-    ],
     "globalEnv": [
-        "DATABASE_URL",
-        "SHADOW_DATABASE_URL"
+        "APP_ENV",
+        "NODE_ENV"
     ],
     "tasks": {
         "dev": {
+            "cache": false,
+            "persistent": true,
+            "env": [
+                "APP_ENV"
+            ],
+            "inputs": [
+                ".env.development",
+                ".env.development.local"
+            ]
+        },
+        "build:dev": {
             "dependsOn": [
                 "^build"
             ],
-            "cache": false,
-            "persistent": true
-        },
-        "build": {
-            "dependsOn": [
-                "^build"
+            "env": [
+                "APP_ENV"
+            ],
+            "inputs": [
+                ".env.development",
+                ".env.development.local"
             ],
             "outputs": [
                 "dist/**",
                 ".next/**"
             ]
         },
-        "start": {
+        "build:prod": {
             "dependsOn": [
-                "^build"
+                "^build:prod"
             ],
+            "env": [],
+            "inputs": [
+                "$TURBO_DEFAULT$",
+                "**/.env.*"
+            ],
+            "outputs": [
+                "dist/**",
+                ".next/**"
+            ]
+        },
+        "start:dev": {
             "cache": false,
-            "persistent": true
+            "env": [],
+            "inputs": [
+                "$TURBO_DEFAULT$",
+                "**/.env.*",
+                ".env.development",
+                ".env.development.local"
+            ]
         },
-        "lint": {
-            "outputs": []
+        "start:prod": {
+            "cache": false,
+            "env": [],
+            "inputs": [
+                "$TURBO_DEFAULT$",
+                "**/.env.*"
+            ]
         },
-        "type-check": {
-            "cache": false
+        "db:deploy": {
+            "cache": false,
+            "env": [
+                "DATABASE_URL"
+            ]
         },
-        "clean": {
-            "cache": false
+        "db:deploy:staging": {
+            "cache": false,
+            "env": [
+                "DATABASE_URL"
+            ]
+        },
+        "db:deploy:prod": {
+            "cache": false,
+            "env": [
+                "DATABASE_URL"
+            ]
         }
     }
 }

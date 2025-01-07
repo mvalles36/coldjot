@@ -11,9 +11,10 @@
     "scripts": {
         "dev": "tsup --watch",
         "build": "tsup",
+        "build:prod": "tsup",
         "clean": "rm -rf .turbo node_modules dist",
-        "db:generate": "prisma generate",
         "# Development commands": "",
+        "db:generate": "prisma generate",
         "db:migrate": "dotenv -e env/.env.development -- prisma migrate dev",
         "db:migrate:create": "dotenv -e env/.env.development -- prisma migrate dev --create-only",
         "db:deploy": "dotenv -e env/.env.development -- prisma migrate deploy",

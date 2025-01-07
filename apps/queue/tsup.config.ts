@@ -11,7 +11,7 @@ export default defineConfig({
   format: ["esm"],
   sourcemap: true,
   target: "node20",
-  onSuccess: "node dist/server.js",
+  // onSuccess: "node dist/server.js",
   splitting: true,
   treeshake: true,
   minify: true,

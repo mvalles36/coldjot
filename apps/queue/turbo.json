@@ -3,14 +3,21 @@
         "//"
     ],
     "tasks": {
+        "dev": {
+            "cache": false,
+            "persistent": true
+        },
         "build": {
             "dependsOn": [
                 "^build"
             ]
         },
-        "dev": {
+        "build:prod": {
             "cache": false,
-            "persistent": true
+            "persistent": false,
+            "dependsOn": [
+                "^build:prod"
+            ]
         }
     }
 }

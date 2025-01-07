@@ -4,10 +4,15 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
-    "start": "next start",
+    "build": "export APP_ENV=development && next build",
+    "start": "export APP_ENV=development && next start",
+    "build:prod": "export APP_ENV=production && next build",
+    "start:prod": "export APP_ENV=production && next start",
     "lint": "next lint",
     "clean": "rimraf .turbo node_modules .next"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "dependencies": {
     "@auth/core": "^0.37.3",

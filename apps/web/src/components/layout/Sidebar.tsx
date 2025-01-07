@@ -133,7 +133,7 @@ export default function Sidebar() {
               isCollapsed && "hidden w-0 opacity-0"
             )}
           >
-            ZKMail
+            ColdJot
           </span>
         </Link>
         <Button
