@@ -17,6 +17,33 @@
             "persistent": false,
             "dependsOn": [
                 "^build:prod"
+            ],
+            "env": [
+                "PORT",
+                "WEB_APP_URL",
+                "API_URL",
+                "TRACK_API_URL",
+                "DATABASE_URL",
+                "REDIS_*",
+                "GOOGLE_*",
+                "QUEUE_PREFIX"
+            ]
+        },
+        "start:prod": {
+            "cache": false,
+            "persistent": false,
+            "dependsOn": [
+                "^build:prod"
+            ],
+            "env": [
+                "PORT",
+                "WEB_APP_URL",
+                "API_URL",
+                "TRACK_API_URL",
+                "DATABASE_URL",
+                "REDIS_*",
+                "GOOGLE_*",
+                "QUEUE_PREFIX"
             ]
         }
     }

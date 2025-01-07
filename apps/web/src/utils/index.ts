@@ -10,8 +10,8 @@ export const getBaseUrl = () => {
   const url = process.env.NEXT_PUBLIC_APP_URL;
   if (url) {
     console.warn("NEXT_PUBLIC_APP_URL is not set, using fallback URL");
-    if (process.env.TRACK_URL) {
-      return process.env.TRACK_URL;
+    if (process.env.TRACK_API_URL) {
+      return process.env.TRACK_API_URL;
     }
     return process.env.NODE_ENV === "development"
       ? "http://localhost:3000"

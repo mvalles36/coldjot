@@ -28,8 +28,7 @@
         "db:migrate": {
             "cache": false,
             "env": [
-                "DATABASE_URL",
-                "SHADOW_DATABASE_URL"
+                "DATABASE_URL"
             ]
         },
         "db:migrate:create": {
@@ -59,23 +58,10 @@
         "db:reset": {
             "cache": false,
             "env": [
-                "DATABASE_URL",
-                "SHADOW_DATABASE_URL"
+                "DATABASE_URL"
             ]
         },
         "db:studio": {
-            "cache": false,
-            "env": [
-                "DATABASE_URL"
-            ]
-        },
-        "db:deploy:staging": {
-            "cache": false,
-            "env": [
-                "DATABASE_URL"
-            ]
-        },
-        "db:seed:staging": {
             "cache": false,
             "env": [
                 "DATABASE_URL"
