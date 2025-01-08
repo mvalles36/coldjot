@@ -28,7 +28,7 @@ const envSchema = z.object({
   LOG_SHOW_TIME: z.boolean().default(false),
   LOG_PATH_DEPTH: z.coerce.number().default(0),
   NODE_ENV: z.string().default("development"),
-  NEXT_PUBLIC_APP_URL: z.string().default("http://localhost:4000"),
+  WEB_APP_URL: z.string().default("http://localhost:4000"),
 
   // File Logging
   LOG_TO_FILE: z.boolean().default(false),

@@ -1,5 +1,5 @@
 {
-    "name": "@coldjot/queue",
+    "name": "@coldjot/mailops",
     "version": "0.1.0",
     "private": true,
     "type": "module",

@@ -49,3 +49,11 @@ export interface EmailList {
   updatedAt: Date;
   contacts: Contact[];
 }
+
+export enum AppUrlEnum {
+  WEB = "web",
+  API = "api",
+  TRACKING = "tracking",
+}
+
+export type AppUrlType = AppUrlEnum;

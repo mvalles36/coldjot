@@ -4,10 +4,11 @@ import {
   EmailTrackingEnum,
   EmailEventEnum,
   EmailTrackingStatusEnum,
+  AppUrlEnum,
 } from "@coldjot/types";
 import { nanoid } from "nanoid";
 import { prisma } from "@coldjot/database";
-import { getAppBaseUrl } from "@/utils";
+import { getBaseUrl } from "@/utils";
 import { updateSequenceStats } from "@/lib/stats";
 import type { Prisma } from "@prisma/client";
 import { EmailEventType } from "@coldjot/types";
@@ -238,7 +239,7 @@ export async function addTrackingToEmail(
 
     // Add development tracking link
     if (process.env.NODE_ENV === "development") {
-      const baseUrl = getAppBaseUrl();
+      const baseUrl = getBaseUrl(AppUrlEnum.TRACKING);
       const trackingUrl = new URL(`${baseUrl}/api/track/${tracking.hash}`);
       const devTrackingInfo = `
         <div style="background: #f0f0f0; padding: 10px; margin: 10px 0; font-family: monospace; font-size: 12px;">
@@ -271,7 +272,7 @@ function generateTrackingPixel(hash: string): string {
       throw new Error("Hash is required for tracking pixel generation");
     }
 
-    const baseUrl = getAppBaseUrl();
+    const baseUrl = getBaseUrl(AppUrlEnum.TRACKING);
     const trackingUrl = new URL(`${baseUrl}/api/track/${hash}.png`);
     return `<img src="${trackingUrl.toString()}" alt="" style="display:none" width="1" height="1" />`;
   } catch (error) {
@@ -300,7 +301,7 @@ async function wrapLinksWithTracking(
       );
     }
 
-    const baseUrl = getAppBaseUrl();
+    const baseUrl = getBaseUrl(AppUrlEnum.TRACKING);
     const trackingBaseUrl = `${baseUrl}/api/track/${hash}/click`;
 
     // Use async replace to handle link creation
