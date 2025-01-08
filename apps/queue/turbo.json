@@ -16,7 +16,8 @@
             "cache": false,
             "persistent": false,
             "dependsOn": [
-                "^build:prod"
+                "^@coldjot/database#build:prod",
+                "^@coldjot/types#build:prod"
             ],
             "env": [
                 "PORT",
