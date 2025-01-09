@@ -4,9 +4,6 @@ import { AppUrlEnum, AppUrlType } from "@coldjot/types";
 export const sleep = (ms: number) =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
-// TODO: check env variables and return the correct url
-// URL and tracking utilities
-
 export const getBaseUrl = (type: AppUrlType = AppUrlEnum.API) => {
   // API URL
   if (type === AppUrlEnum.API) {

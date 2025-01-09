@@ -1,4 +1,8 @@
 import { QueueOptions, WorkerOptions } from "bullmq";
+import { REDIS_PREFIX } from "../redis/keys";
+
+// Queue prefix configuration
+export const QUEUE_PREFIX = REDIS_PREFIX;
 
 // Queue names with their actual queue identifiers
 export const QUEUE_NAMES = {
@@ -143,6 +147,7 @@ export const PROCESSOR_CONCURRENCY = {
 export const PROCESSOR_CONFIG = {
   [QUEUE_NAMES.EMAIL]: {
     worker: {
+      prefix: QUEUE_PREFIX.slice(0, -1),
       concurrency: 10,
       limiter: {
         max: 50,
@@ -158,6 +163,7 @@ export const PROCESSOR_CONFIG = {
       maxPerMinute: 500,
     },
     queueOptions: {
+      prefix: QUEUE_PREFIX.slice(0, -1),
       removeOnComplete: {
         count: 1000,
         age: 24 * 60 * 60,
@@ -170,6 +176,7 @@ export const PROCESSOR_CONFIG = {
   },
   [QUEUE_NAMES.SEQUENCE]: {
     worker: {
+      prefix: QUEUE_PREFIX.slice(0, -1),
       concurrency: 5,
       limiter: {
         max: 100,
@@ -185,6 +192,7 @@ export const PROCESSOR_CONFIG = {
       maxPerMinute: 1000,
     },
     queueOptions: {
+      prefix: QUEUE_PREFIX.slice(0, -1),
       removeOnComplete: {
         count: 1000,
         age: 24 * 60 * 60,
@@ -197,6 +205,7 @@ export const PROCESSOR_CONFIG = {
   },
   [QUEUE_NAMES.THREAD_WATCHER]: {
     worker: {
+      prefix: QUEUE_PREFIX.slice(0, -1),
       concurrency: 10,
       limiter: {
         max: 50,
@@ -212,6 +221,7 @@ export const PROCESSOR_CONFIG = {
       maxPerMinute: 1000,
     },
     queueOptions: {
+      prefix: QUEUE_PREFIX.slice(0, -1),
       removeOnComplete: {
         count: 1000,
         age: 24 * 60 * 60,
@@ -224,6 +234,7 @@ export const PROCESSOR_CONFIG = {
   },
   [QUEUE_NAMES.CONTACT]: {
     worker: {
+      prefix: QUEUE_PREFIX.slice(0, -1),
       concurrency: 5,
       limiter: {
         max: 100,
@@ -239,6 +250,7 @@ export const PROCESSOR_CONFIG = {
       maxPerMinute: 1000,
     },
     queueOptions: {
+      prefix: QUEUE_PREFIX.slice(0, -1),
       removeOnComplete: {
         count: 1000,
         age: 24 * 60 * 60,
@@ -251,6 +263,7 @@ export const PROCESSOR_CONFIG = {
   },
   [QUEUE_NAMES.EMAIL_SCHEDULE]: {
     worker: {
+      prefix: QUEUE_PREFIX.slice(0, -1),
       concurrency: 5,
       limiter: {
         max: 100,
@@ -266,6 +279,7 @@ export const PROCESSOR_CONFIG = {
       maxPerMinute: 1000,
     },
     queueOptions: {
+      prefix: QUEUE_PREFIX.slice(0, -1),
       removeOnComplete: {
         count: 1000,
         age: 24 * 60 * 60,

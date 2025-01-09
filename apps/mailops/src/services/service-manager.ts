@@ -5,6 +5,7 @@ import {
   QUEUE_NAMES,
   QUEUE_OPTIONS,
   DEFAULT_QUEUE_OPTIONS,
+  QUEUE_PREFIX,
   type QueueName,
 } from "@/config/queue";
 import type { ProcessingJob, EmailJob } from "@coldjot/types";
@@ -108,8 +109,11 @@ export class ServiceManager {
     try {
       // Get queue-specific options or use defaults
       const queueConfig = {
+        ...DEFAULT_QUEUE_OPTIONS,
+        ...(QUEUE_OPTIONS[queueKey] || {}),
+        // These settings should override any other configurations
         connection: this.redisConnection.getClient(),
-        ...(QUEUE_OPTIONS[queueKey] || DEFAULT_QUEUE_OPTIONS),
+        prefix: QUEUE_PREFIX.slice(0, -1), // Remove trailing colon as BullMQ adds it
       };
 
       return new Queue(queueName, queueConfig);
