@@ -1,5 +1,5 @@
 import { logger } from "@/lib/log";
-import { REDIS_KEYS, RATE_LIMIT_TYPES, type RateLimitType } from "@/config";
+import { REDIS_KEYS, type RateLimitType, RateLimitEnum } from "@/config";
 import { RedisConnection } from "@/services/shared/redis/connection";
 
 interface RateLimitInfo {
@@ -10,6 +10,17 @@ interface RateLimitInfo {
     type?: string;
     remaining?: number;
   };
+  debug?: {
+    keys?: string[];
+    values?: any[];
+    reason?: string;
+  };
+}
+
+interface RateLimitData {
+  count: number;
+  lastUpdated: number;
+  limit: number;
 }
 
 export class RateLimitService {
@@ -17,7 +28,7 @@ export class RateLimitService {
   private redis = RedisConnection.getInstance().getClient();
 
   // Default limits - could be moved to config
-  private readonly DEFAULT_RATE_LIMIT = 100;
+  private readonly DEFAULT_RATE_LIMIT = 500;
   private readonly DEFAULT_TTL = 24 * 60 * 60; // 24 hours in seconds
 
   private constructor() {}
@@ -30,24 +41,22 @@ export class RateLimitService {
   }
 
   private getKey(
-    userId: string,
     type: RateLimitType,
-    entityId?: string
+    entityId: string,
+    userId?: string
   ): string {
     switch (type) {
-      case "USER":
+      case RateLimitEnum.USER:
+        if (!userId) throw new Error("User ID required for user rate limit");
         return REDIS_KEYS.rateLimits.user(userId);
-      case "SEQUENCE":
-        if (!entityId)
-          throw new Error("Sequence ID required for sequence rate limit");
+      case RateLimitEnum.SEQUENCE:
+        if (!userId)
+          throw new Error("User ID required for sequence rate limit");
         return REDIS_KEYS.rateLimits.sequence(userId, entityId);
-      case "CONTACT":
-        if (!entityId)
-          throw new Error("Contact ID required for contact rate limit");
-        return REDIS_KEYS.rateLimits.contact(userId, "", entityId);
-      case "COOLDOWN":
-        if (!entityId) throw new Error("Entity ID required for cooldown");
-        return REDIS_KEYS.rateLimits.cooldown(userId, "", entityId);
+      case RateLimitEnum.CONTACT:
+        return REDIS_KEYS.rateLimits.contact(userId || "", "", entityId);
+      case RateLimitEnum.COOLDOWN:
+        return REDIS_KEYS.rateLimits.cooldown(userId || "", "", entityId);
       default:
         throw new Error(`Invalid rate limit type: ${type}`);
     }
@@ -59,53 +68,173 @@ export class RateLimitService {
     contactId?: string
   ): Promise<RateLimitInfo> {
     try {
-      // Pipeline our Redis commands for better performance
       const pipeline = this.redis.pipeline();
+      const keys: string[] = [];
+      const debugInfo: any[] = [];
 
-      // Add commands to pipeline
-      if (contactId) {
-        pipeline.get(this.getKey(userId, "CONTACT", contactId));
-        pipeline.get(this.getKey(userId, "COOLDOWN", contactId));
-      }
+      // Get all relevant rate limits using hgetall
+      const userKey = this.getKey(RateLimitEnum.USER, userId, userId);
+      keys.push(userKey);
+      pipeline.hgetall(userKey);
+
       if (sequenceId) {
-        pipeline.get(this.getKey(userId, "SEQUENCE", sequenceId));
+        const sequenceKey = this.getKey(
+          RateLimitEnum.SEQUENCE,
+          sequenceId,
+          userId
+        );
+        keys.push(sequenceKey);
+        pipeline.hgetall(sequenceKey);
       }
-      pipeline.get(this.getKey(userId, "USER", userId));
 
-      // Execute pipeline
+      if (contactId) {
+        const contactKey = this.getKey(RateLimitEnum.CONTACT, contactId);
+        const cooldownKey = this.getKey(RateLimitEnum.COOLDOWN, contactId);
+        keys.push(contactKey, cooldownKey);
+        pipeline.hgetall(contactKey);
+        pipeline.hgetall(cooldownKey);
+      }
+
+      // Log keys being checked
+      logger.info(
+        {
+          keys,
+          userId,
+          sequenceId,
+          contactId,
+        },
+        "Checking rate limits for keys:"
+      );
+
       const results = await pipeline.exec();
-
       if (!results) {
         logger.error("Failed to execute rate limit pipeline");
-        return { allowed: true }; // Fail open
+        return {
+          allowed: true,
+          debug: {
+            keys,
+            reason: "Pipeline execution failed",
+          },
+        }; // Fail open
       }
 
-      // Check cooldown first if it exists
-      if (contactId && results[1]?.[1]) {
+      // Store debug info
+      results.forEach((result, index) => {
+        const value = result?.[1] || null;
+        debugInfo.push({
+          key: keys[index],
+          value,
+          error: result?.[0] || null,
+        });
+        logger.info(
+          {
+            key: keys[index],
+            value,
+          },
+          `Rate limit value for ${keys[index]}:`
+        );
+      });
+
+      // Check cooldown first
+      const cooldownData = contactId && (results[3]?.[1] as RateLimitData);
+      if (cooldownData && Object.keys(cooldownData).length > 0) {
+        const remaining = parseInt(String(cooldownData.count));
+        if (remaining > 0) {
+          logger.warn(
+            {
+              remaining,
+              cooldownData,
+              key: keys[3],
+            },
+            "Cooldown active:"
+          );
+          return {
+            allowed: false,
+            cooldown: {
+              type: "cooldown",
+              remaining,
+            },
+            debug: {
+              keys,
+              values: debugInfo,
+              reason: `Cooldown active: ${remaining}ms remaining`,
+            },
+          };
+        }
+      }
+
+      // Process rate limits - handle empty hash results
+      const limits = results
+        .slice(0, -1)
+        .filter((r) => r?.[1] && Object.keys(r[1]).length > 0) // Only process non-empty hash results
+        .map((r) => {
+          const data = r[1] as RateLimitData;
+          return data?.count ? parseInt(String(data.count)) : 0;
+        });
+
+      // If no limits found, this is a first-time access
+      if (limits.length === 0) {
+        logger.info("No existing rate limits found - first time access");
         return {
-          allowed: false,
-          cooldown: {
-            type: "cooldown",
-            remaining: parseInt(results[1][1] as string),
+          allowed: true,
+          current: 0,
+          limit: this.DEFAULT_RATE_LIMIT,
+          debug: {
+            keys,
+            values: debugInfo,
+            reason: "First time access - no existing limits",
           },
         };
       }
 
-      // Check all counters
-      const counters = results
-        .filter((r) => r?.[1])
-        .map((r) => parseInt(r[1] as string));
+      const maxCount = Math.max(...limits, 0);
+      const isAllowed = maxCount < this.DEFAULT_RATE_LIMIT;
 
-      const maxCount = Math.max(...counters, 0);
+      // Log detailed information for debugging
+      logger.info(
+        {
+          userId,
+          sequenceId,
+          contactId,
+          maxCount,
+          isAllowed,
+          keys,
+          debugInfo,
+          limits,
+        },
+        "Rate limit check result:"
+      );
 
       return {
-        allowed: maxCount < this.DEFAULT_RATE_LIMIT,
+        allowed: isAllowed,
         current: maxCount,
         limit: this.DEFAULT_RATE_LIMIT,
+        debug: {
+          keys,
+          values: debugInfo,
+          reason: isAllowed
+            ? "Within limits"
+            : `Rate limit exceeded: ${maxCount}/${this.DEFAULT_RATE_LIMIT}`,
+        },
       };
     } catch (error) {
-      logger.error("Rate limit check failed:", error);
-      return { allowed: true }; // Fail open
+      logger.error(
+        {
+          error,
+          userId,
+          sequenceId,
+          contactId,
+          stack: error instanceof Error ? error.stack : undefined,
+        },
+        "Rate limit check failed:"
+      );
+      return {
+        allowed: true,
+        debug: {
+          keys: [],
+          reason: `Error during check: ${error instanceof Error ? error.message : "Unknown error"}`,
+        },
+      }; // Fail open
     }
   }
 
@@ -116,38 +245,99 @@ export class RateLimitService {
   ): Promise<void> {
     try {
       const pipeline = this.redis.pipeline();
+      const now = Date.now();
+      const keys: string[] = [];
+
+      // Helper function to set hash fields
+      const setRateLimit = (key: string) => {
+        keys.push(key);
+        pipeline.hincrby(key, "count", 1);
+        pipeline.hset(key, "lastUpdated", now);
+        pipeline.hset(key, "limit", this.DEFAULT_RATE_LIMIT);
+        pipeline.expire(key, this.DEFAULT_TTL);
+      };
 
       // Increment all relevant counters
-      if (contactId) {
-        const contactKey = this.getKey(userId, "CONTACT", contactId);
-        pipeline.incr(contactKey);
-        pipeline.expire(contactKey, this.DEFAULT_TTL);
-      }
+      setRateLimit(this.getKey(RateLimitEnum.USER, userId, userId));
       if (sequenceId) {
-        const sequenceKey = this.getKey(userId, "SEQUENCE", sequenceId);
-        pipeline.incr(sequenceKey);
-        pipeline.expire(sequenceKey, this.DEFAULT_TTL);
+        setRateLimit(this.getKey(RateLimitEnum.SEQUENCE, sequenceId, userId));
       }
-      const userKey = this.getKey(userId, "USER", userId);
-      pipeline.incr(userKey);
-      pipeline.expire(userKey, this.DEFAULT_TTL);
+      if (contactId) {
+        setRateLimit(this.getKey(RateLimitEnum.CONTACT, contactId));
+      }
 
-      await pipeline.exec();
+      // Log what we're about to do
+      logger.info(
+        {
+          keys,
+          userId,
+          sequenceId,
+          contactId,
+        },
+        "Incrementing rate limits:"
+      );
+
+      const results = await pipeline.exec();
+
+      // Log increment operation results
+      logger.info(
+        {
+          userId,
+          sequenceId,
+          contactId,
+          keys,
+          results: results?.map((r, i) => ({
+            key: keys[Math.floor(i / 4)],
+            value: r?.[1],
+            error: r?.[0],
+          })),
+        },
+        "Rate limit increment results:"
+      );
     } catch (error) {
-      logger.error("Failed to increment rate limit counters:", error);
+      logger.error(
+        {
+          error,
+          userId,
+          sequenceId,
+          contactId,
+          stack: error instanceof Error ? error.stack : undefined,
+        },
+        "Failed to increment rate limit counters:"
+      );
+      throw error; // Rethrow to handle at caller
     }
   }
 
   async addCooldown(
-    userId: string,
     entityId: string,
-    duration: number
+    duration: number,
+    userId?: string
   ): Promise<void> {
     try {
-      const key = this.getKey(userId, "COOLDOWN", entityId);
-      await this.redis.set(key, duration, "PX", duration);
+      const key = this.getKey(RateLimitEnum.COOLDOWN, entityId);
+      const now = Date.now();
+
+      await this.redis
+        .pipeline()
+        .hset(key, {
+          count: duration,
+          lastUpdated: now,
+          type: "cooldown",
+        })
+        .pexpire(key, duration)
+        .exec();
     } catch (error) {
-      logger.error("Failed to add cooldown:", error);
+      logger.error(
+        {
+          error,
+          entityId,
+          duration,
+          userId,
+          stack: error instanceof Error ? error.stack : undefined,
+        },
+        "Failed to add cooldown:"
+      );
     }
   }
 
@@ -158,21 +348,69 @@ export class RateLimitService {
   ): Promise<void> {
     try {
       const pipeline = this.redis.pipeline();
+      const keys: string[] = [];
 
       // Delete all relevant keys
-      pipeline.del(this.getKey(userId, "USER", userId));
+      const userKey = this.getKey(RateLimitEnum.USER, userId, userId);
+      keys.push(userKey);
+      pipeline.del(userKey);
+
       if (sequenceId) {
-        pipeline.del(this.getKey(userId, "SEQUENCE", sequenceId));
-      }
-      if (contactId) {
-        pipeline.del(this.getKey(userId, "CONTACT", contactId));
-        pipeline.del(this.getKey(userId, "COOLDOWN", contactId));
+        const sequenceKey = this.getKey(
+          RateLimitEnum.SEQUENCE,
+          sequenceId,
+          userId
+        );
+        keys.push(sequenceKey);
+        pipeline.del(sequenceKey);
       }
 
-      await pipeline.exec();
+      if (contactId) {
+        const contactKey = this.getKey(RateLimitEnum.CONTACT, contactId);
+        const cooldownKey = this.getKey(RateLimitEnum.COOLDOWN, contactId);
+        keys.push(contactKey, cooldownKey);
+        pipeline.del(contactKey);
+        pipeline.del(cooldownKey);
+      }
+
+      // Log what we're about to delete
+      logger.info(
+        {
+          keys,
+          userId,
+          sequenceId,
+          contactId,
+        },
+        "Resetting rate limits for keys:"
+      );
+
+      const results = await pipeline.exec();
+
+      // Log results
+      logger.info(
+        {
+          keys,
+          results: results?.map((r, i) => ({
+            key: keys[i],
+            deleted: r?.[1],
+            error: r?.[0],
+          })),
+        },
+        "Rate limit reset results:"
+      );
+
       logger.info(`✓ Rate limits reset for user: ${userId}`);
     } catch (error) {
-      logger.error("Failed to reset rate limits:", error);
+      logger.error(
+        {
+          error,
+          userId,
+          sequenceId,
+          contactId,
+          stack: error instanceof Error ? error.stack : undefined,
+        },
+        "Failed to reset rate limits:"
+      );
       throw error;
     }
   }
@@ -185,18 +423,21 @@ export class RateLimitService {
     current: number;
     limit: number;
     cooldowns: { [key: string]: number };
+    lastUpdated?: number;
   }> {
     try {
       const pipeline = this.redis.pipeline();
 
-      // Get all relevant counters
-      pipeline.get(this.getKey(userId, "USER", userId));
+      // Get all relevant rate limits
+      pipeline.hgetall(this.getKey(RateLimitEnum.USER, userId, userId));
       if (sequenceId) {
-        pipeline.get(this.getKey(userId, "SEQUENCE", sequenceId));
+        pipeline.hgetall(
+          this.getKey(RateLimitEnum.SEQUENCE, sequenceId, userId)
+        );
       }
       if (contactId) {
-        pipeline.get(this.getKey(userId, "CONTACT", contactId));
-        pipeline.get(this.getKey(userId, "COOLDOWN", contactId));
+        pipeline.hgetall(this.getKey(RateLimitEnum.CONTACT, contactId));
+        pipeline.hgetall(this.getKey(RateLimitEnum.COOLDOWN, contactId));
       }
 
       const results = await pipeline.exec();
@@ -204,22 +445,37 @@ export class RateLimitService {
         throw new Error("Failed to get rate limits");
       }
 
-      const counters = results
+      const limits = results
         .filter((r) => r?.[1])
-        .map((r) => parseInt(r[1] as string));
+        .map((r) => {
+          const data = r[1] as RateLimitData;
+          return data ? parseInt(String(data.count)) : 0;
+        });
+
+      const lastUpdated = results
+        .filter((r) => r?.[1])
+        .map((r) => {
+          const data = r[1] as RateLimitData;
+          return data ? parseInt(String(data.lastUpdated)) : 0;
+        })
+        .sort()
+        .pop();
 
       return {
-        current: Math.max(...counters, 0),
+        current: Math.max(...limits, 0),
         limit: this.DEFAULT_RATE_LIMIT,
+        lastUpdated,
         cooldowns:
           contactId && results[3]?.[1]
             ? {
-                [contactId]: parseInt(results[3][1] as string),
+                [contactId]: parseInt(
+                  String((results[3][1] as RateLimitData).count)
+                ),
               }
             : {},
       };
     } catch (error) {
-      logger.error("Failed to get rate limits:", error);
+      logger.error(error, "Failed to get rate limits:");
       return {
         current: 0,
         limit: this.DEFAULT_RATE_LIMIT,

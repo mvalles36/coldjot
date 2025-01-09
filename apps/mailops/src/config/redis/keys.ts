@@ -2,28 +2,28 @@
 export const REDIS_PREFIX = "coldjot:" as const;
 export const QUEUE_PREFIX = REDIS_PREFIX;
 
-// Rate limit types for better type safety
-export const RATE_LIMIT_TYPES = {
-  USER: "user",
-  SEQUENCE: "sequence",
-  CONTACT: "contact",
-  COOLDOWN: "cooldown",
-} as const;
+export enum RateLimitEnum {
+  USER = "user",
+  SEQUENCE = "sequence",
+  CONTACT = "contact",
+  COOLDOWN = "cooldown",
+}
 
 // TODO: Move to shared package
 export const REDIS_KEYS = {
   // Rate limiting keys - In use
+  // New flattened structure using hash maps instead of individual keys
+  // This allows for better grouping and easier debugging
   rateLimits: {
-    // Flattened key structure with type prefixes for better scanning and grouping
-    // Format: coldjot:ratelimit:{type}:{userId}[:{entityId}]
-    user: (userId: string) =>
-      `${REDIS_PREFIX}ratelimit:${RATE_LIMIT_TYPES.USER}:${userId}`,
+    // Format: coldjot:ratelimit:{entityType}:{entityId}
+    // Using Redis HASH to store all rate limit data for an entity
+    user: (userId: string) => `${REDIS_PREFIX}ratelimit:user:${userId}`,
     sequence: (userId: string, sequenceId: string) =>
-      `${REDIS_PREFIX}ratelimit:${RATE_LIMIT_TYPES.SEQUENCE}:${userId}:${sequenceId}`,
-    contact: (userId: string, sequenceId: string, contactId: string) =>
-      `${REDIS_PREFIX}ratelimit:${RATE_LIMIT_TYPES.CONTACT}:${userId}:${contactId}`,
-    cooldown: (userId: string, sequenceId: string, contactId: string) =>
-      `${REDIS_PREFIX}ratelimit:${RATE_LIMIT_TYPES.COOLDOWN}:${userId}:${contactId}`,
+      `${REDIS_PREFIX}ratelimit:sequence:${userId}:${sequenceId}`,
+    contact: (userId: string, _sequenceId: string, contactId: string) =>
+      `${REDIS_PREFIX}ratelimit:contact:${contactId}`, // Simplified to just use contactId
+    cooldown: (userId: string, _sequenceId: string, entityId: string) =>
+      `${REDIS_PREFIX}ratelimit:cooldown:${entityId}`, // Generic cooldown for any entity
   },
 
   // Memory monitoring keys - In use
@@ -71,4 +71,5 @@ export const REDIS_KEYS = {
 } as const;
 
 // Export types for better type safety
-export type RateLimitType = keyof typeof RATE_LIMIT_TYPES;
+// export type RateLimitType = keyof typeof RATE_LIMIT_TYPES;
+export type RateLimitType = RateLimitEnum;
