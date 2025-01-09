@@ -34,6 +34,12 @@ module.exports = {
       autorestart: true,
       max_size: "10M",
       max_files: "14d",
+      treekill: true,
+      restart_delay: 4000,
+      shutdown_with_message: true,
+      wait_ready: true,
+      listen_timeout: 10000,
+      force: true,
     },
   ],
 };

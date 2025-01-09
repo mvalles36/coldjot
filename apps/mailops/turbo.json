@@ -13,7 +13,7 @@
             ]
         },
         "build:prod": {
-            "cache": false,
+            "cache": true,
             "persistent": false,
             "dependsOn": [
                 "^@coldjot/database#build:prod",
@@ -28,13 +28,16 @@
                 "REDIS_*",
                 "GOOGLE_*",
                 "QUEUE_PREFIX"
+            ],
+            "outputs": [
+                "dist/**"
             ]
         },
         "start:prod": {
-            "cache": false,
-            "persistent": false,
+            "cache": true,
+            "persistent": true,
             "dependsOn": [
-                "^build:prod"
+                "build:prod"
             ],
             "env": [
                 "PORT",
