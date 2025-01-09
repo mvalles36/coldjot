@@ -21,10 +21,31 @@
                 "**/web/env/.env"
             ]
         },
+        "build:dev": {
+            "dependsOn": [
+                "@coldjot/database#build:dev",
+                "@coldjot/types#build:dev"
+            ],
+            "cache": false,
+            "env": [
+                "NEXT_PUBLIC_*",
+                "AUTH_TRUST_HOST",
+                "NEXTAUTH_URL",
+                "NEXTAUTH_SECRET",
+                "APOLLO_API_KEY",
+                "DATABASE_URL",
+                "GOOGLE_*"
+            ],
+            "inputs": [
+                "$TURBO_DEFAULT$",
+                "**/web/env/.env.*",
+                "**/web/env/.env"
+            ]
+        },
         "build:prod": {
             "dependsOn": [
-                "^@coldjot/database#build:prod",
-                "^@coldjot/types#build:prod"
+                "@coldjot/database#build:prod",
+                "@coldjot/types#build:prod"
             ],
             "cache": false,
             "env": [

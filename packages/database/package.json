@@ -12,6 +12,7 @@
         "dev": "tsup --watch",
         "build": "tsup",
         "build:prod": "tsup",
+        "build:dev": "tsup",
         "clean": "rm -rf .turbo node_modules dist",
         "# Development commands": "",
         "db:generate": "prisma generate",

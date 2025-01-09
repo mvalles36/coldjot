@@ -12,12 +12,33 @@
                 "^build"
             ]
         },
+        "build:dev": {
+            "cache": true,
+            "persistent": false,
+            "dependsOn": [
+                "@coldjot/database#build:dev",
+                "@coldjot/types#build:dev"
+            ],
+            "env": [
+                "PORT",
+                "WEB_APP_URL",
+                "MAILOPS_API_URL",
+                "TRACK_API_URL",
+                "DATABASE_URL",
+                "REDIS_*",
+                "GOOGLE_*",
+                "QUEUE_PREFIX"
+            ],
+            "outputs": [
+                "dist/**"
+            ]
+        },
         "build:prod": {
             "cache": true,
             "persistent": false,
             "dependsOn": [
-                "^@coldjot/database#build:prod",
-                "^@coldjot/types#build:prod"
+                "@coldjot/database#build:prod",
+                "@coldjot/types#build:prod"
             ],
             "env": [
                 "PORT",

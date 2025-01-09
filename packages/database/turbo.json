@@ -11,14 +11,25 @@
                 "db:generate"
             ]
         },
-        "build:prod": {
+        "build:dev": {
+            "cache": false,
+            "persistent": false,
             "dependsOn": [
-                "^build:prod",
+                "db:deploy",
+                "db:generate"
+            ]
+        },
+        "build:prod": {
+            "cache": false,
+            "persistent": false,
+            "dependsOn": [
+                "db:deploy:prod",
                 "db:generate"
             ]
         },
         "db:generate": {
-            "cache": false
+            "cache": false,
+            "outputs": []
         },
         "db:migrate": {
             "cache": false
@@ -28,6 +39,12 @@
         },
         "db:deploy": {
             "cache": false
+        },
+        "db:deploy:prod": {
+            "cache": false,
+            "env": [
+                "DATABASE_URL"
+            ]
         },
         "db:push": {
             "cache": false
@@ -41,11 +58,11 @@
         "db:studio": {
             "cache": false
         },
-        "db:deploy:prod": {
-            "cache": false
-        },
         "db:seed:prod": {
-            "cache": false
+            "cache": false,
+            "env": [
+                "DATABASE_URL"
+            ]
         }
     }
 }

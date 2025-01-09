@@ -14,7 +14,7 @@
         },
         "build:dev": {
             "dependsOn": [
-                "^build"
+                "^build:dev"
             ],
             "outputs": [
                 "dist/**",

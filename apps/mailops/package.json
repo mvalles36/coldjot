@@ -7,6 +7,7 @@
         "dev": "NODE_OPTIONS='--max-old-space-size=4096' tsx watch src/server.ts",
         "build": "NODE_OPTIONS='--max-old-space-size=4096' tsup",
         "start": "node --expose-gc dist/server.js",
+        "build:dev": "tsup",
         "build:prod": "tsup",
         "start:prod": "pm2 start ecosystem.config.cjs --env production",
         "start:prod:daemon": "pm2 start ecosystem.config.cjs --env production",

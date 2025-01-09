@@ -11,6 +11,15 @@
                 "dist/**"
             ]
         },
+        "build:dev": {
+            "cache": false,
+            "dependsOn": [
+                "^build:dev"
+            ],
+            "outputs": [
+                "dist/**"
+            ]
+        },
         "build:prod": {
             "cache": false,
             "dependsOn": [
