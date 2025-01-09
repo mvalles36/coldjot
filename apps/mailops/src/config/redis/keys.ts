@@ -1,18 +1,29 @@
 // Redis key prefix configuration
 export const REDIS_PREFIX = "coldjot:" as const;
-export const QUEUE_PREFIX = `${REDIS_PREFIX}queue:` as const;
+export const QUEUE_PREFIX = REDIS_PREFIX;
+
+// Rate limit types for better type safety
+export const RATE_LIMIT_TYPES = {
+  USER: "user",
+  SEQUENCE: "sequence",
+  CONTACT: "contact",
+  COOLDOWN: "cooldown",
+} as const;
 
 // TODO: Move to shared package
 export const REDIS_KEYS = {
   // Rate limiting keys - In use
   rateLimits: {
-    user: (userId: string) => `${REDIS_PREFIX}rate:user:${userId}`,
+    // Flattened key structure with type prefixes for better scanning and grouping
+    // Format: coldjot:ratelimit:{type}:{userId}[:{entityId}]
+    user: (userId: string) =>
+      `${REDIS_PREFIX}ratelimit:${RATE_LIMIT_TYPES.USER}:${userId}`,
     sequence: (userId: string, sequenceId: string) =>
-      `${REDIS_PREFIX}rate:sequence:${userId}:${sequenceId}`,
+      `${REDIS_PREFIX}ratelimit:${RATE_LIMIT_TYPES.SEQUENCE}:${userId}:${sequenceId}`,
     contact: (userId: string, sequenceId: string, contactId: string) =>
-      `${REDIS_PREFIX}rate:contact:${userId}:${sequenceId}:${contactId}`,
+      `${REDIS_PREFIX}ratelimit:${RATE_LIMIT_TYPES.CONTACT}:${userId}:${contactId}`,
     cooldown: (userId: string, sequenceId: string, contactId: string) =>
-      `${REDIS_PREFIX}rate:cooldown:${userId}:${sequenceId}:${contactId}`,
+      `${REDIS_PREFIX}ratelimit:${RATE_LIMIT_TYPES.COOLDOWN}:${userId}:${contactId}`,
   },
 
   // Memory monitoring keys - In use
@@ -58,3 +69,6 @@ export const REDIS_KEYS = {
     metrics: (emailId: string) => `${REDIS_PREFIX}email:${emailId}:metrics`,
   },
 } as const;
+
+// Export types for better type safety
+export type RateLimitType = keyof typeof RATE_LIMIT_TYPES;

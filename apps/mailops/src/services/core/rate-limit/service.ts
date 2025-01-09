@@ -1,12 +1,26 @@
 import { logger } from "@/lib/log";
-import { REDIS_KEYS } from "@/config";
+import { REDIS_KEYS, RATE_LIMIT_TYPES, type RateLimitType } from "@/config";
 import { RedisConnection } from "@/services/shared/redis/connection";
+
+interface RateLimitInfo {
+  allowed: boolean;
+  current?: number;
+  limit?: number;
+  cooldown?: {
+    type?: string;
+    remaining?: number;
+  };
+}
 
 export class RateLimitService {
   private static instance: RateLimitService;
   private redis = RedisConnection.getInstance().getClient();
 
-  // constructor() {}
+  // Default limits - could be moved to config
+  private readonly DEFAULT_RATE_LIMIT = 100;
+  private readonly DEFAULT_TTL = 24 * 60 * 60; // 24 hours in seconds
+
+  private constructor() {}
 
   public static getInstance(): RateLimitService {
     if (!RateLimitService.instance) {
@@ -17,55 +31,78 @@ export class RateLimitService {
 
   private getKey(
     userId: string,
-    sequenceId?: string,
-    contactId?: string
+    type: RateLimitType,
+    entityId?: string
   ): string {
-    if (contactId && sequenceId) {
-      return REDIS_KEYS.rateLimits.contact(userId, sequenceId, contactId);
+    switch (type) {
+      case "USER":
+        return REDIS_KEYS.rateLimits.user(userId);
+      case "SEQUENCE":
+        if (!entityId)
+          throw new Error("Sequence ID required for sequence rate limit");
+        return REDIS_KEYS.rateLimits.sequence(userId, entityId);
+      case "CONTACT":
+        if (!entityId)
+          throw new Error("Contact ID required for contact rate limit");
+        return REDIS_KEYS.rateLimits.contact(userId, "", entityId);
+      case "COOLDOWN":
+        if (!entityId) throw new Error("Entity ID required for cooldown");
+        return REDIS_KEYS.rateLimits.cooldown(userId, "", entityId);
+      default:
+        throw new Error(`Invalid rate limit type: ${type}`);
     }
-    if (sequenceId) {
-      return REDIS_KEYS.rateLimits.sequence(userId, sequenceId);
-    }
-    return REDIS_KEYS.rateLimits.user(userId);
-  }
-
-  private getCooldownKey(userId: string, type: string): string {
-    return `cooldown:${userId}:${type}`;
   }
 
   async checkRateLimit(
     userId: string,
     sequenceId?: string,
     contactId?: string
-  ): Promise<{ allowed: boolean; info?: any }> {
+  ): Promise<RateLimitInfo> {
     try {
-      const key = this.getKey(userId, sequenceId, contactId);
-      const count = await this.redis.get(key);
-      const limit = 100; // Configurable limit
+      // Pipeline our Redis commands for better performance
+      const pipeline = this.redis.pipeline();
 
-      // Check cooldowns first
-      const errorCooldown = await this.redis.get(
-        this.getCooldownKey(userId, "error")
-      );
-      if (errorCooldown) {
+      // Add commands to pipeline
+      if (contactId) {
+        pipeline.get(this.getKey(userId, "CONTACT", contactId));
+        pipeline.get(this.getKey(userId, "COOLDOWN", contactId));
+      }
+      if (sequenceId) {
+        pipeline.get(this.getKey(userId, "SEQUENCE", sequenceId));
+      }
+      pipeline.get(this.getKey(userId, "USER", userId));
+
+      // Execute pipeline
+      const results = await pipeline.exec();
+
+      if (!results) {
+        logger.error("Failed to execute rate limit pipeline");
+        return { allowed: true }; // Fail open
+      }
+
+      // Check cooldown first if it exists
+      if (contactId && results[1]?.[1]) {
         return {
           allowed: false,
-          info: { reason: "error_cooldown", remaining: errorCooldown },
+          cooldown: {
+            type: "cooldown",
+            remaining: parseInt(results[1][1] as string),
+          },
         };
       }
 
-      const bounceCooldown = await this.redis.get(
-        this.getCooldownKey(userId, "bounce")
-      );
-      if (bounceCooldown) {
-        return {
-          allowed: false,
-          info: { reason: "bounce_cooldown", remaining: bounceCooldown },
-        };
-      }
+      // Check all counters
+      const counters = results
+        .filter((r) => r?.[1])
+        .map((r) => parseInt(r[1] as string));
 
-      if (!count) return { allowed: true };
-      return { allowed: parseInt(count) < limit };
+      const maxCount = Math.max(...counters, 0);
+
+      return {
+        allowed: maxCount < this.DEFAULT_RATE_LIMIT,
+        current: maxCount,
+        limit: this.DEFAULT_RATE_LIMIT,
+      };
     } catch (error) {
       logger.error("Rate limit check failed:", error);
       return { allowed: true }; // Fail open
@@ -78,9 +115,24 @@ export class RateLimitService {
     contactId?: string
   ): Promise<void> {
     try {
-      const key = this.getKey(userId, sequenceId, contactId);
-      await this.redis.incr(key);
-      await this.redis.expire(key, 24 * 60 * 60); // 24 hours TTL
+      const pipeline = this.redis.pipeline();
+
+      // Increment all relevant counters
+      if (contactId) {
+        const contactKey = this.getKey(userId, "CONTACT", contactId);
+        pipeline.incr(contactKey);
+        pipeline.expire(contactKey, this.DEFAULT_TTL);
+      }
+      if (sequenceId) {
+        const sequenceKey = this.getKey(userId, "SEQUENCE", sequenceId);
+        pipeline.incr(sequenceKey);
+        pipeline.expire(sequenceKey, this.DEFAULT_TTL);
+      }
+      const userKey = this.getKey(userId, "USER", userId);
+      pipeline.incr(userKey);
+      pipeline.expire(userKey, this.DEFAULT_TTL);
+
+      await pipeline.exec();
     } catch (error) {
       logger.error("Failed to increment rate limit counters:", error);
     }
@@ -88,12 +140,12 @@ export class RateLimitService {
 
   async addCooldown(
     userId: string,
-    type: string,
+    entityId: string,
     duration: number
   ): Promise<void> {
     try {
-      const key = this.getCooldownKey(userId, type);
-      await this.redis.set(key, "1", "PX", duration);
+      const key = this.getKey(userId, "COOLDOWN", entityId);
+      await this.redis.set(key, duration, "PX", duration);
     } catch (error) {
       logger.error("Failed to add cooldown:", error);
     }
@@ -105,16 +157,19 @@ export class RateLimitService {
     contactId?: string
   ): Promise<void> {
     try {
-      logger.info(`🔄 Resetting rate limits for user: ${userId}`);
+      const pipeline = this.redis.pipeline();
 
-      // Reset counters
-      const key = this.getKey(userId, sequenceId, contactId);
-      await this.redis.del(key);
+      // Delete all relevant keys
+      pipeline.del(this.getKey(userId, "USER", userId));
+      if (sequenceId) {
+        pipeline.del(this.getKey(userId, "SEQUENCE", sequenceId));
+      }
+      if (contactId) {
+        pipeline.del(this.getKey(userId, "CONTACT", contactId));
+        pipeline.del(this.getKey(userId, "COOLDOWN", contactId));
+      }
 
-      // Reset cooldowns
-      await this.redis.del(this.getCooldownKey(userId, "error"));
-      await this.redis.del(this.getCooldownKey(userId, "bounce"));
-
+      await pipeline.exec();
       logger.info(`✓ Rate limits reset for user: ${userId}`);
     } catch (error) {
       logger.error("Failed to reset rate limits:", error);
@@ -129,31 +184,45 @@ export class RateLimitService {
   ): Promise<{
     current: number;
     limit: number;
-    cooldowns: { error?: number; bounce?: number };
+    cooldowns: { [key: string]: number };
   }> {
     try {
-      const key = this.getKey(userId, sequenceId, contactId);
-      const count = await this.redis.get(key);
-      const errorCooldown = await this.redis.get(
-        this.getCooldownKey(userId, "error")
-      );
-      const bounceCooldown = await this.redis.get(
-        this.getCooldownKey(userId, "bounce")
-      );
+      const pipeline = this.redis.pipeline();
+
+      // Get all relevant counters
+      pipeline.get(this.getKey(userId, "USER", userId));
+      if (sequenceId) {
+        pipeline.get(this.getKey(userId, "SEQUENCE", sequenceId));
+      }
+      if (contactId) {
+        pipeline.get(this.getKey(userId, "CONTACT", contactId));
+        pipeline.get(this.getKey(userId, "COOLDOWN", contactId));
+      }
+
+      const results = await pipeline.exec();
+      if (!results) {
+        throw new Error("Failed to get rate limits");
+      }
+
+      const counters = results
+        .filter((r) => r?.[1])
+        .map((r) => parseInt(r[1] as string));
 
       return {
-        current: count ? parseInt(count) : 0,
-        limit: 100, // TODO: Make configurable
-        cooldowns: {
-          error: errorCooldown ? parseInt(errorCooldown) : undefined,
-          bounce: bounceCooldown ? parseInt(bounceCooldown) : undefined,
-        },
+        current: Math.max(...counters, 0),
+        limit: this.DEFAULT_RATE_LIMIT,
+        cooldowns:
+          contactId && results[3]?.[1]
+            ? {
+                [contactId]: parseInt(results[3][1] as string),
+              }
+            : {},
       };
     } catch (error) {
       logger.error("Failed to get rate limits:", error);
       return {
         current: 0,
-        limit: 100,
+        limit: this.DEFAULT_RATE_LIMIT,
         cooldowns: {},
       };
     }
