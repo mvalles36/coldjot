@@ -14,7 +14,6 @@
         },
         "build:dev": {
             "cache": true,
-            "persistent": false,
             "dependsOn": [
                 "@coldjot/database#build:dev",
                 "@coldjot/types#build:dev"
@@ -35,7 +34,6 @@
         },
         "build:prod": {
             "cache": true,
-            "persistent": false,
             "dependsOn": [
                 "@coldjot/database#build:prod",
                 "@coldjot/types#build:prod"
@@ -56,7 +54,6 @@
         },
         "start:prod": {
             "cache": true,
-            "persistent": true,
             "env": [
                 "PORT",
                 "WEB_APP_URL",
@@ -70,7 +67,6 @@
         },
         "start:prod:watch": {
             "cache": true,
-            "persistent": true,
             "env": [
                 "PORT",
                 "WEB_APP_URL",

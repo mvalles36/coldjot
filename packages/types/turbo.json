@@ -21,7 +21,7 @@
             ]
         },
         "build:prod": {
-            "cache": false,
+            "cache": true,
             "dependsOn": [
                 "^build:prod"
             ],

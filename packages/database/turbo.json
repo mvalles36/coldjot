@@ -13,15 +13,13 @@
         },
         "build:dev": {
             "cache": false,
-            "persistent": false,
             "dependsOn": [
                 "db:deploy",
                 "db:generate"
             ]
         },
         "build:prod": {
-            "cache": false,
-            "persistent": false,
+            "cache": true,
             "dependsOn": [
                 "db:deploy:prod",
                 "db:generate"

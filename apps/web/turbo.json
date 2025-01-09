@@ -47,7 +47,7 @@
                 "@coldjot/database#build:prod",
                 "@coldjot/types#build:prod"
             ],
-            "cache": false,
+            "cache": true,
             "env": [
                 "NEXT_PUBLIC_*",
                 "AUTH_TRUST_HOST",
