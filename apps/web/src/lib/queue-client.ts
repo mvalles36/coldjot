@@ -1,11 +1,11 @@
 import { ProcessingJobEnum } from "@coldjot/types";
 
-const QUEUE_API_URL =
-  process.env.NEXT_PUBLIC_QUEUE_API_URL || "http://localhost:3001";
+const MAILOPS_API_URL =
+  process.env.NEXT_PUBLIC_MAILOPS_API_URL || "http://localhost:3001";
 
 export async function addSequenceToQueue(sequenceId: string, userId: string) {
   const response = await fetch(
-    `${QUEUE_API_URL}/api/sequences/${sequenceId}/process`,
+    `${MAILOPS_API_URL}/api/sequences/${sequenceId}/process`,
     {
       method: "POST",
       headers: {
@@ -28,7 +28,7 @@ export async function addEmailToQueue(data: {
   contactId: string;
   userId: string;
 }) {
-  const response = await fetch(`${QUEUE_API_URL}/api/emails/send`, {
+  const response = await fetch(`${MAILOPS_API_URL}/api/emails/send`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -45,7 +45,7 @@ export async function addEmailToQueue(data: {
 
 export async function getJobStatus(jobId: string, type: ProcessingJobEnum) {
   const response = await fetch(
-    `${QUEUE_API_URL}/api/jobs/${jobId}?type=${type}`,
+    `${MAILOPS_API_URL}/api/jobs/${jobId}?type=${type}`,
     {
       method: "GET",
       headers: {

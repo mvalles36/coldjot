@@ -1,13 +1,14 @@
 import { env } from "@/env";
 import type { BusinessHours } from "@coldjot/types";
 
-const QUEUE_API_URL = env.QUEUE_API_URL || "http://localhost:3001/api";
+const MAILOPS_API_URL =
+  env.NEXT_PUBLIC_MAILOPS_API_URL || "http://localhost:3001/api";
 
 export class QueueApiClient {
   private baseUrl: string;
 
   constructor(
-    baseUrl: string = process.env.NEXT_PUBLIC_QUEUE_API_URL ||
+    baseUrl: string = process.env.NEXT_PUBLIC_MAILOPS_API_URL ||
       "http://localhost:3001"
   ) {
     this.baseUrl = baseUrl.endsWith("/api") ? baseUrl.slice(0, -4) : baseUrl;

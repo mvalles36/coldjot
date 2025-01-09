@@ -22,7 +22,7 @@
             "env": [
                 "PORT",
                 "WEB_APP_URL",
-                "API_URL",
+                "MAILOPS_API_URL",
                 "TRACK_API_URL",
                 "DATABASE_URL",
                 "REDIS_*",
@@ -39,7 +39,7 @@
             "env": [
                 "PORT",
                 "WEB_APP_URL",
-                "API_URL",
+                "MAILOPS_API_URL",
                 "TRACK_API_URL",
                 "DATABASE_URL",
                 "REDIS_*",

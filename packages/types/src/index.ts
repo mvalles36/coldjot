@@ -53,6 +53,7 @@ export interface EmailList {
 export enum AppUrlEnum {
   WEB = "web",
   API = "api",
+  MAILOPS = "mailops",
   TRACKING = "tracking",
 }
 

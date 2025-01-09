@@ -7,12 +7,22 @@ export const sleep = (ms: number) =>
 export const getBaseUrl = (type: AppUrlType = AppUrlEnum.API) => {
   // API URL
   if (type === AppUrlEnum.API) {
-    const apiUrl = process.env.API_URL;
+    const apiUrl = process.env.MAILOPS_API_URL;
     if (!apiUrl) {
       console.log("API URL", apiUrl);
       return "http://localhost:3001";
     }
     return apiUrl;
+  }
+
+  // Mailops URL
+  if (type === AppUrlEnum.MAILOPS) {
+    const mailopsUrl = process.env.MAILOPS_API_URL;
+    if (!mailopsUrl) {
+      console.log("MAILOPS URL", mailopsUrl);
+      return "http://localhost:3001";
+    }
+    return mailopsUrl;
   }
 
   // TRACKING URL
