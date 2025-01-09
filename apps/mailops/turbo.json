@@ -49,6 +49,23 @@
                 "GOOGLE_*",
                 "QUEUE_PREFIX"
             ]
+        },
+        "start:prod:watch": {
+            "cache": true,
+            "persistent": true,
+            "dependsOn": [
+                "build:prod"
+            ],
+            "env": [
+                "PORT",
+                "WEB_APP_URL",
+                "MAILOPS_API_URL",
+                "TRACK_API_URL",
+                "DATABASE_URL",
+                "REDIS_*",
+                "GOOGLE_*",
+                "QUEUE_PREFIX"
+            ]
         }
     }
 }
