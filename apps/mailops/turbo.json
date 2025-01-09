@@ -57,9 +57,6 @@
         "start:prod": {
             "cache": true,
             "persistent": true,
-            "dependsOn": [
-                "build:prod"
-            ],
             "env": [
                 "PORT",
                 "WEB_APP_URL",
@@ -74,9 +71,6 @@
         "start:prod:watch": {
             "cache": true,
             "persistent": true,
-            "dependsOn": [
-                "build:prod"
-            ],
             "env": [
                 "PORT",
                 "WEB_APP_URL",
