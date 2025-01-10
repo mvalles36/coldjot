@@ -41,6 +41,10 @@ app.use(httpLogger);
 // Mount all routes
 app.use("/api", routes);
 
+app.use("/check", (req, res) => {
+  res.status(200).json({ message: "OK" });
+});
+
 // Error handling middleware
 app.use(
   (
