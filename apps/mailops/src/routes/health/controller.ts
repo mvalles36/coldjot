@@ -14,6 +14,10 @@ const redis = new Redis({
   password: process.env.REDIS_PASSWORD,
 });
 
+export async function checkHealthSimple(req: Request, res: Response) {
+  res.status(200).json({ message: "OK" });
+}
+
 export async function checkHealth(req: Request, res: Response) {
   try {
     // Check Redis connection
