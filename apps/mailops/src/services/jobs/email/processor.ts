@@ -23,6 +23,7 @@ import { emailService } from "@/lib/email";
 import { QUEUE_NAMES } from "@/config";
 import { getWorkerOptions } from "@/config";
 import { ScheduleGenerator, scheduleGenerator } from "@/lib/schedule";
+import { replacePlaceholders, validatePlaceholders } from "@/lib/placeholders";
 
 export class EmailProcessor extends BaseProcessor<EmailJob> {
   private serviceManager = ServiceManager.getInstance();
@@ -77,6 +78,9 @@ export class EmailProcessor extends BaseProcessor<EmailJob> {
       logger.info(`🔍 Fetching contact info ${data.contactId}`);
       const contact = await prisma.contact.findUnique({
         where: { id: data.contactId },
+        include: {
+          company: true, // Include company info for personalization
+        },
       });
 
       if (!contact) {
@@ -116,11 +120,34 @@ export class EmailProcessor extends BaseProcessor<EmailJob> {
         throw new Error("Failed to create tracking information");
       }
 
+      // Replace placeholders in subject and content
+      const processedSubject = replacePlaceholders(
+        data.subject || step.subject || "",
+        { contact }
+      );
+      const processedContent = replacePlaceholders(step.content || "", {
+        contact,
+      });
+
+      // Validate if all placeholders are replaced
+      const missingPlaceholders = validatePlaceholders(processedContent, {
+        contact,
+      });
+      if (missingPlaceholders.length > 0) {
+        logger.warn(
+          `⚠️ Missing values for placeholders: ${missingPlaceholders.join(", ")}`,
+          {
+            contactId: data.contactId,
+            stepId: data.stepId,
+          }
+        );
+      }
+
       // Prepare email options
       logger.info(
         {
           to: data.to,
-          subject: data.subject || step.subject,
+          subject: processedSubject,
           threadId: data.threadId,
           testMode: data.testMode,
         },
@@ -128,8 +155,8 @@ export class EmailProcessor extends BaseProcessor<EmailJob> {
       );
       const emailOptions: SendEmailOptions = {
         to: data.to,
-        subject: data.subject || step.subject || "",
-        html: step.content || "",
+        subject: processedSubject,
+        html: processedContent,
         replyTo: googleAccount.user.email || "",
         threadId: data.threadId || "",
         tracking: tracking,
@@ -225,14 +252,15 @@ export class EmailProcessor extends BaseProcessor<EmailJob> {
   }
 
   private async validateRateLimits(data: EmailJob) {
-    const { allowed, info } = await rateLimitService.checkRateLimit(
+    // TODO : add info to the logger
+    const { allowed } = await rateLimitService.checkRateLimit(
       data.userId,
       data.sequenceId,
       data.contactId
     );
 
     if (!allowed) {
-      logger.warn(info, "⚠️ Rate limit exceeded:");
+      logger.warn("⚠️ Rate limit exceeded:");
       throw new Error("Rate limit exceeded");
     }
   }

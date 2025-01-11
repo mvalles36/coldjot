@@ -30,18 +30,11 @@ interface SentMessageInfo {
 }
 
 export class EmailService {
-  private readonly logsDir = "email_logs";
-
   // -----------------------------------------
   // -----------------------------------------
   // -----------------------------------------
 
-  constructor() {
-    // Create logs directory if it doesn't exist
-    if (!fs.existsSync(this.logsDir)) {
-      fs.mkdirSync(this.logsDir, { recursive: true });
-    }
-  }
+  constructor() {}
 
   // -----------------------------------------
   // -----------------------------------------
