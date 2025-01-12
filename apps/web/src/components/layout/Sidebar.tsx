@@ -126,23 +126,36 @@ export default function Sidebar() {
             isCollapsed && "justify-center"
           )}
         >
-          <Mail className="h-6 w-6 text-gray-700" />
-          <span
-            className={cn(
-              "transition-all duration-300",
-              isCollapsed && "hidden w-0 opacity-0"
-            )}
+          <div
+            className={`relative h-8 ${
+              isCollapsed ? "w-20" : "w-24"
+            } overflow-hidden`}
           >
-            ColdJot
-          </span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo.svg"
+              alt="ColdJot"
+              className={cn(
+                "absolute left-0 top-0 h-8 w-24 object-contain transition-opacity duration-300",
+                isCollapsed ? "opacity-0" : "opacity-100"
+              )}
+            />
+
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo-small.svg"
+              alt="ColdJot"
+              className={cn(
+                "absolute left-0 top-0 h-8 w-8 object-contain transition-opacity duration-300",
+                isCollapsed ? "opacity-100" : "opacity-0"
+              )}
+            />
+          </div>
         </Link>
         <Button
           variant="ghost"
           size="icon"
-          className={cn(
-            "h-8 w-8 transition-all duration-300",
-            isCollapsed ? "ml-auto" : "ml-auto"
-          )}
+          className="ml-auto h-8 w-8 transition-all duration-300"
           onClick={() => setIsCollapsed(!isCollapsed)}
         >
           <ChevronLeft
@@ -191,7 +204,7 @@ export default function Sidebar() {
                 key={route.href}
                 href={route.href}
                 className={cn(
-                  "flex items-center gap-x-3 rounded-lg px-3 py-1.5 text-sm font-medium transition-all hover:bg-gray-100",
+                  "flex items-center gap-x-3 rounded-lg px-3 py-1.5 text-sm font-medium transition-all hover:bg-gray-100 h-8",
                   "text-gray-500 hover:text-gray-900",
                   pathname === route.href && "bg-gray-100 text-gray-900",
                   isCollapsed && "justify-center px-2"
