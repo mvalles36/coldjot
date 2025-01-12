@@ -18,9 +18,9 @@
   "dependencies": {
     "@auth/core": "^0.37.3",
     "@auth/prisma-adapter": "^2.7.3",
+    "@coldjot/database": "*",
     "@hello-pangea/dnd": "^17.0.0",
     "@hookform/resolvers": "^3.9.1",
-    "@coldjot/database": "*",
     "@radix-ui/react-alert-dialog": "^1.1.2",
     "@radix-ui/react-avatar": "^1.1.1",
     "@radix-ui/react-checkbox": "^1.1.2",
@@ -59,6 +59,8 @@
     "googleapis": "^144.0.0",
     "ioredis": "^5.3.2",
     "js-base64": "^3.7.7",
+    "jsonwebtoken": "^9.0.2",
+    "jwks-rsa": "^3.1.0",
     "lodash": "^4.17.21",
     "lucide-react": "^0.456.0",
     "next": "15.0.3",
@@ -71,15 +73,14 @@
     "react-dom": "19.0.0-rc-66855b96-20241106",
     "react-hook-form": "^7.53.2",
     "react-hot-toast": "^2.4.1",
+    "react-markdown": "^9.0.3",
     "react-resizable-panels": "^2.1.6",
     "tailwind-merge": "^2.5.4",
     "tailwindcss-animate": "^1.0.7",
     "ua-parser-js": "^2.0.0",
     "use-debounce": "^10.0.4",
     "uuid": "^11.0.3",
-    "zod": "^3.23.8",
-    "jsonwebtoken": "^9.0.2",
-    "jwks-rsa": "^3.1.0"
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.15",
