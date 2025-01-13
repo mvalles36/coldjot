@@ -133,7 +133,7 @@ export default function Sidebar() {
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/logo.svg"
+              src="/images/logo.svg"
               alt="ColdJot"
               className={cn(
                 "absolute left-0 top-0 h-8 w-24 object-contain transition-opacity duration-300",
@@ -143,7 +143,7 @@ export default function Sidebar() {
 
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/logo-small.svg"
+              src="/images/logo-small.svg"
               alt="ColdJot"
               className={cn(
                 "absolute left-0 top-0 h-8 w-8 object-contain transition-opacity duration-300",

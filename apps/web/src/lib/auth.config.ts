@@ -1,8 +1,11 @@
 import type { NextAuthConfig } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
-import { PrismaAdapter } from "@auth/prisma-adapter";
-import { prisma } from "@coldjot/database";
-import { setupGmailWatch } from "@/lib/google/gmail-watch";
+import {
+  findGoogleAccount,
+  updateGoogleAccount,
+  findUserGoogleAccounts,
+  refreshGoogleToken,
+} from "@/lib/db/user";
 
 declare module "next-auth" {
   interface Session {
@@ -15,17 +18,9 @@ export const authConfig: NextAuthConfig = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      // authorization: {
-      //   params: {
-      //     access_type: "offline",
-      //     prompt: "consent",
-      //     scope:
-      //       "openid email profile https://www.googleapis.com/auth/gmail.compose",
-      //   },
-      // },
-
       authorization: {
         params: {
+          // ux_mode: "popup",
           access_type: "offline",
           prompt: "consent",
           scope: [
@@ -45,61 +40,33 @@ export const authConfig: NextAuthConfig = {
       },
     }),
   ],
-  adapter: PrismaAdapter(prisma),
   trustHost: true,
+
   callbacks: {
     async signIn({ user, account, profile }) {
       if (account?.provider === "google" && account.access_token) {
         try {
           console.log("🚀 Signing in with Google...");
           console.log(user, account, profile);
-          // Ensure we save the user's email and name
-          const existingAccount = await prisma.account.findUnique({
-            where: {
-              provider_providerAccountId: {
-                provider: "google",
-                providerAccountId: account.providerAccountId,
-              },
-            },
-          });
+
+          const existingAccount = await findGoogleAccount(
+            account.providerAccountId
+          );
 
           if (existingAccount) {
-            await prisma.account.update({
-              where: {
-                provider_providerAccountId: {
-                  provider: "google",
-                  providerAccountId: account.providerAccountId,
-                },
-              },
-              data: {
-                access_token: account.access_token,
-                expires_at: account.expires_at,
+            await updateGoogleAccount(account.providerAccountId, {
+              access_token: account.access_token,
+              expires_at: account.expires_at!,
+              ...(account.refresh_token && {
                 refresh_token: account.refresh_token,
-              },
+              }),
             });
           } else {
             if (!user.id) return false;
-            // await prisma.account.create({
-            //   data: {
-            //     provider: "google",
-            //     providerAccountId: account.providerAccountId,
-            //     access_token: account.access_token,
-            //     expires_at: account.expires_at,
-            //     refresh_token: account.refresh_token,
-            //     userId: user.id,
-            //     type: "oauth",
-            //   },
-            // });
           }
 
-          console.log("🚀 Setting up Gmail watch...");
-          // Set up Gmail watch when user signs in with Google
-          // TODO: Only setup watch if user has no watch already
-
-          // add 3 seconds delay
-          await new Promise((resolve) => setTimeout(resolve, 3000));
-
           // TODO: Uncomment this when we have a way to check if the user already has a watch
+          // console.log("🚀 Setting up Gmail watch...with 3 sec delay");
           // await setupGmailWatch({
           //   userId: user.id!,
           //   accessToken: account.access_token,
@@ -107,16 +74,15 @@ export const authConfig: NextAuthConfig = {
           // });
         } catch (error) {
           console.error("Failed to setup Gmail watch:", error);
-          // Don't block sign in if watch setup fails
         }
       }
       return true;
     },
 
     async session({ session, user }) {
-      const [googleAccount] = await prisma.account.findMany({
-        where: { userId: user.id, provider: "google" },
-      });
+      const googleAccounts = await findUserGoogleAccounts(user.id);
+      const [googleAccount] = googleAccounts;
+
       if (
         googleAccount &&
         googleAccount.expires_at &&
@@ -124,15 +90,17 @@ export const authConfig: NextAuthConfig = {
       ) {
         // If the access token has expired, try to refresh it
         try {
-          // https://accounts.google.com/.well-known/openid-configuration
-          // We need the `token_endpoint`.
+          if (!googleAccount.refresh_token) {
+            throw new Error("No refresh token available");
+          }
+
           const response = await fetch("https://oauth2.googleapis.com/token", {
             method: "POST",
             body: new URLSearchParams({
               client_id: process.env.GOOGLE_CLIENT_ID!,
               client_secret: process.env.GOOGLE_CLIENT_SECRET!,
               grant_type: "refresh_token",
-              refresh_token: googleAccount.refresh_token ?? "",
+              refresh_token: googleAccount.refresh_token,
             }),
           });
 
@@ -146,31 +114,17 @@ export const authConfig: NextAuthConfig = {
             refresh_token?: string;
           };
 
-          const existingAccount = await prisma.account.findUnique({
-            where: {
-              provider_providerAccountId: {
-                provider: "google",
-                providerAccountId: googleAccount.providerAccountId,
-              },
-            },
-          });
+          const existingAccount = await findGoogleAccount(
+            googleAccount.providerAccountId
+          );
 
           if (existingAccount) {
-            await prisma.account.update({
-              data: {
-                access_token: newTokens.access_token,
-                expires_at: Math.floor(
-                  Date.now() / 1000 + newTokens.expires_in
-                ),
-                refresh_token:
-                  newTokens.refresh_token ?? googleAccount.refresh_token,
-              },
-              where: {
-                provider_providerAccountId: {
-                  provider: "google",
-                  providerAccountId: googleAccount.providerAccountId,
-                },
-              },
+            await refreshGoogleToken(existingAccount, {
+              access_token: newTokens.access_token,
+              expires_at: newTokens.expires_in,
+              ...(newTokens.refresh_token && {
+                refresh_token: newTokens.refresh_token,
+              }),
             });
           }
         } catch (error) {
@@ -184,37 +138,23 @@ export const authConfig: NextAuthConfig = {
 
     async jwt({ token, account, profile }) {
       console.log("jwt", token, account, profile);
-      if (account && account.refresh_token) {
-        // Save new refresh token
-        token.refresh_token = account.refresh_token;
+      if (account?.access_token) {
         token.access_token = account.access_token;
         token.expires_at = account.expires_at;
 
-        // Check if account exists first
-        const existingAccount = await prisma.account.findUnique({
-          where: {
-            provider_providerAccountId: {
-              provider: "google",
-              providerAccountId: account.providerAccountId,
-            },
-          },
-        });
+        if (account.refresh_token) {
+          token.refresh_token = account.refresh_token;
+          const existingAccount = await findGoogleAccount(
+            account.providerAccountId
+          );
 
-        if (existingAccount) {
-          // Only update if account exists
-          await prisma.account.update({
-            data: {
-              refresh_token: account.refresh_token,
+          if (existingAccount) {
+            await updateGoogleAccount(account.providerAccountId, {
               access_token: account.access_token,
-              expires_at: account.expires_at,
-            },
-            where: {
-              provider_providerAccountId: {
-                provider: "google",
-                providerAccountId: account.providerAccountId,
-              },
-            },
-          });
+              expires_at: account.expires_at!,
+              refresh_token: account.refresh_token,
+            });
+          }
         }
       }
       return token;
@@ -222,7 +162,6 @@ export const authConfig: NextAuthConfig = {
   },
   pages: {
     signIn: "/signin",
-    // signIn: "/login",
   },
   // debug: process.env.NODE_ENV === "development",
 };

@@ -92,14 +92,18 @@ export function LoginForm({
             </div> */}
             <div className="text-center text-sm">
               Don&apos;t have an account?{" "}
-              <a href="#" className="underline underline-offset-4">
+              <button
+                // href="/auth/signup"
+                className="underline underline-offset-4"
+                onClick={loginInWithGoogle}
+              >
                 Sign up
-              </a>
+              </button>
             </div>
           </div>
         </CardContent>
       </Card>
-      <div className="text-balance text-center text-xs text-muted-foreground [&_a]:underline [&_a]:underline-offset-4 [&_a]:hover:text-primary">
+      <div className="text-balance text-center text-xs text-muted-foreground [&_a]:underline [&_a]:underline-offset-4 [&_a]:hover:text-primary leading-relaxed">
         By clicking continue, you agree to our{" "}
         <a href="/legal/terms">Terms of Service</a> and{" "}
         <a href="/legal/privacy">Privacy Policy</a>.
