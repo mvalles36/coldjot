@@ -79,8 +79,12 @@ export const authConfig: NextAuthConfig = {
       return true;
     },
 
-    async session({ session, user }) {
-      const googleAccounts = await findUserGoogleAccounts(user.id);
+    async session({ session, user, token }) {
+      // console.log("Session", session, user, token);
+
+      // token.sub is the user id for jwt strategy
+      // const googleAccounts = await findUserGoogleAccounts(token.sub!);
+      const googleAccounts = await findUserGoogleAccounts(user.id!);
       const [googleAccount] = googleAccounts;
 
       if (
@@ -137,7 +141,10 @@ export const authConfig: NextAuthConfig = {
     },
 
     async jwt({ token, account, profile }) {
-      console.log("jwt", token, account, profile);
+      // console.log("jwt", token, account, profile);
+
+      if (!account) return token;
+
       if (account?.access_token) {
         token.access_token = account.access_token;
         token.expires_at = account.expires_at;
