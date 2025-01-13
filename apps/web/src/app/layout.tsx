@@ -8,6 +8,7 @@ import { Providers } from "./providers";
 import Sidebar from "@/components/layout/Sidebar";
 import { QueryProvider } from "@/providers/query-provider";
 import { EnvironmentBanner } from "@/components/layout/environment-banner";
+import { LayoutContent } from "@/components/layout/layout-content";
 
 export const metadata: Metadata = {
   title: "Email Template Manager",
@@ -24,14 +25,7 @@ export default function RootLayout({
       <body>
         <Providers>
           <QueryProvider>
-            <div className="flex h-screen pt-8">
-              <EnvironmentBanner />
-              <div className="hidden w-64 shrink-0 md:block">
-                <Sidebar />
-              </div>
-              <main className="flex-1 overflow-y-auto">{children}</main>
-            </div>
-            {/* <Toaster position="bottom-right" /> */}
+            <LayoutContent>{children}</LayoutContent>
             <Toaster />
           </QueryProvider>
         </Providers>
