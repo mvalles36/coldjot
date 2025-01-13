@@ -6,8 +6,8 @@ import Sidebar from "./Sidebar";
 
 // Pages that should not show the sidebar
 const pagesWithoutSidebar = [
-  "/login",
-  "/signup",
+  "/auth/signin",
+  "/auth/signup",
   "/legal/terms",
   "/legal/privacy",
 ];

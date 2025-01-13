@@ -15,7 +15,7 @@ export default async function Login() {
       <div className="flex w-full max-w-sm flex-col gap-6">
         <a href="#" className="flex items-center gap-2 self-center font-medium">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.svg" alt="Logo" className="size-8 w-auto" />
+          <img src="/images/logo.svg" alt="Logo" className="size-8 w-auto" />
         </a>
         <LoginForm />
       </div>
