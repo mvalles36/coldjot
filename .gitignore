@@ -64,3 +64,5 @@ next-env.d.ts
 !packages/*/.env.example
 !apps/*/.env.development
 !packages/*/.env.development
+
+links/*
