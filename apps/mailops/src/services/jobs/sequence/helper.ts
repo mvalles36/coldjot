@@ -327,14 +327,14 @@ export const processContactShared = async (
 
   try {
     // 1. Check rate limits
-    const { allowed, info } = await rateLimitService.checkRateLimit(
+    const { allowed } = await rateLimitService.checkRateLimit(
       sequence.userId,
       sequence.id,
       contact.id
     );
 
     if (!allowed) {
-      logger.warn("⚠️ Rate limit exceeded:", info);
+      logger.warn("⚠️ Rate limit exceeded:");
       return;
     }
 

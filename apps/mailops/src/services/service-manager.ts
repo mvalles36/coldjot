@@ -7,7 +7,7 @@ import {
   DEFAULT_QUEUE_OPTIONS,
   QUEUE_PREFIX,
   type QueueName,
-} from "@/config/queue";
+} from "@/config";
 import type { ProcessingJob, EmailJob } from "@coldjot/types";
 
 // Core services

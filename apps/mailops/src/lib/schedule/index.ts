@@ -12,7 +12,7 @@ import {
 import { logger } from "@/lib/log";
 import { prisma } from "@coldjot/database";
 import { RATE_LIMIT_CONFIG } from "@/config/rate-limit/constants";
-import { isDevelopment, DEMO_MODE } from "@/config";
+import { isDevelopment, BYPASS_BUSINESS_HOURS } from "@/config";
 import { DEFAULT_BUSINESS_HOURS } from "@/config";
 import * as fs from "fs";
 import * as path from "path";
@@ -394,7 +394,7 @@ export class ScheduleGenerator implements ScheduleGenerator {
     businessHours: BusinessHours
   ): boolean {
     // If in demo mode, always return true
-    if (DEMO_MODE) {
+    if (BYPASS_BUSINESS_HOURS) {
       this.logDebugAndSave("🎮 Demo mode: Bypassing business hours check");
       return true;
     }
@@ -437,7 +437,7 @@ export class ScheduleGenerator implements ScheduleGenerator {
     this.logAndSave("🕒 Starting business hours adjustment");
 
     // If in demo mode, return the date as is
-    if (DEMO_MODE) {
+    if (BYPASS_BUSINESS_HOURS) {
       this.logDebugAndSave("🎮 Demo mode: Skipping business hours adjustment");
       return date;
     }

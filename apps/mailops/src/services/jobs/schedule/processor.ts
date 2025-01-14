@@ -295,7 +295,7 @@ export class ScheduleProcessor extends BaseProcessor<any> {
         `🔍 Checking rate limits for email user: ${sequence.userId} | sequence: ${sequence.id} | contact: ${contact.id}`
       );
 
-      const { allowed, info } = await rateLimitService.checkRateLimit(
+      const { allowed } = await rateLimitService.checkRateLimit(
         sequence.userId,
         sequence.id,
         contact.id
@@ -306,7 +306,6 @@ export class ScheduleProcessor extends BaseProcessor<any> {
           userId: sequence.userId,
           sequenceId: sequence.id,
           contactId: contact.id,
-          info,
         });
         return;
       }

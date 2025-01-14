@@ -30,13 +30,14 @@ export const isDevelopment =
   process.env.NODE_ENV === "development" ? true : false;
 
 // Demo mode flag - will bypass business hours checks
-export const DEMO_MODE = process.env.DEMO_MODE === "true" ? true : true;
+export const BYPASS_BUSINESS_HOURS =
+  process.env.BYPASS_BUSINESS_HOURS === "true" ? true : false;
 
 export const env = {
   LOG_PATH_DEPTH: process.env.LOG_PATH_DEPTH,
   LOG_SHOW_TIME: process.env.LOG_SHOW_TIME,
   LOG_LEVEL: process.env.LOG_LEVEL,
-  LOG_TO_FILE: process.env.LOG_TO_FILE === "true" ? true : true,
+  LOG_TO_FILE: process.env.LOG_TO_FILE === "true" ? true : false,
   LOG_DIR: process.env.LOG_DIR || "logs",
   APP_ENV: process.env.APP_ENV || "development",
 } as const;

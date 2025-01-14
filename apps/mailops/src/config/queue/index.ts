@@ -2,7 +2,7 @@ import { QueueOptions, WorkerOptions } from "bullmq";
 import { REDIS_PREFIX } from "../redis/keys";
 
 // Queue prefix configuration
-export const QUEUE_PREFIX = REDIS_PREFIX;
+const QUEUE_PREFIX = REDIS_PREFIX;
 
 // Queue names with their actual queue identifiers
 export const QUEUE_NAMES = {

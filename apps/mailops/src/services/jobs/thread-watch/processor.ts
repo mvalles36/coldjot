@@ -25,10 +25,9 @@ import {
 } from "@/utils";
 
 // Environment-specific configuration
-type Environment = "DEVELOPMENT" | "DEMO" | "PRODUCTION";
+type Environment = "DEVELOPMENT" | "PRODUCTION";
 const CURRENT_ENV = (process.env.NODE_ENV?.toUpperCase() ||
   "DEVELOPMENT") as Environment;
-const IS_DEMO_MODE = process.env.DEMO_MODE === "true";
 
 // Use thread config constants
 const { CHECK_FREQUENCIES, AGE_THRESHOLDS, BATCH, RETRY } = THREAD_CONFIG;
@@ -205,22 +204,27 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
     batchSize: number,
     jobData: ThreadCheckJob
   ): Promise<any[]> {
-    const env = IS_DEMO_MODE ? "DEMO" : CURRENT_ENV;
     const now = new Date();
 
     // Calculate age thresholds
     const ageThresholds = {
-      recent: this.calculateTimeThreshold(AGE_THRESHOLDS[env].RECENT),
-      medium: this.calculateTimeThreshold(AGE_THRESHOLDS[env].MEDIUM),
-      old: this.calculateTimeThreshold(AGE_THRESHOLDS[env].OLD),
+      recent: this.calculateTimeThreshold(AGE_THRESHOLDS[CURRENT_ENV].RECENT),
+      medium: this.calculateTimeThreshold(AGE_THRESHOLDS[CURRENT_ENV].MEDIUM),
+      old: this.calculateTimeThreshold(AGE_THRESHOLDS[CURRENT_ENV].OLD),
     };
 
     // Calculate check frequencies
     const checkFrequencies = {
-      recent: this.calculateTimeThreshold(CHECK_FREQUENCIES[env].RECENT),
-      medium: this.calculateTimeThreshold(CHECK_FREQUENCIES[env].MEDIUM),
-      old: this.calculateTimeThreshold(CHECK_FREQUENCIES[env].OLD),
-      veryOld: this.calculateTimeThreshold(CHECK_FREQUENCIES[env].VERY_OLD),
+      recent: this.calculateTimeThreshold(
+        CHECK_FREQUENCIES[CURRENT_ENV].RECENT
+      ),
+      medium: this.calculateTimeThreshold(
+        CHECK_FREQUENCIES[CURRENT_ENV].MEDIUM
+      ),
+      old: this.calculateTimeThreshold(CHECK_FREQUENCIES[CURRENT_ENV].OLD),
+      veryOld: this.calculateTimeThreshold(
+        CHECK_FREQUENCIES[CURRENT_ENV].VERY_OLD
+      ),
     };
 
     // TODO : check if proper index is created for lastCheckedAt
@@ -451,8 +455,7 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
    * Calculate base check interval for the scheduler
    */
   private calculateBaseCheckInterval(): number {
-    const env = IS_DEMO_MODE ? "DEMO" : CURRENT_ENV;
-    const frequency = CHECK_FREQUENCIES[env].RECENT;
+    const frequency = CHECK_FREQUENCIES[CURRENT_ENV].RECENT;
 
     if ("minutes" in frequency) {
       return frequency.minutes * 60 * 1000;
@@ -463,11 +466,10 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
   }
 
   /**
-   * Calculate the delay until next check based on environment and thread age
+   * Calculate the delay until next check based on environment
    */
   private calculateNextCheckDelay(): number {
-    const env = IS_DEMO_MODE ? "DEMO" : CURRENT_ENV;
-    const frequency = CHECK_FREQUENCIES[env].RECENT;
+    const frequency = CHECK_FREQUENCIES[CURRENT_ENV].RECENT;
 
     if ("minutes" in frequency) {
       return frequency.minutes * 60 * 1000;
@@ -767,7 +769,6 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
   }
 
   private getEnvironmentConfig(): Environment {
-    if (IS_DEMO_MODE) return "DEMO";
     return CURRENT_ENV;
   }
 
@@ -791,12 +792,11 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
   }
 
   private getThreadAge(createdAt: Date): number {
-    const env = this.getEnvironmentConfig();
     const now = DateTime.now();
     const created = DateTime.fromJSDate(createdAt);
 
-    // For demo and development, use minutes instead of days
-    if (env === "DEMO" || env === "DEVELOPMENT") {
+    // For development, use minutes instead of days
+    if (CURRENT_ENV === "DEVELOPMENT") {
       return now.diff(created, "minutes").minutes;
     }
 
@@ -811,7 +811,6 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
     threadAge: number,
     hasNewEvents: boolean
   ): Promise<void> {
-    const env = IS_DEMO_MODE ? "DEMO" : CURRENT_ENV;
     const nextCheckDelay = this.calculateNextCheckDelay();
     const nextCheckAt = new Date(Date.now() + nextCheckDelay);
 
@@ -822,10 +821,10 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
         metadata: {
           lastCheckedAt: new Date().toISOString(),
           nextCheckAt: hasNewEvents ? null : nextCheckAt.toISOString(),
-          environment: env,
+          environment: CURRENT_ENV,
           threadAge,
           checkFrequency: {
-            env,
+            env: CURRENT_ENV,
             threadAge,
             nextCheckDelay,
           },
