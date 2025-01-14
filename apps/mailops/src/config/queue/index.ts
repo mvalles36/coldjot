@@ -84,15 +84,15 @@ export const DEFAULT_QUEUE_OPTIONS: QueueConfig = {
     attempts: 3,
     backoff: {
       type: "exponential",
-      delay: 1000,
+      delay: 100,
     },
     removeOnComplete: {
       age: CLEANUP_AGE,
-      count: 1000, // Keep last 1000 completed jobs
+      count: 100,
     },
     removeOnFail: {
       age: CLEANUP_AGE,
-      count: 5000, // Keep last 5000 failed jobs
+      count: 100,
     },
   },
 };
@@ -117,7 +117,7 @@ export const QUEUE_OPTIONS: Partial<Record<QueueName, QueueConfig>> = {
       ...RETRY_OPTIONS.THREAD,
       backoff: {
         type: "fixed",
-        delay: 5000, // 5 seconds delay between retries
+        delay: 15000, // 15 seconds delay between retries
       },
     },
   },

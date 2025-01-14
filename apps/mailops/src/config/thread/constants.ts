@@ -26,12 +26,6 @@ export const THREAD_CONFIG = {
       OLD: { minutes: 30 }, // Check every 30 minutes for old threads
       VERY_OLD: { hours: 1 }, // Check every hour for very old threads
     },
-    DEMO: {
-      RECENT: { minutes: 1 }, // Check every minute for recent threads
-      MEDIUM: { minutes: 2 }, // Check every 2 minutes for medium-age threads
-      OLD: { minutes: 5 }, // Check every 5 minutes for old threads
-      VERY_OLD: { minutes: 10 }, // Check every 10 minutes for very old threads
-    },
     PRODUCTION: {
       RECENT: { hours: 2 }, // Check every 2 hours for recent threads
       MEDIUM: { hours: 6 }, // Check every 6 hours for medium-age threads
@@ -45,11 +39,6 @@ export const THREAD_CONFIG = {
       RECENT: { hours: 1 }, // Threads less than 1 hour old
       MEDIUM: { hours: 4 }, // Threads less than 4 hours old
       OLD: { hours: 24 }, // Threads less than 24 hours old
-    },
-    DEMO: {
-      RECENT: { minutes: 2 }, // Threads less than 2 minutes old
-      MEDIUM: { minutes: 5 }, // Threads less than 5 minutes old
-      OLD: { minutes: 15 }, // Threads less than 15 minutes old
     },
     PRODUCTION: {
       RECENT: { days: 3 }, // Threads less than 3 days old

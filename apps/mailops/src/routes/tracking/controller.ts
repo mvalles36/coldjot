@@ -11,6 +11,10 @@ const TRANSPARENT_PIXEL = Buffer.from(
 export async function handleEmailOpen(req: Request, res: Response) {
   try {
     const { hash } = req.params;
+
+    // remove ".png" from the end of the hash
+    const hashWithoutExtension = hash.replace(/\.png$/, "");
+
     const userAgent = req.headers["user-agent"] || "";
     const referer = req.headers.referer;
 
@@ -54,7 +58,7 @@ export async function handleEmailOpen(req: Request, res: Response) {
         .send(TRANSPARENT_PIXEL);
     }
 
-    await trackingService.handleEmailOpen(hash);
+    await trackingService.handleEmailOpen(hashWithoutExtension);
 
     res
       .set({
