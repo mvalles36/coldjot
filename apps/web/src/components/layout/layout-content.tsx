@@ -3,36 +3,64 @@
 import { usePathname } from "next/navigation";
 import { EnvironmentBanner } from "./environment-banner";
 import Sidebar from "./Sidebar";
+import type { Session } from "next-auth";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
-// Pages that should not show the sidebar
-const pagesWithoutSidebar = [
+// Pages that are public (don't require authentication)
+const publicPaths = [
   "/auth/signin",
   "/auth/signup",
   "/legal/terms",
   "/legal/privacy",
 ];
 
-function shouldHideSidebar(pathname: string) {
-  return pagesWithoutSidebar.some((page) => pathname.startsWith(page));
+function isPublicPath(pathname: string) {
+  return publicPaths.some((path) => pathname.startsWith(path));
 }
 
-export function LayoutContent({ children }: { children: React.ReactNode }) {
+interface LayoutContentProps {
+  children: React.ReactNode;
+  session: Session | null;
+}
+
+export function LayoutContent({ children, session }: LayoutContentProps) {
   const pathname = usePathname();
-  const showSidebar = !shouldHideSidebar(pathname);
+  const router = useRouter();
+  const isPublic = isPublicPath(pathname);
+  const showSidebar = !isPublic && !!session;
+
+  // Handle authentication
+  useEffect(() => {
+    if (!isPublic && !session) {
+      router.push(`/auth/signin?callbackUrl=${encodeURIComponent(pathname)}`);
+    }
+  }, [isPublic, session, router, pathname]);
+
+  // Show loading state while redirecting
+  if (!isPublic && !session) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
 
   return (
-    <div className={`flex h-screen ${showSidebar ? "pt-8" : ""}`}>
+    <div className="relative h-screen">
       <EnvironmentBanner />
-      {showSidebar && (
-        <div className="hidden w-64 shrink-0 md:block">
-          <Sidebar />
-        </div>
-      )}
-      <main
-        className={`flex-1 overflow-y-auto ${!showSidebar ? "w-full" : ""}`}
-      >
-        {children}
-      </main>
+      <div className="flex h-full">
+        {showSidebar && (
+          <div className="hidden w-64 shrink-0 md:block">
+            <Sidebar />
+          </div>
+        )}
+        <main
+          className={`flex-1 overflow-y-auto ${!showSidebar ? "w-full" : ""}`}
+        >
+          {children}
+        </main>
+      </div>
     </div>
   );
 }
