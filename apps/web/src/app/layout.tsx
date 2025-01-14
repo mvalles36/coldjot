@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { Toaster } from "@/components/ui/toaster";
+import { auth } from "@/auth";
 
 import "./globals.css";
 import { Providers } from "./providers";
@@ -15,17 +16,19 @@ export const metadata: Metadata = {
   description: "Manage your email templates and drafts",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const session = await auth();
+
   return (
     <html lang="en" className={GeistSans.className}>
       <body>
         <Providers>
           <QueryProvider>
-            <LayoutContent>{children}</LayoutContent>
+            <LayoutContent session={session}>{children}</LayoutContent>
             <Toaster />
           </QueryProvider>
         </Providers>

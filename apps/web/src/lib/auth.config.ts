@@ -141,7 +141,7 @@ export const authConfig: NextAuthConfig = {
     },
 
     async jwt({ token, account, profile }) {
-      // console.log("jwt", token, account, profile);
+      console.log("jwt", token, account, profile);
 
       if (!account) return token;
 
