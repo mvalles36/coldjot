@@ -65,4 +65,4 @@ next-env.d.ts
 !apps/*/.env.development
 !packages/*/.env.development
 
-links/*
+links/*scripts/reset.py

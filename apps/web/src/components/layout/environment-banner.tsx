@@ -31,7 +31,7 @@ export function EnvironmentBanner() {
   return (
     <div
       className={cn(
-        "top-0 left-0 right-0 z-50 flex h-8 items-center justify-center border-b px-4 text-sm font-medium",
+        "sticky top-0 left-0 right-0 z-50 flex h-8 items-center justify-center border-b px-4 text-sm font-medium",
         config.className
       )}
     >
