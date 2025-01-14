@@ -8,7 +8,6 @@ import {
   QUEUE_PREFIX,
   type QueueName,
 } from "@/config";
-import type { ProcessingJob, EmailJob } from "@coldjot/types";
 
 // Core services
 import { MemoryMonitor } from "./core/memory/monitor";

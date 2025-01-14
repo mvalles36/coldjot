@@ -118,7 +118,7 @@ export const SequenceStats = ({ stats }: SequenceStatsProps) => {
       showProgress: false,
     },
     {
-      title: "Replies",
+      title: "Contacts Replied",
       value: stats.repliedEmails || 0,
       subValue: formatRate(stats.repliedEmails, stats.peopleContacted),
       icon: Reply,
@@ -126,7 +126,7 @@ export const SequenceStats = ({ stats }: SequenceStatsProps) => {
       showProgress: true,
     },
     {
-      title: "Bounced",
+      title: "Contacts Bounced",
       value: stats.bouncedEmails || 0,
       subValue: formatRate(stats.bouncedEmails, stats.peopleContacted),
       icon: AlertTriangle,
