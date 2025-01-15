@@ -49,7 +49,7 @@ export default async function CompanyPage({ params }: PageProps) {
     }
 
     return (
-      <div className="max-w-7xl mx-auto py-8 space-y-6">
+      <div className="max-w-5xl mx-auto py-8 space-y-6">
         <div className="space-y-4">
           <PageHeader
             title={company.name}

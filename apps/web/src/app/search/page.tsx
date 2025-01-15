@@ -100,7 +100,7 @@ function SearchContent() {
       : results.filter((result) => result.type === activeTab);
 
   return (
-    <div className="max-w-7xl mx-auto py-8 space-y-6">
+    <div className="max-w-5xl mx-auto py-8 space-y-6">
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
           <PageHeader

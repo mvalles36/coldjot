@@ -35,7 +35,7 @@ export default async function SequenceLayout({
   }
 
   return (
-    <div className="max-w-7xl mx-auto py-8 space-y-6">
+    <div className="max-w-5xl mx-auto py-8 space-y-6">
       <SequenceHeader
         sequence={{
           id: sequence.id,

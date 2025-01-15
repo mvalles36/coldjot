@@ -35,7 +35,7 @@ export default async function EditContactPage({
     }
 
     return (
-      <div className="max-w-7xl mx-auto py-8 space-y-6">
+      <div className="max-w-5xl mx-auto py-8 space-y-6">
         <PageHeader
           title="Edit Contact"
           description="Update contact information and company association."

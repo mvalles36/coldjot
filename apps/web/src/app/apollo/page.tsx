@@ -8,7 +8,7 @@ export default async function ApolloPage() {
   if (!session?.user?.id) return null;
 
   return (
-    <div className="max-w-7xl mx-auto py-8 space-y-6">
+    <div className="max-w-5xl mx-auto py-8 space-y-6">
       <div className="flex flex-col gap-6">
         <PageHeader
           title="Apollo Search"
