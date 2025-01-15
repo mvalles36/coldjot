@@ -1,13 +1,11 @@
 import { prisma } from "@coldjot/database";
 import { notFound } from "next/navigation";
-import SequencePageClient from "./sequence-page-client";
+import { SequenceOverview } from "@/components/sequences/sequence-overview";
 import type {
-  Sequence,
   SequenceStats,
-  SequenceContact,
-  StepStatus,
   SequenceStatus,
   StepType,
+  StepStatus,
   StepPriority,
   StepTiming,
   BusinessHours,
@@ -19,6 +17,7 @@ export default async function SequencePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+
   const sequence = await prisma.sequence.findUnique({
     where: {
       id: id,
@@ -29,21 +28,7 @@ export default async function SequencePage({
           order: "asc",
         },
       },
-      contacts: {
-        include: {
-          contact: {
-            include: {
-              company: true,
-            },
-          },
-        },
-      },
       businessHours: true,
-      _count: {
-        select: {
-          contacts: true,
-        },
-      },
     },
   });
 
@@ -53,7 +38,8 @@ export default async function SequencePage({
 
   // Cast the sequence to match the expected type
   const typedSequence = {
-    ...sequence,
+    id: sequence.id,
+    name: sequence.name,
     status: sequence.status as SequenceStatus,
     accessLevel: sequence.accessLevel as "team" | "private",
     scheduleType: sequence.scheduleType as "business" | "custom",
@@ -87,19 +73,8 @@ export default async function SequencePage({
       updatedAt: step.updatedAt,
       templateId: step.templateId ?? undefined,
     })),
-    contacts: sequence.contacts.map((contact: any) => ({
-      ...contact,
-      status: contact.status as StepStatus,
-      contact: {
-        ...contact.contact,
-        company: contact.contact.company
-          ? {
-              name: contact.contact.company.name,
-            }
-          : null,
-      },
-    })),
-  } satisfies Sequence;
+    testMode: sequence.testMode,
+  };
 
   // Get sequence stats
   const stats = await prisma.sequenceStats.findFirst({
@@ -108,15 +83,6 @@ export default async function SequencePage({
         { sequenceId: id },
         { contactId: null }, // Get the overall sequence stats, not contact-specific stats
       ],
-    },
-    include: {
-      contact: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-        },
-      },
     },
   });
 
@@ -133,8 +99,8 @@ export default async function SequencePage({
         repliedEmails: stats.repliedEmails!,
         bouncedEmails: stats.bouncedEmails!,
         failedEmails: stats.failedEmails ?? 0,
-        unsubscribed: 0, // These fields are not in the database schema
-        interested: 0, // but are required by the type
+        unsubscribed: 0,
+        interested: 0,
         peopleContacted: stats.peopleContacted!,
         openRate: stats.openedEmails! / stats.sentEmails!,
         clickRate: stats.clickedEmails! / stats.sentEmails!,
@@ -147,29 +113,8 @@ export default async function SequencePage({
         createdAt: stats.createdAt,
         updatedAt: stats.updatedAt,
         contactId: stats.contactId,
-        Contact: stats.contact,
       } satisfies SequenceStats)
     : null;
 
-  // Cast the contacts to match the expected type
-  const typedContacts = sequence.contacts.map((contact: any) => ({
-    ...contact,
-    status: contact.status as StepStatus,
-    contact: {
-      ...contact.contact,
-      company: contact.contact.company
-        ? {
-            name: contact.contact.company.name,
-          }
-        : null,
-    },
-  })) satisfies SequenceContact[];
-
-  return (
-    <SequencePageClient
-      sequence={typedSequence}
-      initialStats={typedStats}
-      initialContacts={typedContacts}
-    />
-  );
+  return <SequenceOverview sequence={typedSequence} stats={typedStats} />;
 }
