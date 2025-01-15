@@ -154,7 +154,7 @@ export const SequenceStats = ({ stats }: SequenceStatsProps) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {statCards.map((stat) => (
-        <Card key={stat.title} className="p-4">
+        <Card key={stat.title} className="p-4 shadow-none">
           <div className="flex items-center justify-between mb-2">
             <stat.icon className={`w-5 h-5 ${stat.color}`} />
             <span className="text-sm text-muted-foreground">{stat.title}</span>

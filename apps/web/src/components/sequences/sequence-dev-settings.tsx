@@ -172,166 +172,166 @@ export function SequenceDevSettings({
   };
 
   return (
-    <div className="max-w-2xl">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg font-medium">
-            Development Settings
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <Alert>
-            <AlertDescription>
-              These settings are for development purposes only and should not be
-              used in production.
-            </AlertDescription>
-          </Alert>
+    <div className="space-y-6">
+      <div className="border-b pb-3">
+        <h3 className="text-lg font-semibold">Development Settings</h3>
+        <p className="text-sm text-muted-foreground mt-1">
+          These settings are only available in development mode and help with
+          testing sequences.
+        </p>
+      </div>
+      <div className="space-y-6">
+        <Alert>
+          <AlertDescription>
+            These settings are for development purposes only and should not be
+            used in production.
+          </AlertDescription>
+        </Alert>
 
-          <div className="space-y-6">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Test Mode</Label>
-                  <div className="text-sm text-muted-foreground">
-                    Send emails to test recipients only
-                  </div>
-                </div>
-                <Switch
-                  checked={testMode}
-                  onCheckedChange={handleTestModeChange}
-                />
-              </div>
-
-              {testMode && (
-                <Alert
-                  variant="default"
-                  className="bg-yellow-50 border-yellow-200"
-                >
-                  <AlertDescription className="text-yellow-600">
-                    Emails will only be sent to test recipients for testing
-                    purposes
-                  </AlertDescription>
-                </Alert>
-              )}
-            </div>
-
+        <div className="space-y-6">
+          <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label>Disable Email Sending</Label>
+                <Label>Test Mode</Label>
                 <div className="text-sm text-muted-foreground">
-                  Emails won't be sent but will be logged in the console
+                  Send emails to test recipients only
                 </div>
               </div>
               <Switch
-                checked={settings.disableSending}
-                onCheckedChange={(checked) =>
-                  updateSettings((prev: DevSettings) => ({
-                    ...prev,
-                    disableSending: checked,
-                  }))
-                }
+                checked={testMode}
+                onCheckedChange={handleTestModeChange}
               />
             </div>
 
-            <div className="space-y-4">
-              <Separator />
-
-              <div className="space-y-2">
-                <div className="space-y-1">
-                  <Label>Test Recipient Emails</Label>
-                  <div className="text-sm text-muted-foreground">
-                    Emails will be sent to these addresses in test mode
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Enter email address"
-                    value={newEmail}
-                    onChange={(e) => setNewEmail(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleAddEmail()}
-                  />
-                  <Button onClick={handleAddEmail}>Add</Button>
-                </div>
-
-                <div className="space-y-2 mt-4">
-                  {(settings.testEmails || []).map((email: string) => (
-                    <div
-                      key={email}
-                      className="flex items-center justify-between p-2 rounded-md border bg-muted/40"
-                    >
-                      <span className="text-sm">{email}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRemoveEmail(email)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <Separator />
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium text-destructive">
-                Danger Zone
-              </h4>
-              <p className="text-sm text-muted-foreground">
-                Reset the sequence to its initial state. This will clear all
-                progress and allow you to launch the sequence again.
-              </p>
-            </div>
-            <Button
-              variant="destructive"
-              onClick={handleReset}
-              className="w-full"
-            >
-              Reset Sequence
-            </Button>
-          </div>
-
-          <Button onClick={handleSaveSettings} className="w-full">
-            Save Development Settings
-          </Button>
-
-          {/* Gmail Watch Toggle */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="gmail-watch">Gmail Reply Tracking</Label>
-                <div className="text-sm text-muted-foreground">
-                  Monitor Gmail for replies to sequence emails
-                </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                {watchStatus?.expiration && watchStatus.watching && (
-                  <Badge variant="secondary" className="mr-2">
-                    Expires in{" "}
-                    {formatDistanceToNow(new Date(watchStatus.expiration))}
-                  </Badge>
-                )}
-                <Switch
-                  id="gmail-watch"
-                  checked={watchStatus?.watching || false}
-                  onCheckedChange={handleToggleWatch}
-                  disabled={isLoading || isUpdating}
-                />
-              </div>
-            </div>
-            {isUpdating && (
-              <div className="text-sm text-muted-foreground">
-                Updating Gmail watch status...
-              </div>
+            {testMode && (
+              <Alert
+                variant="default"
+                className="bg-yellow-50 border-yellow-200"
+              >
+                <AlertDescription className="text-yellow-600">
+                  Emails will only be sent to test recipients for testing
+                  purposes
+                </AlertDescription>
+              </Alert>
             )}
           </div>
-        </CardContent>
-      </Card>
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label>Disable Email Sending</Label>
+              <div className="text-sm text-muted-foreground">
+                Emails won't be sent but will be logged in the console
+              </div>
+            </div>
+            <Switch
+              checked={settings.disableSending}
+              onCheckedChange={(checked) =>
+                updateSettings((prev: DevSettings) => ({
+                  ...prev,
+                  disableSending: checked,
+                }))
+              }
+            />
+          </div>
+
+          <div className="space-y-4">
+            <Separator />
+
+            <div className="space-y-2">
+              <div className="space-y-1">
+                <Label>Test Recipient Emails</Label>
+                <div className="text-sm text-muted-foreground">
+                  Emails will be sent to these addresses in test mode
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Enter email address"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleAddEmail()}
+                />
+                <Button onClick={handleAddEmail}>Add</Button>
+              </div>
+
+              <div className="space-y-2 mt-4">
+                {(settings.testEmails || []).map((email: string) => (
+                  <div
+                    key={email}
+                    className="flex items-center justify-between p-2 rounded-md border bg-muted/40"
+                  >
+                    <span className="text-sm">{email}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveEmail(email)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <Separator />
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <h4 className="text-sm font-medium text-destructive">
+              Danger Zone
+            </h4>
+            <p className="text-sm text-muted-foreground">
+              Reset the sequence to its initial state. This will clear all
+              progress and allow you to launch the sequence again.
+            </p>
+          </div>
+          <Button
+            variant="destructive"
+            onClick={handleReset}
+            className="w-full"
+          >
+            Reset Sequence
+          </Button>
+        </div>
+
+        <Button onClick={handleSaveSettings} className="w-full">
+          Save Development Settings
+        </Button>
+
+        {/* Gmail Watch Toggle */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="gmail-watch">Gmail Reply Tracking</Label>
+              <div className="text-sm text-muted-foreground">
+                Monitor Gmail for replies to sequence emails
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              {watchStatus?.expiration && watchStatus.watching && (
+                <Badge variant="secondary" className="mr-2">
+                  Expires in{" "}
+                  {formatDistanceToNow(new Date(watchStatus.expiration))}
+                </Badge>
+              )}
+              <Switch
+                id="gmail-watch"
+                checked={watchStatus?.watching || false}
+                onCheckedChange={handleToggleWatch}
+                disabled={isLoading || isUpdating}
+              />
+            </div>
+          </div>
+          {isUpdating && (
+            <div className="text-sm text-muted-foreground">
+              Updating Gmail watch status...
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
