@@ -9,6 +9,8 @@ interface UpdateSettingsBody {
   testMode?: boolean;
   scheduleType?: "business" | "custom";
   businessHours?: BusinessHours;
+  disableSending?: boolean;
+  testEmails?: string[];
 }
 
 export async function PATCH(
@@ -51,6 +53,10 @@ export async function PATCH(
             testMode: body.testMode,
           }),
           ...(body.scheduleType && { scheduleType: body.scheduleType }),
+          ...(typeof body.disableSending === "boolean" && {
+            disableSending: body.disableSending,
+          }),
+          ...(body.testEmails && { testEmails: body.testEmails }),
         },
         include: {
           businessHours: true,

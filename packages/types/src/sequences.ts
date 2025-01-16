@@ -64,22 +64,24 @@ export interface SequenceStep {
 
 export interface Sequence {
   id: string;
-  userId: string;
   name: string;
   description?: string | null;
   status: SequenceStatus;
   accessLevel: "team" | "private";
   scheduleType: "business" | "custom";
-  businessHours?: BusinessHours;
+  userId: string;
+  createdAt: Date;
+  updatedAt: Date;
   steps: SequenceStep[];
   contacts: SequenceContact[];
   _count: {
     contacts: number;
   };
   testMode: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  disableSending: boolean;
+  testEmails: string[];
   emailListId?: string | null;
+  businessHours?: BusinessHours;
 }
 
 export interface SequenceContact {
@@ -93,9 +95,6 @@ export interface SequenceContact {
   lastProcessedAt?: Date | null;
   completedAt?: Date | null;
   threadId?: string | null;
-  completed?: boolean;
-  nextScheduledAt?: Date | null;
-  createdAt?: Date;
   contact: {
     id: string;
     name: string;
@@ -160,36 +159,12 @@ export interface RateLimits {
 
 export type StepTiming = "immediate" | "delay";
 
-export interface DevSettings {
-  disableSending: boolean;
-  testEmails: string[];
-}
-
 export interface BusinessHours {
   timezone: string;
   workDays: number[];
   workHoursStart: string;
   workHoursEnd: string;
   holidays: Date[];
-}
-
-export interface Sequence {
-  id: string;
-  name: string;
-  status: SequenceStatus;
-  accessLevel: "team" | "private";
-  scheduleType: "business" | "custom";
-  userId: string;
-  createdAt: Date;
-  updatedAt: Date;
-  steps: SequenceStep[];
-  contacts: SequenceContact[];
-  _count: {
-    contacts: number;
-  };
-  testMode: boolean;
-  emailListId?: string | null;
-  businessHours?: BusinessHours;
 }
 
 export interface SequenceContact {

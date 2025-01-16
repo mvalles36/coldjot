@@ -53,7 +53,6 @@ model User {
     TestData      TestData[]
     EmailList     EmailList[]
     Sequence      Sequence[]
-    devSettings   DevSettings?
     EmailThread   EmailThread[]
     businessHours BusinessHours[]
 }
@@ -152,6 +151,8 @@ model Sequence {
     scheduleType   String            @default("business")
     status         String            @default("draft")
     testMode       Boolean           @default(false)
+    disableSending Boolean           @default(false)
+    testEmails     String[]          @default([])
     userId         String
     createdAt      DateTime          @default(now())
     updatedAt      DateTime          @updatedAt
@@ -405,18 +406,6 @@ model TestData {
     updatedAt DateTime @updatedAt
 
     user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-    @@index([userId])
-}
-
-model DevSettings {
-    id             String   @id @default(cuid())
-    userId         String   @unique
-    user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-    disableSending Boolean  @default(false)
-    testEmails     String[] // Store emails as an array
-    updatedAt      DateTime @updatedAt
-    createdAt      DateTime @default(now())
 
     @@index([userId])
 }

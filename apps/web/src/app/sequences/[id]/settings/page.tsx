@@ -40,6 +40,8 @@ export default async function SequenceSettingsPage({
             } as BusinessHours)
           : undefined,
         testMode: sequence.testMode,
+        disableSending: sequence.disableSending ?? false,
+        testEmails: sequence.testEmails ?? [],
       }}
     />
   );

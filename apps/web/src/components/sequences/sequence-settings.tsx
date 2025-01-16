@@ -13,9 +13,11 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { BusinessHoursSettings } from "@/components/sequences/business-hours-settings";
-import { SequenceDevSettings } from "@/components/sequences/sequence-dev-settings";
+import { SequenceEmailSettings } from "@/components/sequences/sequence-email-settings";
 import { toast } from "react-hot-toast";
 import type { BusinessHours } from "@coldjot/types";
+import { SequenceDangerZone } from "@/components/sequences/sequence-danger-zone";
+import { Separator } from "@radix-ui/react-separator";
 
 interface SequenceSettingsProps {
   sequence: {
@@ -25,6 +27,8 @@ interface SequenceSettingsProps {
     scheduleType: "business" | "custom";
     businessHours?: BusinessHours;
     testMode: boolean;
+    disableSending: boolean;
+    testEmails: string[];
   };
 }
 
@@ -89,18 +93,23 @@ export function SequenceSettings({ sequence }: SequenceSettingsProps) {
         scheduleType={sequence.scheduleType}
       />
 
-      {/* Development Settings */}
-      {process.env.NODE_ENV === "development" && (
-        <div className="mt-6">
-          <SequenceDevSettings
-            sequenceId={sequence.id}
-            testMode={sequence.testMode}
-            onTestModeChange={() => {
-              router.refresh();
-            }}
-          />
-        </div>
-      )}
+      {/* Email Settings */}
+      <SequenceEmailSettings
+        sequenceId={sequence.id}
+        initialSettings={{
+          testMode: sequence.testMode ?? false,
+          disableSending: sequence.disableSending ?? false,
+          testEmails: sequence.testEmails ?? [],
+        }}
+      />
+
+      {/* Danger Zone */}
+      <SequenceDangerZone
+        sequenceId={sequence.id}
+        onStatusChange={() => {
+          router.refresh();
+        }}
+      />
     </div>
   );
 }
