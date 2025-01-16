@@ -6,6 +6,17 @@ import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { useRouter } from "next/navigation";
 import { SequenceStatus } from "@coldjot/types";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface SequenceDangerZoneProps {
   sequenceId: string;
@@ -19,6 +30,7 @@ export function SequenceDangerZone({
   const { toast } = useToast();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const handleReset = async () => {
     try {
@@ -73,6 +85,7 @@ export function SequenceDangerZone({
         description: "Failed to delete sequence",
         variant: "destructive",
       });
+      setIsDeleteDialogOpen(false);
     } finally {
       setIsLoading(false);
     }
@@ -114,14 +127,50 @@ export function SequenceDangerZone({
               cannot be undone.
             </p>
           </div>
-          <Button
-            variant="destructive"
-            className="min-w-40"
-            onClick={handleDelete}
-            disabled={isLoading}
+
+          <AlertDialog
+            open={isDeleteDialogOpen}
+            onOpenChange={setIsDeleteDialogOpen}
           >
-            Delete Sequence
-          </Button>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="destructive"
+                className="min-w-40"
+                disabled={isLoading}
+              >
+                Delete Sequence
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete the
+                  sequence and all associated data, including:
+                </AlertDialogDescription>
+                <div className="mt-4">
+                  <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                    <li>All sequence contacts and their progress</li>
+                    <li>All sequence steps and templates</li>
+                    <li>All sequence settings and configurations</li>
+                    <li>All related analytics and tracking data</li>
+                  </ul>
+                </div>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={isLoading}>
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDelete}
+                  disabled={isLoading}
+                  className="bg-destructive hover:bg-destructive/90"
+                >
+                  {isLoading ? "Deleting..." : "Yes, delete sequence"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
     </div>

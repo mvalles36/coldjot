@@ -40,7 +40,7 @@ export function SequenceSettings({ sequence }: SequenceSettingsProps) {
   const handleSave = async () => {
     try {
       setIsSaving(true);
-      const response = await fetch(`/api/sequences/${sequence.id}`, {
+      const response = await fetch(`/api/sequences/${sequence.id}/settings`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
