@@ -74,6 +74,7 @@ export default async function SequencePage({
       templateId: step.templateId ?? undefined,
     })),
     testMode: sequence.testMode,
+    disableSending: sequence.disableSending,
   };
 
   // Get sequence stats

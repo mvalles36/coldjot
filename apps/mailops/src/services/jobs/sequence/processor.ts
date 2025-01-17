@@ -81,6 +81,7 @@ interface ProcessingJobData {
   scheduleType?: BusinessScheduleEnum;
   businessHours?: BusinessHours;
   testMode?: boolean;
+  disableSending?: boolean;
 }
 
 export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
@@ -121,13 +122,13 @@ export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
 
     try {
       // Check rate limits first
-      const { allowed, info } = await this.rateLimitService.checkRateLimit(
+      const { allowed } = await this.rateLimitService.checkRateLimit(
         data.userId,
         data.sequenceId
       );
 
       if (!allowed) {
-        logger.warn("⚠️ Rate limit exceeded:", info);
+        logger.warn("⚠️ Rate limit exceeded:");
         return { success: false, error: "Rate limit exceeded" };
       }
 
@@ -219,6 +220,7 @@ export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
         contact: sequenceContact.contact,
         currentStep: sequenceContact.currentStep || 1,
         testMode: data.testMode,
+        disableSending: data.disableSending,
         threadId: sequenceContact.threadId,
         startedAt: sequenceContact.startedAt,
       },

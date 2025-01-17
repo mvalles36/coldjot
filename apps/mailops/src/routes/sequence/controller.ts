@@ -39,7 +39,7 @@ async function getBusinessHours(
 export async function launchSequence(req: Request, res: Response) {
   try {
     const { id } = req.params;
-    const { userId, testMode = false } = req.body;
+    const { userId } = req.body;
 
     // Get sequence and validate
     const sequence = await prisma.sequence.findUnique({
@@ -84,7 +84,6 @@ export async function launchSequence(req: Request, res: Response) {
       where: { id },
       data: {
         status: "active",
-        testMode,
       },
     });
 
@@ -101,7 +100,8 @@ export async function launchSequence(req: Request, res: Response) {
           ? BusinessScheduleEnum.BUSINESS
           : BusinessScheduleEnum.CUSTOM,
         businessHours,
-        testMode,
+        testMode: sequence.testMode,
+        disableSending: sequence.disableSending,
       },
     };
 
@@ -224,6 +224,7 @@ export async function resetSequenceHandler(req: Request, res: Response) {
       data: {
         status: "draft",
         testMode: false,
+        disableSending: false,
       },
     });
     logger.info(`Sequence status reset to draft`);

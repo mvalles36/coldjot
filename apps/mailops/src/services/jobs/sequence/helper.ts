@@ -296,6 +296,7 @@ interface ProcessContactOptions {
   };
   currentStep?: number;
   testMode?: boolean;
+  disableSending?: boolean;
   threadId?: string;
   startedAt?: Date;
 }
@@ -391,6 +392,7 @@ export const processContactShared = async (
       threadId: options.threadId,
       scheduledTime: sendTime.toISOString(),
       testMode,
+      disableSending: options.disableSending,
     };
 
     // 7. Add to queue

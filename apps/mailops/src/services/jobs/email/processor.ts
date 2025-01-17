@@ -150,6 +150,7 @@ export class EmailProcessor extends BaseProcessor<EmailJob> {
           subject: processedSubject,
           threadId: data.threadId,
           testMode: data.testMode,
+          disableSending: data.disableSending,
         },
         "📧 Preparing email options"
       );
@@ -171,6 +172,7 @@ export class EmailProcessor extends BaseProcessor<EmailJob> {
         contactId: data.contactId,
         stepId: data.stepId,
         testMode: data.testMode,
+        disableSending: data.disableSending,
       };
 
       // Send email
@@ -179,6 +181,7 @@ export class EmailProcessor extends BaseProcessor<EmailJob> {
           to: emailOptions.to,
           subject: emailOptions.subject,
           testMode: emailOptions.testMode,
+          disableSending: emailOptions.disableSending,
         },
         "📤 Sending email"
       );

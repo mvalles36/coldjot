@@ -64,6 +64,7 @@ export interface SendEmailOptions {
   contactId: string;
   stepId: string;
   testMode?: boolean;
+  disableSending?: boolean;
 }
 
 export interface SenderInfo {

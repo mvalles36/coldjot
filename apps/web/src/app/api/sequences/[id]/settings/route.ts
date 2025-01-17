@@ -7,9 +7,9 @@ interface UpdateSettingsBody {
   name?: string;
   accessLevel?: "team" | "private";
   testMode?: boolean;
+  disableSending?: boolean;
   scheduleType?: "business" | "custom";
   businessHours?: BusinessHours;
-  disableSending?: boolean;
   testEmails?: string[];
 }
 

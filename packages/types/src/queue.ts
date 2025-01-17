@@ -12,6 +12,7 @@ export interface ProcessingJob {
     scheduleType?: BusinessScheduleEnum;
     businessHours?: BusinessHours;
     testMode?: boolean;
+    disableSending?: boolean;
   };
 }
 
@@ -21,77 +22,13 @@ export interface EmailJob {
   stepId: string;
   userId: string;
   messageId?: string;
-  testMode?: boolean;
   scheduledTime?: string;
   to: string;
   subject?: string;
   threadId?: string;
+  testMode?: boolean;
+  disableSending?: boolean;
 }
-
-export interface EmailJobOld {
-  id: string;
-  type: EmailJobEnum;
-  priority: number;
-  data: {
-    sequenceId: string;
-    contactId: string;
-    stepId: string;
-    userId: string;
-    messageId?: string;
-    testMode?: boolean;
-    scheduledTime?: string;
-    to: string;
-    subject?: string;
-    threadId?: string;
-  };
-}
-
-// export interface ThreadCheckData {
-//   userId: string;
-//   sequenceId: string;
-//   contactId: string;
-//   threadId: string;
-//   messageId: string;
-//   createdAt: Date;
-// }
-
-// Email Types
-// export interface EmailResult {
-//   success: boolean;
-//   messageId?: string;
-//   threadId?: string;
-//   error?: string;
-// }
-
-// Email Types
-// export interface SendEmailOptions {
-//   to: string;
-//   subject: string;
-//   html: string;
-//   replyTo?: string;
-//   threadId?: string;
-//   tracking: EmailTracking;
-//   account: GoogleAccount;
-//   userId: string;
-//   sequenceId: string;
-//   contactId: string;
-//   stepId: string;
-//   testMode?: boolean;
-// }
-
-// export interface EmailTracking {
-//   enabled: boolean;
-//   openTracking: boolean;
-//   clickTracking: boolean;
-//   unsubscribeTracking: boolean;
-// }
-
-// export interface GoogleAccount {
-//   email: string;
-//   accessToken: string;
-//   refreshToken: string;
-//   expiryDate: number;
-// }
 
 // Monitoring Types
 export interface AlertConfig {
