@@ -31,6 +31,8 @@ type SequenceWithRelations = {
   userId: string;
   steps: SequenceStep[];
   businessHours: BusinessHours | null;
+  testMode: boolean;
+  disableSending: boolean;
 };
 
 // Define our email processing type
@@ -158,6 +160,8 @@ export class ScheduleProcessor extends BaseProcessor<any> {
               id: true,
               userId: true,
               status: true,
+              testMode: true,
+              disableSending: true,
               steps: {
                 orderBy: {
                   order: "asc",
@@ -470,6 +474,8 @@ export class ScheduleProcessor extends BaseProcessor<any> {
             ? sequenceContact.threadId
             : undefined,
         scheduledTime: nextSendTime.toISOString(),
+        disableSending: sequence.disableSending,
+        testMode: sequence.testMode,
       };
 
       logger.info("📧 Created email job with thread details");
@@ -482,8 +488,22 @@ export class ScheduleProcessor extends BaseProcessor<any> {
         "📤 Adding email job to queue"
       );
 
-      await this.jobManager.addEmailJob(emailJob);
+      // Add a check in EmailThread model to see if the threadId is fake
+      // if it is, do not create the job
 
+      const thread = await prisma.emailThread.findUnique({
+        where: {
+          threadId: emailJob.threadId,
+        },
+      });
+
+      // if (thread?.isFake) {
+      //   await this.jobManager.addEmailJob(emailJob);
+      // } else {
+      //   logger.info("🚫 Skipping email job due to no threadId");
+      // }
+
+      await this.jobManager.addEmailJob(emailJob);
       logger.info(
         {
           scheduledTime: nextSendTime.toISOString(),

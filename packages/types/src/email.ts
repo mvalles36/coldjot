@@ -38,10 +38,11 @@ export interface ThreadHeaders {
   references?: string[];
 }
 export interface EmailResult {
-  messageId: string;
-  threadId: string;
+  messageId?: string;
+  threadId?: string;
   success?: boolean;
   error?: string;
+  isFake?: boolean;
 }
 
 interface GmailAccountCredentials {

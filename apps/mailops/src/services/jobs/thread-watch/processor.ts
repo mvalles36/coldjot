@@ -230,6 +230,8 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
     // TODO : check if proper index is created for lastCheckedAt
     // Build the where clause based on thread age and status
     const where: Prisma.EmailThreadWhereInput = {
+      // Skip fake threads
+      isFake: false,
       // Check threads based on their last check time and age
       OR: [
         // New threads that haven't been checked

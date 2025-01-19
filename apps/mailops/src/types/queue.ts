@@ -13,12 +13,12 @@ import {
 } from "@coldjot/types";
 
 // Email Types
-export interface EmailResult {
-  success: boolean;
-  messageId?: string;
-  threadId?: string;
-  error?: string;
-}
+// export interface EmailResult {
+//   success: boolean;
+//   messageId?: string;
+//   threadId?: string;
+//   error?: string;
+// }
 
 // Monitoring Types
 export interface AlertConfig {

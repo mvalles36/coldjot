@@ -111,7 +111,7 @@ export function SequenceDangerZone({
           </div>
           <Button
             variant="outline"
-            className="text-destructive min-w-40 border-destructive"
+            className="text-destructive min-w-40 border-destructive hover:text-destructive/90 hover:bg-destructive/10"
             onClick={handleReset}
             disabled={isLoading}
           >

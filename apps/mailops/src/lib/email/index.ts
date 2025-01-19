@@ -1,6 +1,6 @@
 import { prisma } from "@coldjot/database";
 import { randomUUID } from "crypto";
-import { logger } from "../../lib/log";
+import { logger } from "@/lib/log";
 import { addTrackingToEmail } from "@/lib/tracking";
 import { updateSequenceStats } from "@/lib/stats";
 import type { EmailResult, EmailTrackingMetadata } from "@coldjot/types";
@@ -48,6 +48,48 @@ export class EmailService {
       const useApi = true;
       if (useApi) {
         logger.info("📧 Starting email send process");
+
+        const disableSending = options.disableSending;
+        if (disableSending) {
+          logger.info("🚫 Email sending disabled - returning fake IDs");
+
+          // If we have a threadId, use it, otherwise generate a fake one
+          const threadId = options.threadId || `fake-thread-${Date.now()}`;
+          const messageId = `fake-msg-${Date.now()}`;
+
+          // Create or update email thread record
+          // if (!options.threadId) {
+          //   await prisma.emailThread.create({
+          //     data: {
+          //       threadId,
+          //       sequenceId: options.sequenceId!,
+          //       contactId: options.contactId!,
+          //       userId: options.userId,
+          //       subject: options.subject,
+          //       firstMessageId: messageId,
+          //       isFake: true,
+          //     },
+          //   });
+          // }
+
+          // Create tracking records with fake IDs
+          await this.updateEmailTracking(options.tracking.id, options, {
+            id: messageId,
+            threadId,
+          } as any);
+
+          await this.createEmailEvent(options.tracking.id, options, {
+            id: messageId,
+            threadId,
+          } as any);
+
+          return {
+            success: true,
+            messageId,
+            threadId,
+            isFake: true,
+          };
+        }
 
         // Get gmail client
         const gmail = await gmailClientService.getClient(options.userId);

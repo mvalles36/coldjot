@@ -365,6 +365,7 @@ model EmailThread {
     firstMessageId String
     metadata       Json?
     lastCheckedAt  DateTime?
+    isFake         Boolean   @default(false)
     createdAt      DateTime  @default(now())
     updatedAt      DateTime  @updatedAt
 

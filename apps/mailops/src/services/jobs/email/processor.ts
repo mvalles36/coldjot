@@ -185,6 +185,7 @@ export class EmailProcessor extends BaseProcessor<EmailJob> {
         },
         "📤 Sending email"
       );
+
       const emailResult = await emailService.sendEmail(emailOptions);
 
       if (emailResult.success) {
@@ -202,12 +203,13 @@ export class EmailProcessor extends BaseProcessor<EmailJob> {
         if (step.order === 1) {
           await prisma.emailThread.create({
             data: {
-              threadId: emailResult.threadId,
+              threadId: emailResult.threadId!,
               sequenceId: data.sequenceId,
               contactId: data.contactId,
               userId: data.userId,
-              firstMessageId: emailResult.messageId,
+              firstMessageId: emailResult.messageId!,
               subject: data.subject || step.subject || "",
+              isFake: emailResult.isFake ?? false,
             },
           });
         }
@@ -216,7 +218,7 @@ export class EmailProcessor extends BaseProcessor<EmailJob> {
         await updateSequenceContactThreadId(
           contact.id,
           data.sequenceId,
-          emailResult.threadId
+          emailResult.threadId!
         );
 
         // If in test mode, trigger the next email in sequence after a short delay
