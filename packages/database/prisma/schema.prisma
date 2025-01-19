@@ -55,6 +55,7 @@ model User {
     Sequence      Sequence[]
     EmailThread   EmailThread[]
     businessHours BusinessHours[]
+    EmailAccount  EmailAccount[]
 }
 
 model Contact {
@@ -409,4 +410,43 @@ model TestData {
     user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     @@index([userId])
+}
+
+model EmailAccount {
+    id        String   @id @default(cuid())
+    userId    String
+    provider  String // 'gmail', 'outlook', etc.
+    email     String
+    name      String? // Display name
+    isDefault Boolean  @default(false)
+    isActive  Boolean  @default(true)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // OAuth related fields
+    accessToken  String? @db.Text
+    refreshToken String? @db.Text
+    expiresAt    Int?
+
+    // Email account settings
+    aliases  EmailAlias[]
+    settings Json? // Store provider-specific settings
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, email])
+}
+
+model EmailAlias {
+    id             String   @id @default(cuid())
+    emailAccountId String
+    alias          String
+    name           String? // Display name for the alias
+    isActive       Boolean  @default(true)
+    createdAt      DateTime @default(now())
+    updatedAt      DateTime @updatedAt
+
+    emailAccount EmailAccount @relation(fields: [emailAccountId], references: [id], onDelete: Cascade)
+
+    @@unique([emailAccountId, alias])
 }

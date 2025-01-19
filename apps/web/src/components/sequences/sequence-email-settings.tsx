@@ -161,7 +161,7 @@ export function SequenceEmailSettings({
   return (
     <div className="space-y-8">
       <div className="border-b pb-3">
-        <h3 className="text-lg font-semibold">Development Settings</h3>
+        <h3 className="text-lg font-semibold">Email Settings</h3>
         <p className="text-sm text-muted-foreground mt-1">
           These settings are for development and testing purposes. They help
           ensure emails are sent correctly during testing.

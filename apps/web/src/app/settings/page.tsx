@@ -4,6 +4,8 @@ import { Separator } from "@/components/ui/separator";
 import ProfileSettings from "@/components/settings/profile-settings";
 import EmailSettings from "@/components/settings/email-settings";
 import GoogleIntegration from "@/components/settings/google-integration";
+import { EmailAccountsSection } from "@/components/email-accounts/email-accounts-section";
+import { SettingsMessageHandler } from "@/components/settings/settings-message-handler";
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -22,8 +24,19 @@ export default async function SettingsPage() {
     },
   });
 
+  const emailAccounts = await prisma.emailAccount.findMany({
+    where: {
+      userId: session.user.id,
+    },
+    include: {
+      aliases: true,
+    },
+  });
+
   return (
     <div className="max-w-4xl mx-auto py-8 space-y-8">
+      <SettingsMessageHandler />
+
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
         <p className="text-muted-foreground">
@@ -37,6 +50,9 @@ export default async function SettingsPage() {
         <Separator />
 
         <EmailSettings />
+        <Separator />
+
+        <EmailAccountsSection initialAccounts={emailAccounts} />
         <Separator />
 
         <GoogleIntegration account={account} />
