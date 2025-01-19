@@ -9,7 +9,7 @@ import {
   RefreshCw,
   Check,
 } from "lucide-react";
-import { EmailAccount, EmailAlias } from "@coldjot/database";
+import { Mailbox, EmailAlias } from "@coldjot/database";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -24,7 +24,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
-type EmailAccountWithAliases = EmailAccount & {
+type EmailAccountWithAliases = Mailbox & {
   aliases: EmailAlias[];
   defaultAliasId: string | null;
 };
@@ -138,13 +138,71 @@ export function EmailAccountList({
             <div className="flex items-center justify-between p-4">
               <div className="flex items-center space-x-4">
                 <Mail className="h-5 w-5 text-muted-foreground" />
-                <div>
-                  <div className="font-medium">
-                    {account.name || account.email}
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Send as: {selectedAlias}
-                  </div>
+                <div className="space-y-1">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        className="-ml-2 h-auto justify-start px-2 py-1.5 focus-visible:ring-0"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <div className="flex flex-col items-start">
+                            <div className="flex items-center space-x-2">
+                              <span className="font-medium">
+                                {account.name || account.email}
+                              </span>
+                              {account.isDefault && (
+                                <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
+                                  Default
+                                </span>
+                              )}
+                              {!account.isActive && (
+                                <span className="rounded-md bg-destructive/10 px-1.5 py-0.5 text-xs font-medium text-destructive">
+                                  Inactive
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center space-x-1 text-sm text-muted-foreground">
+                              <span>Send as:</span>
+                              <span className="font-medium text-foreground">
+                                {selectedAlias}
+                              </span>
+                              <ChevronDown className="h-3 w-3" />
+                            </div>
+                          </div>
+                        </div>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-[300px]">
+                      <DropdownMenuLabel>Send As</DropdownMenuLabel>
+                      <DropdownMenuRadioGroup
+                        value={selectedAlias}
+                        onValueChange={(value) =>
+                          handleAliasSelect(account.id, value)
+                        }
+                      >
+                        {allAliases.map((alias) => (
+                          <DropdownMenuRadioItem
+                            key={alias.alias}
+                            value={alias.alias}
+                            className="flex items-center justify-between"
+                          >
+                            <div className="flex flex-col">
+                              <span className="font-medium">
+                                {alias.name || alias.alias}
+                              </span>
+                              <span className="text-sm text-muted-foreground">
+                                {alias.alias}
+                              </span>
+                            </div>
+                            {selectedAlias === alias.alias && (
+                              <Check className="h-4 w-4 text-primary" />
+                            )}
+                          </DropdownMenuRadioItem>
+                        ))}
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
               <div className="flex items-center space-x-2">
@@ -181,27 +239,6 @@ export function EmailAccountList({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuLabel>Send As</DropdownMenuLabel>
-                    <DropdownMenuRadioGroup
-                      value={selectedAlias}
-                      onValueChange={(value) =>
-                        handleAliasSelect(account.id, value)
-                      }
-                    >
-                      {allAliases.map((alias) => (
-                        <DropdownMenuRadioItem
-                          key={alias.alias}
-                          value={alias.alias}
-                          className="flex items-center justify-between"
-                        >
-                          <span>{alias.name || alias.alias}</span>
-                          {selectedAlias === alias.alias && (
-                            <Check className="h-4 w-4 text-primary" />
-                          )}
-                        </DropdownMenuRadioItem>
-                      ))}
-                    </DropdownMenuRadioGroup>
-                    <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={() =>
                         onAccountUpdate(account.id, { isDefault: true })

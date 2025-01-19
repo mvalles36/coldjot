@@ -76,7 +76,7 @@ const otherRoutes = [
   {
     label: "Settings",
     icon: Settings,
-    href: "/settings",
+    href: "/settings/profile",
   },
 ];
 

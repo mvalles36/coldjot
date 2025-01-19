@@ -18,7 +18,7 @@ export async function GET(req: Request, { params }: RouteParams) {
     }
 
     // Verify account ownership and get credentials
-    const account = await prisma.emailAccount.findUnique({
+    const account = await prisma.mailbox.findUnique({
       where: {
         id: accountId,
         userId: session.user.id,

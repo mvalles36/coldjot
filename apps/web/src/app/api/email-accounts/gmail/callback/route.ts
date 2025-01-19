@@ -141,7 +141,7 @@ export async function GET(request: Request) {
       });
 
       // Check if this email is already connected
-      const existingAccount = await prisma.emailAccount.findUnique({
+      const existingAccount = await prisma.mailbox.findUnique({
         where: {
           userId_email: {
             userId,
@@ -153,7 +153,7 @@ export async function GET(request: Request) {
       let accountId: string;
       if (existingAccount) {
         // Update existing account
-        await prisma.emailAccount.update({
+        await prisma.mailbox.update({
           where: { id: existingAccount.id },
           data: {
             accessToken: tokens.access_token,
@@ -168,7 +168,7 @@ export async function GET(request: Request) {
         console.log("Updated existing email account");
       } else {
         // Create new account
-        const createdAccount = await prisma.emailAccount.create({
+        const createdAccount = await prisma.mailbox.create({
           data: {
             userId,
             email: userInfo.email,
@@ -180,7 +180,7 @@ export async function GET(request: Request) {
               ? Math.floor(tokens.expiry_date / 1000)
               : null,
             // If this is the first account, make it default
-            isDefault: !(await prisma.emailAccount.findFirst({
+            isDefault: !(await prisma.mailbox.findFirst({
               where: { userId, isDefault: true },
             })),
           },

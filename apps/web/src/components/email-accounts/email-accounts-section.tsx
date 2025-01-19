@@ -6,9 +6,9 @@ import { Plus } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { EmailAccountList } from "./email-account-list";
 import { AddEmailAccount } from "./add-email-account";
-import type { EmailAccount, EmailAlias } from "@coldjot/database";
+import type { Mailbox, EmailAlias } from "@coldjot/database";
 
-interface EmailAccountWithAliases extends EmailAccount {
+interface EmailAccountWithAliases extends Mailbox {
   aliases: EmailAlias[];
 }
 
@@ -19,13 +19,15 @@ interface EmailAccountsSectionProps {
 export function EmailAccountsSection({
   initialAccounts,
 }: EmailAccountsSectionProps) {
-  const [isAddingAccount, setIsAddingAccount] = useState(false);
+  const [isAddingAccount, setIsAddingAccount] = useState(
+    initialAccounts.length === 0
+  );
   const [accounts, setAccounts] =
     useState<EmailAccountWithAliases[]>(initialAccounts);
 
   const handleAccountUpdate = async (
     accountId: string,
-    data: Partial<EmailAccount>
+    data: Partial<Mailbox>
   ) => {
     try {
       const response = await fetch(`/api/email-accounts/${accountId}`, {
@@ -57,6 +59,11 @@ export function EmailAccountsSection({
       if (!response.ok) throw new Error("Failed to delete account");
 
       setAccounts((prev) => prev.filter((account) => account.id !== accountId));
+
+      // Show add account form if no accounts left
+      if (accounts.length === 1) {
+        setIsAddingAccount(true);
+      }
     } catch (error) {
       console.error("[EMAIL_ACCOUNTS_DELETE]", error);
       throw error;
@@ -88,26 +95,14 @@ export function EmailAccountsSection({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-medium">Email Accounts</h3>
-        <p className="text-sm text-muted-foreground mt-1">
-          Manage your email accounts and aliases. Add multiple accounts to send
-          emails from different addresses.
-        </p>
-      </div>
-
-      <Separator />
-
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <div>
-            <h4 className="text-sm font-medium">Your Email Accounts</h4>
-            <p className="text-sm text-muted-foreground">
-              {accounts.length === 0
-                ? "No email accounts added yet."
-                : `You have ${accounts.length} email account${accounts.length === 1 ? "" : "s"}.`}
-            </p>
-          </div>
+      <div className="flex justify-between items-center">
+        <div>
+          <h3 className="text-lg font-medium">Email Accounts</h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            Connect your Gmail account to send emails from different addresses.
+          </p>
+        </div>
+        {accounts.length > 0 && (
           <Button
             onClick={() => setIsAddingAccount(true)}
             disabled={isAddingAccount}
@@ -115,8 +110,12 @@ export function EmailAccountsSection({
             <Plus className="h-4 w-4 mr-2" />
             Add Account
           </Button>
-        </div>
+        )}
+      </div>
 
+      {accounts.length > 0 && <Separator />}
+
+      <div className="space-y-4">
         {isAddingAccount && (
           <AddEmailAccount
             onClose={() => setIsAddingAccount(false)}
@@ -127,15 +126,18 @@ export function EmailAccountsSection({
               ]);
               setIsAddingAccount(false);
             }}
+            showCloseButton={accounts.length > 0}
           />
         )}
 
-        <EmailAccountList
-          accounts={accounts}
-          onAccountUpdate={handleAccountUpdate}
-          onAccountDelete={handleAccountDelete}
-          onAliasesRefresh={handleAliasesRefresh}
-        />
+        {accounts.length > 0 && (
+          <EmailAccountList
+            accounts={accounts}
+            onAccountUpdate={handleAccountUpdate}
+            onAccountDelete={handleAccountDelete}
+            onAliasesRefresh={handleAliasesRefresh}
+          />
+        )}
       </div>
     </div>
   );

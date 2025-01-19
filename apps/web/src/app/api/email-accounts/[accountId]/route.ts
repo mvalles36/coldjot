@@ -16,7 +16,7 @@ export async function GET(req: Request, { params }: RouteParams) {
     }
 
     const { accountId } = await params;
-    const account = await prisma.emailAccount.findUnique({
+    const account = await prisma.mailbox.findUnique({
       where: {
         id: accountId,
         userId: session.user.id,
@@ -56,7 +56,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
 
     // If setting as default, unset any existing default
     if (isDefault) {
-      await prisma.emailAccount.updateMany({
+      await prisma.mailbox.updateMany({
         where: {
           userId: session.user.id,
           isDefault: true,
@@ -68,7 +68,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
     }
 
     // Get current account to merge settings
-    const currentAccount = await prisma.emailAccount.findUnique({
+    const currentAccount = await prisma.mailbox.findUnique({
       where: {
         id: accountId,
         userId: session.user.id,
@@ -102,7 +102,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
       }
     }
 
-    const account = await prisma.emailAccount.update({
+    const account = await prisma.mailbox.update({
       where: {
         id: accountId,
         userId: session.user.id,
@@ -135,7 +135,7 @@ export async function DELETE(req: Request, { params }: RouteParams) {
 
     const { accountId } = await params;
 
-    await prisma.emailAccount.delete({
+    await prisma.mailbox.delete({
       where: {
         id: accountId,
         userId: session.user.id,

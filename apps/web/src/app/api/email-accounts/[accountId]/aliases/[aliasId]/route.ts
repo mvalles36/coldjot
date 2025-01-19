@@ -17,7 +17,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
     }
 
     // Verify account ownership
-    const account = await prisma.emailAccount.findUnique({
+    const account = await prisma.mailbox.findUnique({
       where: {
         id: params.accountId,
         userId: session.user.id,
@@ -57,7 +57,7 @@ export async function DELETE(req: Request, { params }: RouteParams) {
     }
 
     // Verify account ownership
-    const account = await prisma.emailAccount.findUnique({
+    const account = await prisma.mailbox.findUnique({
       where: {
         id: params.accountId,
         userId: session.user.id,

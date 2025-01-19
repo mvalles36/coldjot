@@ -22,7 +22,7 @@ export async function POST(req: Request, { params }: RouteParams) {
     const { accountId } = await params;
 
     // Verify account ownership and get credentials
-    const account = await prisma.emailAccount.findUnique({
+    const account = await prisma.mailbox.findUnique({
       where: {
         id: accountId,
         userId: session.user.id,
@@ -108,7 +108,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       });
 
       // Fetch updated account with aliases
-      const updatedAccount = await prisma.emailAccount.findUnique({
+      const updatedAccount = await prisma.mailbox.findUnique({
         where: { id: accountId },
         include: { aliases: true },
       });

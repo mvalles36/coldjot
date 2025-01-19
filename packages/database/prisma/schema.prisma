@@ -55,7 +55,7 @@ model User {
     Sequence      Sequence[]
     EmailThread   EmailThread[]
     businessHours BusinessHours[]
-    EmailAccount  EmailAccount[]
+    Mailbox       Mailbox[]
 }
 
 model Contact {
@@ -412,7 +412,7 @@ model TestData {
     @@index([userId])
 }
 
-model EmailAccount {
+model Mailbox {
     id        String   @id @default(cuid())
     userId    String
     provider  String // 'gmail', 'outlook', etc.
@@ -449,8 +449,8 @@ model EmailAlias {
     createdAt      DateTime @default(now())
     updatedAt      DateTime @updatedAt
 
-    emailAccount       EmailAccount   @relation(fields: [emailAccountId], references: [id], onDelete: Cascade)
-    defaultForAccounts EmailAccount[] @relation("DefaultAlias")
+    mailbox            Mailbox   @relation(fields: [emailAccountId], references: [id], onDelete: Cascade)
+    defaultForAccounts Mailbox[] @relation("DefaultAlias")
 
     @@unique([emailAccountId, alias])
 }

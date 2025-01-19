@@ -9,7 +9,7 @@ export async function GET() {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const accounts = await prisma.emailAccount.findMany({
+    const accounts = await prisma.mailbox.findMany({
       where: {
         userId: session.user.id,
       },
@@ -41,7 +41,7 @@ export async function POST(req: Request) {
 
     // If this is set as default, unset any existing default
     if (isDefault) {
-      await prisma.emailAccount.updateMany({
+      await prisma.mailbox.updateMany({
         where: {
           userId: session.user.id,
           isDefault: true,
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
       });
     }
 
-    const account = await prisma.emailAccount.create({
+    const account = await prisma.mailbox.create({
       data: {
         email,
         name,

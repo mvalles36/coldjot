@@ -11,7 +11,7 @@ export default async function MailboxesSettingsPage() {
   }
 
   // Fetch email accounts with aliases
-  const accounts = await prisma.emailAccount.findMany({
+  const accounts = await prisma.mailbox.findMany({
     where: {
       userId: session.user.id,
     },
