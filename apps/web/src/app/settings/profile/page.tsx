@@ -1,13 +1,13 @@
 import { auth } from "@/auth";
 import { prisma } from "@coldjot/database";
 import { Separator } from "@/components/ui/separator";
+import { SettingsMessageHandler } from "@/components/settings/settings-message-handler";
+import { SettingsLayout } from "@/components/settings/settings-layout";
 import ProfileSettings from "@/components/settings/profile-settings";
 import EmailSettings from "@/components/settings/email-settings";
 import GoogleIntegration from "@/components/settings/google-integration";
-import { SettingsMessageHandler } from "@/components/settings/settings-message-handler";
-import { SettingsLayout } from "@/components/settings/settings-layout";
 
-export default async function SettingsPage() {
+export default async function ProfileSettingsPage() {
   const session = await auth();
   if (!session?.user?.id) return null;
 
@@ -30,9 +30,9 @@ export default async function SettingsPage() {
         <SettingsMessageHandler />
 
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-          <p className="text-muted-foreground">
-            Manage your account settings and preferences.
+          <h3 className="text-lg font-medium">Profile Settings</h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            Manage your profile settings and preferences.
           </p>
         </div>
         <Separator />

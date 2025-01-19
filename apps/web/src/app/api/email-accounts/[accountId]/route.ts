@@ -46,7 +46,13 @@ export async function PATCH(req: Request, { params }: RouteParams) {
 
     const { accountId } = await params;
     const body = await req.json();
-    const { isActive, isDefault, name } = body;
+    const {
+      isActive,
+      isDefault,
+      name,
+      settings: newSettings,
+      defaultAliasId,
+    } = body;
 
     // If setting as default, unset any existing default
     if (isDefault) {
@@ -61,6 +67,41 @@ export async function PATCH(req: Request, { params }: RouteParams) {
       });
     }
 
+    // Get current account to merge settings
+    const currentAccount = await prisma.emailAccount.findUnique({
+      where: {
+        id: accountId,
+        userId: session.user.id,
+      },
+    });
+
+    if (!currentAccount) {
+      return new NextResponse("Not Found", { status: 404 });
+    }
+
+    // Merge existing settings with new settings
+    const mergedSettings = {
+      ...(currentAccount.settings as Record<string, unknown>),
+      ...(newSettings || {}),
+    };
+
+    // If defaultAliasId is provided, verify it belongs to this account
+    if (defaultAliasId !== undefined) {
+      // Only verify if defaultAliasId is not null (null means use primary email)
+      if (defaultAliasId !== null) {
+        const alias = await prisma.emailAlias.findUnique({
+          where: {
+            id: defaultAliasId,
+            emailAccountId: accountId,
+          },
+        });
+
+        if (!alias) {
+          return new NextResponse("Invalid alias ID", { status: 400 });
+        }
+      }
+    }
+
     const account = await prisma.emailAccount.update({
       where: {
         id: accountId,
@@ -70,6 +111,8 @@ export async function PATCH(req: Request, { params }: RouteParams) {
         ...(isActive !== undefined && { isActive }),
         ...(isDefault !== undefined && { isDefault }),
         ...(name !== undefined && { name }),
+        ...(newSettings !== undefined && { settings: mergedSettings }),
+        ...(defaultAliasId !== undefined && { defaultAliasId }),
       },
       include: {
         aliases: true,

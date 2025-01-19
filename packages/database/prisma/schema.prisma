@@ -429,12 +429,15 @@ model EmailAccount {
     expiresAt    Int?
 
     // Email account settings
-    aliases  EmailAlias[]
-    settings Json? // Store provider-specific settings
+    aliases        EmailAlias[]
+    defaultAliasId String?
+    defaultAlias   EmailAlias?  @relation("DefaultAlias", fields: [defaultAliasId], references: [id])
+    settings       Json? // Store provider-specific settings
 
     user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     @@unique([userId, email])
+    @@index([defaultAliasId])
 }
 
 model EmailAlias {
@@ -446,7 +449,8 @@ model EmailAlias {
     createdAt      DateTime @default(now())
     updatedAt      DateTime @updatedAt
 
-    emailAccount EmailAccount @relation(fields: [emailAccountId], references: [id], onDelete: Cascade)
+    emailAccount       EmailAccount   @relation(fields: [emailAccountId], references: [id], onDelete: Cascade)
+    defaultForAccounts EmailAccount[] @relation("DefaultAlias")
 
     @@unique([emailAccountId, alias])
 }
