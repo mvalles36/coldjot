@@ -12,6 +12,58 @@ if (
   throw new Error("Missing Gmail OAuth credentials for email accounts");
 }
 
+interface GmailSendAs {
+  sendAsEmail: string;
+  displayName?: string;
+  isPrimary?: boolean;
+  verificationStatus?: string;
+  isDefault?: boolean;
+}
+
+async function fetchAndSaveAliases(gmail: any, accountId: string) {
+  try {
+    // Fetch Gmail settings including send-as aliases
+    const { data: settings } = await gmail.users.settings.sendAs.list({
+      userId: "me",
+    });
+
+    // Get existing aliases for this account
+    const existingAliases = await prisma.emailAlias.findMany({
+      where: { emailAccountId: accountId },
+      select: { alias: true },
+    });
+    const existingAliasEmails = new Set(existingAliases.map((a) => a.alias));
+
+    // Filter out primary email and prepare alias data
+    const aliasesToCreate =
+      settings.sendAs
+        ?.filter(
+          (sendAs: GmailSendAs) =>
+            !sendAs.isPrimary && !existingAliasEmails.has(sendAs.sendAsEmail)
+        )
+        .map((sendAs: GmailSendAs) => ({
+          alias: sendAs.sendAsEmail,
+          name: sendAs.displayName || null,
+          emailAccountId: accountId,
+        })) || [];
+
+    // Create new aliases in bulk
+    if (aliasesToCreate.length > 0) {
+      await prisma.emailAlias.createMany({
+        data: aliasesToCreate,
+      });
+    }
+
+    console.log(`Saved ${aliasesToCreate.length} new aliases`);
+  } catch (error: any) {
+    console.error("[GMAIL_CALLBACK] Failed to fetch/save aliases:", {
+      message: error.message,
+      response: error.response?.data,
+    });
+    // Don't throw - we don't want to fail the whole callback if alias fetching fails
+  }
+}
+
 export async function GET(request: Request) {
   const oauth2Client = await new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID_EMAIL,
@@ -98,6 +150,7 @@ export async function GET(request: Request) {
         },
       });
 
+      let accountId: string;
       if (existingAccount) {
         // Update existing account
         await prisma.emailAccount.update({
@@ -111,10 +164,11 @@ export async function GET(request: Request) {
             name: userInfo.name || null,
           },
         });
+        accountId = existingAccount.id;
         console.log("Updated existing email account");
       } else {
         // Create new account
-        await prisma.emailAccount.create({
+        const createdAccount = await prisma.emailAccount.create({
           data: {
             userId,
             email: userInfo.email,
@@ -131,8 +185,13 @@ export async function GET(request: Request) {
             })),
           },
         });
+        accountId = createdAccount.id;
         console.log("Created new email account");
       }
+
+      // After creating/updating the account, fetch and save aliases
+      const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+      await fetchAndSaveAliases(gmail, accountId);
 
       // Redirect back to settings page
       return Response.redirect(

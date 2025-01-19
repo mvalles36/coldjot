@@ -6,17 +6,85 @@ import { Plus } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { EmailAccountList } from "./email-account-list";
 import { AddEmailAccount } from "./add-email-account";
-import type { EmailAccount } from "@coldjot/database";
+import type { EmailAccount, EmailAlias } from "@coldjot/database";
+
+interface EmailAccountWithAliases extends EmailAccount {
+  aliases: EmailAlias[];
+}
 
 interface EmailAccountsSectionProps {
-  initialAccounts: EmailAccount[];
+  initialAccounts: EmailAccountWithAliases[];
 }
 
 export function EmailAccountsSection({
   initialAccounts,
 }: EmailAccountsSectionProps) {
   const [isAddingAccount, setIsAddingAccount] = useState(false);
-  const [accounts, setAccounts] = useState<EmailAccount[]>(initialAccounts);
+  const [accounts, setAccounts] =
+    useState<EmailAccountWithAliases[]>(initialAccounts);
+
+  const handleAccountUpdate = async (
+    accountId: string,
+    data: Partial<EmailAccount>
+  ) => {
+    try {
+      const response = await fetch(`/api/email-accounts/${accountId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) throw new Error("Failed to update account");
+
+      const updatedAccount: EmailAccountWithAliases = await response.json();
+      setAccounts((prev) =>
+        prev.map((account) =>
+          account.id === accountId ? updatedAccount : account
+        )
+      );
+    } catch (error) {
+      console.error("[EMAIL_ACCOUNTS_UPDATE]", error);
+      throw error;
+    }
+  };
+
+  const handleAccountDelete = async (accountId: string) => {
+    try {
+      const response = await fetch(`/api/email-accounts/${accountId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) throw new Error("Failed to delete account");
+
+      setAccounts((prev) => prev.filter((account) => account.id !== accountId));
+    } catch (error) {
+      console.error("[EMAIL_ACCOUNTS_DELETE]", error);
+      throw error;
+    }
+  };
+
+  const handleAliasesRefresh = async (accountId: string) => {
+    try {
+      const response = await fetch(
+        `/api/email-accounts/${accountId}/aliases/refresh`,
+        {
+          method: "POST",
+        }
+      );
+
+      if (!response.ok) throw new Error("Failed to refresh aliases");
+
+      const updatedAccount: EmailAccountWithAliases = await response.json();
+      setAccounts((prev) =>
+        prev.map((account) =>
+          account.id === accountId ? updatedAccount : account
+        )
+      );
+    } catch (error) {
+      console.error("[EMAIL_ACCOUNTS_REFRESH_ALIASES]", error);
+      throw error;
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -53,7 +121,10 @@ export function EmailAccountsSection({
           <AddEmailAccount
             onClose={() => setIsAddingAccount(false)}
             onAccountAdded={(account) => {
-              setAccounts((prev) => [...prev, account]);
+              setAccounts((prev) => [
+                ...prev,
+                account as EmailAccountWithAliases,
+              ]);
               setIsAddingAccount(false);
             }}
           />
@@ -61,18 +132,9 @@ export function EmailAccountsSection({
 
         <EmailAccountList
           accounts={accounts}
-          onAccountUpdated={(updatedAccount) => {
-            setAccounts((prev) =>
-              prev.map((acc) =>
-                acc.id === updatedAccount.id ? updatedAccount : acc
-              )
-            );
-          }}
-          onAccountRemoved={(removedAccountId) => {
-            setAccounts((prev) =>
-              prev.filter((acc) => acc.id !== removedAccountId)
-            );
-          }}
+          onAccountUpdate={handleAccountUpdate}
+          onAccountDelete={handleAccountDelete}
+          onAliasesRefresh={handleAliasesRefresh}
         />
       </div>
     </div>
