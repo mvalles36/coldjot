@@ -57,7 +57,7 @@ export function AddMailbox({
             <X className="h-4 w-4" />
           </Button>
         )}
-        <h3 className="text-lg font-medium">Add Email Account</h3>
+        <h3 className="text-lg font-medium">Add Mailbox</h3>
         <p className="text-sm text-muted-foreground">
           Connect your Gmail account to send emails from different addresses
         </p>
