@@ -13,7 +13,7 @@ interface AddEmailAccountProps {
   showCloseButton?: boolean;
 }
 
-export function AddEmailAccount({
+export function AddMailbox({
   onClose,
   onAccountAdded,
   showCloseButton = false,
@@ -25,7 +25,7 @@ export function AddEmailAccount({
     try {
       setIsLoading(true);
       // Start Gmail OAuth flow
-      const response = await fetch("/api/email-accounts/gmail/auth", {
+      const response = await fetch("/api/mailboxes/gmail/auth", {
         method: "POST",
       });
 

@@ -6,7 +6,7 @@ import { gmail_v1 } from "googleapis";
 
 interface RouteParams {
   params: Promise<{
-    accountId: string;
+    mailboxId: string;
   }>;
 }
 
@@ -19,12 +19,12 @@ export async function POST(req: Request, { params }: RouteParams) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { accountId } = await params;
+    const { mailboxId } = await params;
 
     // Verify account ownership and get credentials
     const account = await prisma.mailbox.findUnique({
       where: {
-        id: accountId,
+        id: mailboxId,
         userId: session.user.id,
       },
       include: {
@@ -79,7 +79,7 @@ export async function POST(req: Request, { params }: RouteParams) {
           return {
             alias,
             name: sendAs?.displayName || null,
-            emailAccountId: accountId,
+            mailboxId: mailboxId,
           };
         });
 
@@ -93,7 +93,7 @@ export async function POST(req: Request, { params }: RouteParams) {
         if (aliasesToDelete.length > 0) {
           await tx.emailAlias.deleteMany({
             where: {
-              emailAccountId: accountId,
+              mailboxId: mailboxId,
               alias: { in: aliasesToDelete },
             },
           });
@@ -109,7 +109,7 @@ export async function POST(req: Request, { params }: RouteParams) {
 
       // Fetch updated account with aliases
       const updatedAccount = await prisma.mailbox.findUnique({
-        where: { id: accountId },
+        where: { id: mailboxId },
         include: { aliases: true },
       });
 

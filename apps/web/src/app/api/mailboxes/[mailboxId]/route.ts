@@ -4,7 +4,7 @@ import { prisma } from "@coldjot/database";
 
 interface RouteParams {
   params: Promise<{
-    accountId: string;
+    mailboxId: string;
   }>;
 }
 
@@ -15,10 +15,10 @@ export async function GET(req: Request, { params }: RouteParams) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { accountId } = await params;
+    const { mailboxId } = await params;
     const account = await prisma.mailbox.findUnique({
       where: {
-        id: accountId,
+        id: mailboxId,
         userId: session.user.id,
       },
       include: {
@@ -44,7 +44,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { accountId } = await params;
+    const { mailboxId } = await params;
     const body = await req.json();
     const {
       isActive,
@@ -70,7 +70,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
     // Get current account to merge settings
     const currentAccount = await prisma.mailbox.findUnique({
       where: {
-        id: accountId,
+        id: mailboxId,
         userId: session.user.id,
       },
     });
@@ -92,7 +92,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
         const alias = await prisma.emailAlias.findUnique({
           where: {
             id: defaultAliasId,
-            emailAccountId: accountId,
+            mailboxId: mailboxId,
           },
         });
 
@@ -104,7 +104,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
 
     const account = await prisma.mailbox.update({
       where: {
-        id: accountId,
+        id: mailboxId,
         userId: session.user.id,
       },
       data: {
@@ -133,11 +133,11 @@ export async function DELETE(req: Request, { params }: RouteParams) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { accountId } = await params;
+    const { mailboxId } = await params;
 
     await prisma.mailbox.delete({
       where: {
-        id: accountId,
+        id: mailboxId,
         userId: session.user.id,
       },
     });

@@ -1,8 +1,8 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@coldjot/database";
-import { EmailAccountsSection } from "../../../components/email-accounts/email-accounts-section";
-import { SettingsLayout } from "../../../components/settings/settings-layout";
+import { MailboxesSection } from "@/components/mailboxes/mailboxes-section";
+import { SettingsLayout } from "@/components/settings/settings-layout";
 
 export default async function MailboxesSettingsPage() {
   const session = await auth();
@@ -23,7 +23,7 @@ export default async function MailboxesSettingsPage() {
 
   return (
     <SettingsLayout>
-      <EmailAccountsSection initialAccounts={accounts} />
+      <MailboxesSection initialAccounts={accounts} />
     </SettingsLayout>
   );
 }

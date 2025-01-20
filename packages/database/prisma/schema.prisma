@@ -441,16 +441,16 @@ model Mailbox {
 }
 
 model EmailAlias {
-    id             String   @id @default(cuid())
-    emailAccountId String
-    alias          String
-    name           String? // Display name for the alias
-    isActive       Boolean  @default(true)
-    createdAt      DateTime @default(now())
-    updatedAt      DateTime @updatedAt
+    id        String   @id @default(cuid())
+    mailboxId String
+    alias     String
+    name      String? // Display name for the alias
+    isActive  Boolean  @default(true)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
 
-    mailbox            Mailbox   @relation(fields: [emailAccountId], references: [id], onDelete: Cascade)
+    mailbox            Mailbox   @relation(fields: [mailboxId], references: [id], onDelete: Cascade)
     defaultForAccounts Mailbox[] @relation("DefaultAlias")
 
-    @@unique([emailAccountId, alias])
+    @@unique([mailboxId, alias])
 }

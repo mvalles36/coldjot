@@ -4,33 +4,31 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import { EmailAccountList } from "./email-account-list";
-import { AddEmailAccount } from "./add-email-account";
+import { MailboxList } from "./mailbox-list";
+import { AddMailbox } from "./add-mailbox";
 import type { Mailbox, EmailAlias } from "@coldjot/database";
 
-interface EmailAccountWithAliases extends Mailbox {
+interface MailboxWithAliases extends Mailbox {
   aliases: EmailAlias[];
 }
 
-interface EmailAccountsSectionProps {
-  initialAccounts: EmailAccountWithAliases[];
+interface MailboxesSectionProps {
+  initialAccounts: MailboxWithAliases[];
 }
 
-export function EmailAccountsSection({
-  initialAccounts,
-}: EmailAccountsSectionProps) {
+export function MailboxesSection({ initialAccounts }: MailboxesSectionProps) {
   const [isAddingAccount, setIsAddingAccount] = useState(
     initialAccounts.length === 0
   );
   const [accounts, setAccounts] =
-    useState<EmailAccountWithAliases[]>(initialAccounts);
+    useState<MailboxWithAliases[]>(initialAccounts);
 
   const handleAccountUpdate = async (
     accountId: string,
     data: Partial<Mailbox>
   ) => {
     try {
-      const response = await fetch(`/api/email-accounts/${accountId}`, {
+      const response = await fetch(`/api/mailboxes/${accountId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -38,7 +36,7 @@ export function EmailAccountsSection({
 
       if (!response.ok) throw new Error("Failed to update account");
 
-      const updatedAccount: EmailAccountWithAliases = await response.json();
+      const updatedAccount: MailboxWithAliases = await response.json();
       setAccounts((prev) =>
         prev.map((account) =>
           account.id === accountId ? updatedAccount : account
@@ -52,7 +50,7 @@ export function EmailAccountsSection({
 
   const handleAccountDelete = async (accountId: string) => {
     try {
-      const response = await fetch(`/api/email-accounts/${accountId}`, {
+      const response = await fetch(`/api/mailboxes/${accountId}`, {
         method: "DELETE",
       });
 
@@ -73,7 +71,7 @@ export function EmailAccountsSection({
   const handleAliasesRefresh = async (accountId: string) => {
     try {
       const response = await fetch(
-        `/api/email-accounts/${accountId}/aliases/refresh`,
+        `/api/mailboxes/${accountId}/aliases/refresh`,
         {
           method: "POST",
         }
@@ -81,7 +79,7 @@ export function EmailAccountsSection({
 
       if (!response.ok) throw new Error("Failed to refresh aliases");
 
-      const updatedAccount: EmailAccountWithAliases = await response.json();
+      const updatedAccount: MailboxWithAliases = await response.json();
       setAccounts((prev) =>
         prev.map((account) =>
           account.id === accountId ? updatedAccount : account
@@ -97,7 +95,7 @@ export function EmailAccountsSection({
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-lg font-medium">Email Accounts</h3>
+          <h3 className="text-lg font-medium">Mailboxes</h3>
           <p className="text-sm text-muted-foreground mt-1">
             Connect your Gmail account to send emails from different addresses.
           </p>
@@ -117,13 +115,10 @@ export function EmailAccountsSection({
 
       <div className="space-y-4">
         {isAddingAccount && (
-          <AddEmailAccount
+          <AddMailbox
             onClose={() => setIsAddingAccount(false)}
             onAccountAdded={(account) => {
-              setAccounts((prev) => [
-                ...prev,
-                account as EmailAccountWithAliases,
-              ]);
+              setAccounts((prev) => [...prev, account as MailboxWithAliases]);
               setIsAddingAccount(false);
             }}
             showCloseButton={accounts.length > 0}
@@ -131,7 +126,7 @@ export function EmailAccountsSection({
         )}
 
         {accounts.length > 0 && (
-          <EmailAccountList
+          <MailboxList
             accounts={accounts}
             onAccountUpdate={handleAccountUpdate}
             onAccountDelete={handleAccountDelete}

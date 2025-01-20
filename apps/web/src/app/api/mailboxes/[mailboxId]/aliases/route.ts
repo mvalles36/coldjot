@@ -5,13 +5,13 @@ import { prisma } from "@coldjot/database";
 
 interface RouteParams {
   params: Promise<{
-    accountId: string;
+    mailboxId: string;
   }>;
 }
 
 export async function GET(req: Request, { params }: RouteParams) {
   try {
-    const { accountId } = await params;
+    const { mailboxId } = await params;
     const session = await auth();
     if (!session?.user?.id) {
       return new NextResponse("Unauthorized", { status: 401 });
@@ -20,7 +20,7 @@ export async function GET(req: Request, { params }: RouteParams) {
     // Verify account ownership and get credentials
     const account = await prisma.mailbox.findUnique({
       where: {
-        id: accountId,
+        id: mailboxId,
         userId: session.user.id,
       },
     });
@@ -62,8 +62,7 @@ export async function GET(req: Request, { params }: RouteParams) {
             id: sendAs.sendAsEmail, // Use email as ID since Gmail doesn't provide one
             alias: sendAs.sendAsEmail,
             name: sendAs.displayName || null,
-            emailAccountId: accountId,
-            verificationStatus: sendAs.verificationStatus,
+            mailboxId: mailboxId,
             isDefault: sendAs.isDefault || false,
           })) || [];
 

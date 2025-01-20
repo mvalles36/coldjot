@@ -13,16 +13,16 @@ if (
 }
 
 const SCOPES = [
-  "https://www.googleapis.com/auth/gmail.readonly",
   "https://www.googleapis.com/auth/userinfo.profile",
   "https://www.googleapis.com/auth/userinfo.email",
+  "https://mail.google.com/",
 ];
 
 export async function POST(request: Request) {
   const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID_EMAIL,
     process.env.GOOGLE_CLIENT_SECRET_EMAIL,
-    `http://localhost:3000/api/email-accounts/gmail/callback`
+    process.env.GOOGLE_REDIRECT_URI_EMAIL
   );
 
   try {

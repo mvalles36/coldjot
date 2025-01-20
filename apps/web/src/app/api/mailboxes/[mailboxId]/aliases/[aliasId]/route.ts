@@ -3,10 +3,10 @@ import { auth } from "@/auth";
 import { prisma } from "@coldjot/database";
 
 interface RouteParams {
-  params: {
-    accountId: string;
+  params: Promise<{
+    mailboxId: string;
     aliasId: string;
-  };
+  }>;
 }
 
 export async function PATCH(req: Request, { params }: RouteParams) {
@@ -16,10 +16,12 @@ export async function PATCH(req: Request, { params }: RouteParams) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
+    const { mailboxId, aliasId } = await params;
+
     // Verify account ownership
     const account = await prisma.mailbox.findUnique({
       where: {
-        id: params.accountId,
+        id: mailboxId,
         userId: session.user.id,
       },
     });
@@ -33,8 +35,8 @@ export async function PATCH(req: Request, { params }: RouteParams) {
 
     const alias = await prisma.emailAlias.update({
       where: {
-        id: params.aliasId,
-        emailAccountId: params.accountId,
+        id: aliasId,
+        mailboxId: mailboxId,
       },
       data: {
         ...(name !== undefined && { name }),
@@ -56,10 +58,12 @@ export async function DELETE(req: Request, { params }: RouteParams) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
+    const { mailboxId, aliasId } = await params;
+
     // Verify account ownership
     const account = await prisma.mailbox.findUnique({
       where: {
-        id: params.accountId,
+        id: mailboxId,
         userId: session.user.id,
       },
     });
@@ -70,8 +74,8 @@ export async function DELETE(req: Request, { params }: RouteParams) {
 
     await prisma.emailAlias.delete({
       where: {
-        id: params.aliasId,
-        emailAccountId: params.accountId,
+        id: aliasId,
+        mailboxId: mailboxId,
       },
     });
 

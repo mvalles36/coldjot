@@ -20,7 +20,7 @@ interface GmailSendAs {
   isDefault?: boolean;
 }
 
-async function fetchAndSaveAliases(gmail: any, accountId: string) {
+async function fetchAndSaveAliases(gmail: any, mailboxId: string) {
   try {
     // Fetch Gmail settings including send-as aliases
     const { data: settings } = await gmail.users.settings.sendAs.list({
@@ -29,7 +29,7 @@ async function fetchAndSaveAliases(gmail: any, accountId: string) {
 
     // Get existing aliases for this account
     const existingAliases = await prisma.emailAlias.findMany({
-      where: { emailAccountId: accountId },
+      where: { mailboxId: mailboxId },
       select: { alias: true },
     });
     const existingAliasEmails = new Set(existingAliases.map((a) => a.alias));
@@ -44,7 +44,7 @@ async function fetchAndSaveAliases(gmail: any, accountId: string) {
         .map((sendAs: GmailSendAs) => ({
           alias: sendAs.sendAsEmail,
           name: sendAs.displayName || null,
-          emailAccountId: accountId,
+          mailboxId: mailboxId,
         })) || [];
 
     // Create new aliases in bulk
@@ -68,7 +68,7 @@ export async function GET(request: Request) {
   const oauth2Client = await new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID_EMAIL,
     process.env.GOOGLE_CLIENT_SECRET_EMAIL,
-    `http://localhost:3000/api/email-accounts/gmail/callback`
+    process.env.GOOGLE_REDIRECT_URI_EMAIL
   );
 
   try {
@@ -104,7 +104,7 @@ export async function GET(request: Request) {
     // Log OAuth configuration
     console.log("OAuth Configuration:", {
       clientId: process.env.GOOGLE_CLIENT_ID_EMAIL?.slice(0, 30) + "...",
-      redirectUri: `http://localhost:3000/api/email-accounts/gmail/callback`,
+      redirectUri: process.env.GOOGLE_REDIRECT_URI_EMAIL,
     });
 
     const userId = decrypt(state);

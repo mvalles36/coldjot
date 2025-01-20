@@ -24,27 +24,27 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
-type EmailAccountWithAliases = Mailbox & {
+type MailboxWithAliases = Mailbox & {
   aliases: EmailAlias[];
   defaultAliasId: string | null;
 };
 
-interface EmailAccountListProps {
-  accounts: EmailAccountWithAliases[];
+interface MailboxListProps {
+  accounts: MailboxWithAliases[];
   onAccountUpdate: (
     accountId: string,
-    data: Partial<EmailAccountWithAliases>
+    data: Partial<MailboxWithAliases>
   ) => Promise<void>;
   onAccountDelete: (accountId: string) => Promise<void>;
   onAliasesRefresh: (accountId: string) => Promise<void>;
 }
 
-export function EmailAccountList({
+export function MailboxList({
   accounts,
   onAccountUpdate,
   onAccountDelete,
   onAliasesRefresh,
-}: EmailAccountListProps) {
+}: MailboxListProps) {
   const { toast } = useToast();
   const [expandedAccounts, setExpandedAccounts] = useState<
     Record<string, boolean>
