@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
@@ -10,31 +10,88 @@ import { Trash2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { useRouter } from "next/navigation";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+interface Mailbox {
+  id: string;
+  email: string;
+  name?: string | null;
+}
 
 interface SequenceEmailSettingsState {
   testMode: boolean;
   disableSending: boolean;
   testEmails: string[];
+  mailboxId?: string | null;
 }
 
 interface SequenceEmailSettingsProps {
   sequenceId: string;
   initialSettings: SequenceEmailSettingsState;
+  mailboxes: Mailbox[];
 }
 
 export function SequenceEmailSettings({
   sequenceId,
   initialSettings,
+  mailboxes,
 }: SequenceEmailSettingsProps) {
   const [settings, setSettings] = useState<SequenceEmailSettingsState>({
     testMode: initialSettings?.testMode ?? false,
     disableSending: initialSettings?.disableSending ?? false,
     testEmails: initialSettings?.testEmails ?? [],
+    mailboxId: initialSettings?.mailboxId ?? null,
   });
   const [newEmail, setNewEmail] = useState("");
   const { toast } = useToast();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+
+  // Find the selected mailbox
+  const selectedMailbox = mailboxes.find(
+    (mailbox) => mailbox.id === settings.mailboxId
+  );
+
+  const handleMailboxChange = async (mailboxId: string) => {
+    try {
+      setIsLoading(true);
+      const response = await fetch(`/api/sequences/${sequenceId}/settings`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          mailboxId,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update sequence mailbox");
+      }
+
+      setSettings((prev) => ({ ...prev, mailboxId }));
+      router.refresh();
+
+      toast({
+        title: "Success",
+        description: "Mailbox updated successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update mailbox",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleTestModeChange = async (checked: boolean) => {
     try {
@@ -163,13 +220,62 @@ export function SequenceEmailSettings({
       <div className="border-b pb-3">
         <h3 className="text-lg font-semibold">Email Settings</h3>
         <p className="text-sm text-muted-foreground mt-1">
-          These settings are for development and testing purposes. They help
-          ensure emails are sent correctly during testing.
+          Configure email sending settings and test mode options.
         </p>
       </div>
 
       <div className="space-y-6">
         <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <Label>Sending Mailbox</Label>
+              <div className="text-sm text-muted-foreground mb-2">
+                Select the mailbox to use for sending sequence emails
+              </div>
+            </div>
+            <Select
+              value={settings.mailboxId || undefined}
+              onValueChange={handleMailboxChange}
+              disabled={isLoading || mailboxes.length === 0}
+            >
+              <SelectTrigger className="max-w-md">
+                <SelectValue>
+                  {selectedMailbox
+                    ? selectedMailbox.name
+                      ? `${selectedMailbox.name} (${selectedMailbox.email})`
+                      : selectedMailbox.email
+                    : "Select a mailbox"}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {mailboxes.length === 0 ? (
+                  <div className="p-2 text-sm text-muted-foreground">
+                    No mailboxes available
+                  </div>
+                ) : (
+                  mailboxes.map((mailbox) => (
+                    <SelectItem key={mailbox.id} value={mailbox.id}>
+                      {mailbox.name
+                        ? `${mailbox.name} (${mailbox.email})`
+                        : mailbox.email}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+          {!settings.mailboxId && (
+            <Alert variant="destructive" className="mt-2">
+              <AlertDescription>
+                {mailboxes.length === 0
+                  ? "No mailboxes available. Please add a mailbox in settings first."
+                  : "Please select a mailbox to send emails from"}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <Separator />
+
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <Label>Test Mode</Label>

@@ -11,6 +11,7 @@ interface UpdateSettingsBody {
   scheduleType?: "business" | "custom";
   businessHours?: BusinessHours;
   testEmails?: string[];
+  mailboxId?: string | null;
 }
 
 export async function PATCH(
@@ -25,6 +26,8 @@ export async function PATCH(
 
     const body = (await req.json()) as UpdateSettingsBody;
     const { id } = await params;
+
+    console.log("body", body);
 
     // Validate sequence ownership
     const existingSequence = await prisma.sequence.findFirst({
@@ -57,6 +60,7 @@ export async function PATCH(
             disableSending: body.disableSending,
           }),
           ...(body.testEmails && { testEmails: body.testEmails }),
+          ...(body.mailboxId !== undefined && { mailboxId: body.mailboxId }),
         },
         include: {
           businessHours: true,

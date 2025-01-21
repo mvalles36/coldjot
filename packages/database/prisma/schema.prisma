@@ -150,10 +150,12 @@ model Sequence {
     disableSending Boolean           @default(false)
     testEmails     String[]          @default([])
     userId         String
+    mailboxId      String?
     createdAt      DateTime          @default(now())
     updatedAt      DateTime          @updatedAt
     steps          SequenceStep[]
     user           User              @relation(fields: [userId], references: [id])
+    mailbox        Mailbox?          @relation(fields: [mailboxId], references: [id])
     EmailList      EmailList?        @relation(fields: [emailListId], references: [id])
     emailListId    String?
     stats          SequenceStats[]
@@ -164,6 +166,7 @@ model Sequence {
     SequenceHealth SequenceHealth?
 
     @@index([userId])
+    @@index([mailboxId])
 }
 
 model SequenceStep {
@@ -433,7 +436,8 @@ model Mailbox {
     defaultAliasId String?
     defaultAlias   EmailAlias?  @relation("DefaultAlias", fields: [defaultAliasId], references: [id])
 
-    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+    user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+    Sequence Sequence[]
 
     @@unique([userId, email])
     @@index([defaultAliasId])

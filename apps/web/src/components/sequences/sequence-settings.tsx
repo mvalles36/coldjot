@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -19,6 +19,12 @@ import type { BusinessHours } from "@coldjot/types";
 import { SequenceDangerZone } from "@/components/sequences/sequence-danger-zone";
 import { Separator } from "@radix-ui/react-separator";
 
+interface Mailbox {
+  id: string;
+  email: string;
+  name?: string | null;
+}
+
 interface SequenceSettingsProps {
   sequence: {
     id: string;
@@ -29,6 +35,7 @@ interface SequenceSettingsProps {
     testMode: boolean;
     disableSending: boolean;
     testEmails: string[];
+    mailboxId?: string | null;
   };
 }
 
@@ -36,6 +43,26 @@ export function SequenceSettings({ sequence }: SequenceSettingsProps) {
   const router = useRouter();
   const [name, setName] = useState(sequence.name);
   const [isSaving, setIsSaving] = useState(false);
+  const [mailboxes, setMailboxes] = useState<Mailbox[]>([]);
+  const [isLoadingMailboxes, setIsLoadingMailboxes] = useState(true);
+
+  useEffect(() => {
+    const fetchMailboxes = async () => {
+      try {
+        const response = await fetch("/api/mailboxes");
+        if (!response.ok) throw new Error("Failed to fetch mailboxes");
+        const data = await response.json();
+        setMailboxes(data);
+      } catch (error) {
+        console.error("Failed to fetch mailboxes:", error);
+        toast.error("Failed to load mailboxes");
+      } finally {
+        setIsLoadingMailboxes(false);
+      }
+    };
+
+    fetchMailboxes();
+  }, []);
 
   const handleSave = async () => {
     try {
@@ -100,7 +127,9 @@ export function SequenceSettings({ sequence }: SequenceSettingsProps) {
           testMode: sequence.testMode ?? false,
           disableSending: sequence.disableSending ?? false,
           testEmails: sequence.testEmails ?? [],
+          mailboxId: sequence.mailboxId ?? null,
         }}
+        mailboxes={mailboxes}
       />
 
       {/* Danger Zone */}
