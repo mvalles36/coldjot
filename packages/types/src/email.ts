@@ -5,15 +5,6 @@ export type Message = gmail_v1.Schema$Message;
 import type { EmailTracking } from "./events";
 import { GoogleAccount } from "./google";
 
-// export interface SendEmailOptions {
-//   to: string;
-//   subject: string;
-//   content: string;
-//   threadId?: string;
-//   accessToken?: string;
-//   originalContent?: string;
-// }
-
 export interface CreateDraftOptions {
   to: string;
   subject: string;
@@ -43,13 +34,6 @@ export interface EmailResult {
   success?: boolean;
   error?: string;
   isFake?: boolean;
-}
-
-interface GmailAccountCredentials {
-  accessToken: string;
-  refreshToken: string;
-  email?: string;
-  expiryDate?: number;
 }
 
 export interface SendEmailOptions {

@@ -44,7 +44,7 @@ export async function POST(req: Request, { params }: RouteParams) {
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID_EMAIL,
       process.env.GOOGLE_CLIENT_SECRET_EMAIL,
-      `http://localhost:3000/api/email-accounts/gmail/callback`
+      process.env.GOOGLE_REDIRECT_URI_EMAIL
     );
 
     oauth2Client.setCredentials({

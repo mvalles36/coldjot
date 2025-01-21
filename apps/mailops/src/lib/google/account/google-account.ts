@@ -7,42 +7,6 @@ import { GoogleAccount, TokenRefreshError } from "@coldjot/types";
 // -----------------------------------------
 // -----------------------------------------
 
-export async function getGoogleAccount(
-  userId: string
-): Promise<GoogleAccount | null> {
-  const account = await prisma.account.findFirst({
-    where: {
-      userId: userId,
-      provider: "google",
-    },
-    select: {
-      userId: true,
-      access_token: true,
-      refresh_token: true,
-      providerAccountId: true,
-    },
-  });
-
-  if (
-    !account?.access_token ||
-    !account?.refresh_token ||
-    !account?.providerAccountId
-  ) {
-    return null;
-  }
-
-  return {
-    userId: account.userId,
-    providerAccountId: account.providerAccountId,
-    accessToken: account.access_token,
-    refreshToken: account.refresh_token,
-  };
-}
-
-// -----------------------------------------
-// -----------------------------------------
-// -----------------------------------------
-
 // TODO :  halt everything if this fails
 export async function refreshAccessToken(
   userId: string,
@@ -88,8 +52,8 @@ export async function refreshAccessToken(
         const updatedAccount = await prisma.account.update({
           where: { id: account.id },
           data: {
-            access_token: credentials.access_token,
-            expires_at: credentials.expiry_date
+            accessToken: credentials.access_token,
+            expiresAt: credentials.expiry_date
               ? credentials.expiry_date / 1000
               : null,
             // id_token: credentials.id_token,
@@ -136,7 +100,7 @@ export async function refreshAccessToken(
 
 // Configure Gmail OAuth2 client
 export const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  `${process.env.AUTH_URL}/api/auth/callback/google`
+  process.env.GOOGLE_CLIENT_ID_EMAIL,
+  process.env.GOOGLE_CLIENT_SECRET_EMAIL,
+  process.env.GOOGLE_REDIRECT_URI_EMAIL
 );

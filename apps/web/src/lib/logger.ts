@@ -36,6 +36,8 @@ const logger = pino({
       "password",
       "access_token",
       "refresh_token",
+      "accessToken",
+      "refreshToken",
       "*.password",
       "*.token",
       "*.key",

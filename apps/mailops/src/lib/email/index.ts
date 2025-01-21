@@ -95,6 +95,7 @@ export class EmailService {
         const gmail = await gmailClientService.getClient(options.userId);
 
         // Get sender info using accessToken like SMTP version
+        // TODO : Get the sender info from the account for the sequence
         const senderInfo = await getSenderInfoWithId(options.userId);
 
         // Get thread info exactly like SMTP version

@@ -15,7 +15,7 @@ interface SequenceHeaderProps {
     name: string;
     status: SequenceStatus;
     contactCount: number;
-    testMode: boolean;
+    testMode?: boolean;
     disabledSending?: boolean;
   };
 }
@@ -64,7 +64,7 @@ export function SequenceHeader({ sequence }: SequenceHeaderProps) {
         onClose={() => setShowLaunchModal(false)}
         sequenceId={sequence.id}
         contactCount={sequence.contactCount}
-        testMode={sequence.testMode}
+        testMode={sequence.testMode || false}
         onStatusChange={() => {
           router.refresh();
         }}

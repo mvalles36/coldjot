@@ -30,9 +30,9 @@ export class GmailClientService {
   // TODO: Move to config
   private constructor() {
     this.config = {
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      redirectUri: `${process.env.AUTH_URL}/api/auth/callback/google`,
+      clientId: process.env.GOOGLE_CLIENT_ID_EMAIL!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET_EMAIL!,
+      redirectUri: process.env.GOOGLE_REDIRECT_URI_EMAIL!,
     };
   }
 
@@ -141,9 +141,9 @@ export async function createGmailDraft({
 }: CreateDraftOptions) {
   try {
     const auth = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-      `${process.env.AUTH_URL}/api/auth/callback/google`
+      process.env.GOOGLE_CLIENT_ID_EMAIL,
+      process.env.GOOGLE_CLIENT_SECRET_EMAIL,
+      process.env.GOOGLE_REDIRECT_URI_EMAIL
     );
 
     auth.setCredentials({
@@ -206,9 +206,9 @@ export async function sendGmailDraft({
   try {
     // Set up new credentials for this request
     const auth = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-      `${process.env.AUTH_URL}/api/auth/callback/google`
+      process.env.GOOGLE_CLIENT_ID_EMAIL,
+      process.env.GOOGLE_CLIENT_SECRET_EMAIL,
+      process.env.GOOGLE_REDIRECT_URI_EMAIL
     );
 
     auth.setCredentials({
@@ -238,9 +238,9 @@ export async function sendGmailDraft({
 
 export async function getGmailEmail(accessToken: string, messageId: string) {
   const auth = new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    `${process.env.AUTH_URL}/api/auth/callback/google`
+    process.env.GOOGLE_CLIENT_ID_EMAIL,
+    process.env.GOOGLE_CLIENT_SECRET_EMAIL,
+    process.env.GOOGLE_REDIRECT_URI_EMAIL
   );
 
   auth.setCredentials({
@@ -265,9 +265,9 @@ export async function getGmailEmail(accessToken: string, messageId: string) {
 
 export async function getGmailThread(accessToken: string, threadId: string) {
   const auth = new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    `${process.env.AUTH_URL}/api/auth/callback/google`
+    process.env.GOOGLE_CLIENT_ID_EMAIL,
+    process.env.GOOGLE_CLIENT_SECRET_EMAIL,
+    process.env.GOOGLE_REDIRECT_URI_EMAIL
   );
 
   auth.setCredentials({

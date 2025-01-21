@@ -90,14 +90,14 @@ export async function GET(request: Request) {
     if (error) {
       console.error("[GMAIL_CALLBACK] OAuth Error:", error);
       return Response.redirect(
-        `${process.env.NEXT_PUBLIC_APP_URL}/settings?error=gmail_auth_failed&reason=${error}`
+        `${process.env.NEXT_PUBLIC_APP_URL}/settings/mailboxes?error=gmail_auth_failed&reason=${error}`
       );
     }
 
     if (!code || !state) {
       console.error("[GMAIL_CALLBACK] Missing code or state");
       return Response.redirect(
-        `${process.env.NEXT_PUBLIC_APP_URL}/settings?error=invalid_request`
+        `${process.env.NEXT_PUBLIC_APP_URL}/settings/mailboxes?error=invalid_request`
       );
     }
 
@@ -122,6 +122,8 @@ export async function GET(request: Request) {
         hasRefreshToken: !!tokens.refresh_token,
         expiryDate: tokens.expiry_date,
         tokenType: tokens.token_type,
+        scope: tokens.scope,
+        idToken: tokens.id_token,
       });
 
       // Get user info from Google
@@ -156,12 +158,17 @@ export async function GET(request: Request) {
         await prisma.mailbox.update({
           where: { id: existingAccount.id },
           data: {
-            accessToken: tokens.access_token,
-            refreshToken: tokens.refresh_token,
-            expiresAt: tokens.expiry_date
+            access_token: tokens.access_token,
+            refresh_token: tokens.refresh_token,
+            expires_at: tokens.expiry_date
               ? Math.floor(tokens.expiry_date / 1000)
               : null,
             name: userInfo.name || null,
+            type: "oauth",
+            token_type: tokens.token_type || null,
+            scope: tokens.scope || null,
+            id_token: tokens.id_token || null,
+            providerAccountId: userInfo.id || "",
           },
         });
         accountId = existingAccount.id;
@@ -174,11 +181,16 @@ export async function GET(request: Request) {
             email: userInfo.email,
             name: userInfo.name || null,
             provider: "gmail",
-            accessToken: tokens.access_token,
-            refreshToken: tokens.refresh_token,
-            expiresAt: tokens.expiry_date
+            type: "oauth",
+            access_token: tokens.access_token,
+            refresh_token: tokens.refresh_token,
+            expires_at: tokens.expiry_date
               ? Math.floor(tokens.expiry_date / 1000)
               : null,
+            token_type: tokens.token_type || null,
+            scope: tokens.scope || null,
+            id_token: tokens.id_token || null,
+            providerAccountId: userInfo.id || "",
             // If this is the first account, make it default
             isDefault: !(await prisma.mailbox.findFirst({
               where: { userId, isDefault: true },

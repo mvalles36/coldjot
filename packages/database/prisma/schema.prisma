@@ -8,26 +8,21 @@ datasource db {
 }
 
 model Account {
-    id                String    @id @default(cuid())
+    id                String  @id @default(cuid())
     userId            String
     type              String
     provider          String
     providerAccountId String
-    refresh_token     String?   @db.Text
-    access_token      String?   @db.Text
+    refresh_token     String? @db.Text
+    access_token      String? @db.Text
     expires_at        Int?
     token_type        String?
     scope             String?
-    id_token          String?   @db.Text
-    session_state     String?
-    watchHistoryId    String?   @db.Text
-    watchExpiration   DateTime?
-    messageId         String?   @db.Text
+    id_token          String? @db.Text
 
     user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     @@unique([provider, providerAccountId])
-    @@index([watchHistoryId])
     @@index([userId])
 }
 
@@ -424,15 +419,19 @@ model Mailbox {
     updatedAt DateTime @updatedAt
 
     // OAuth related fields
-    accessToken  String? @db.Text
-    refreshToken String? @db.Text
-    expiresAt    Int?
+    access_token      String? @db.Text
+    refresh_token     String? @db.Text
+    expires_at        Int?
+    type              String // Changed from String? to String to match Account model
+    token_type        String?
+    scope             String?
+    id_token          String? @db.Text
+    providerAccountId String // Changed from String? to String to match Account model
 
     // Email account settings
     aliases        EmailAlias[]
     defaultAliasId String?
     defaultAlias   EmailAlias?  @relation("DefaultAlias", fields: [defaultAliasId], references: [id])
-    settings       Json? // Store provider-specific settings
 
     user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

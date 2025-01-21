@@ -14,8 +14,8 @@ export async function createGmailTransport(
     auth: {
       type: "OAuth2",
       user: userEmail,
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      clientId: process.env.GOOGLE_CLIENT_ID_EMAIL,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET_EMAIL,
       refreshToken: refreshToken,
       accessToken: accessToken,
       // Add OAuth2 refresh token handler
@@ -26,9 +26,9 @@ export async function createGmailTransport(
         refreshAccessToken: async () => {
           try {
             const oauth2Client = new google.auth.OAuth2(
-              process.env.GOOGLE_CLIENT_ID,
-              process.env.GOOGLE_CLIENT_SECRET,
-              process.env.NEXTAUTH_URL + "/api/auth/callback/google"
+              process.env.GOOGLE_CLIENT_ID_EMAIL,
+              process.env.GOOGLE_CLIENT_SECRET_EMAIL,
+              process.env.GOOGLE_REDIRECT_URI_EMAIL
             );
             oauth2Client.setCredentials({
               refresh_token: refreshToken,

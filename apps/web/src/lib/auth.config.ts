@@ -53,6 +53,8 @@ export const authConfig: NextAuthConfig = {
             account.providerAccountId
           );
 
+          console.log("existingAccount", existingAccount);
+
           if (existingAccount) {
             await updateGoogleAccount(account.providerAccountId, {
               access_token: account.access_token,
@@ -61,17 +63,11 @@ export const authConfig: NextAuthConfig = {
                 refresh_token: account.refresh_token,
               }),
             });
+
+            console.log("updatedAccount");
           } else {
             if (!user.id) return false;
           }
-
-          // TODO: Uncomment this when we have a way to check if the user already has a watch
-          // console.log("🚀 Setting up Gmail watch...with 3 sec delay");
-          // await setupGmailWatch({
-          //   userId: user.id!,
-          //   accessToken: account.access_token,
-          //   topicName: process.env.GMAIL_WATCH_TOPIC!,
-          // });
         } catch (error) {
           console.error("Failed to setup Gmail watch:", error);
         }
@@ -104,7 +100,7 @@ export const authConfig: NextAuthConfig = {
               client_id: process.env.GOOGLE_CLIENT_ID!,
               client_secret: process.env.GOOGLE_CLIENT_SECRET!,
               grant_type: "refresh_token",
-              refresh_token: googleAccount.refresh_token,
+              refresh_token: googleAccount.refresh_token!,
             }),
           });
 
