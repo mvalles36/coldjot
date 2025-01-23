@@ -33,6 +33,7 @@ type SequenceWithRelations = {
   businessHours: BusinessHours | null;
   testMode: boolean;
   disableSending: boolean;
+  mailboxId: string;
 };
 
 // Define our email processing type
@@ -162,6 +163,7 @@ export class ScheduleProcessor extends BaseProcessor<any> {
               status: true,
               testMode: true,
               disableSending: true,
+              mailboxId: true,
               steps: {
                 orderBy: {
                   order: "asc",
@@ -234,6 +236,7 @@ export class ScheduleProcessor extends BaseProcessor<any> {
             ...email,
             sequence: {
               ...email.sequence,
+              mailboxId: email.sequence.mailboxId || "",
               steps: email.sequence.steps.map((step) => ({
                 ...step,
                 status: StepStatus.ACTIVE,
@@ -467,6 +470,7 @@ export class ScheduleProcessor extends BaseProcessor<any> {
         contactId: contact.id,
         stepId: currentStep.id,
         userId: sequence.userId,
+        mailboxId: sequence.mailboxId,
         to: contact.email,
         subject: subject || currentStep.subject || "",
         threadId:

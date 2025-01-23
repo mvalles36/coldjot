@@ -4,7 +4,7 @@ export * from "./search";
 export * from "./sequences";
 export * from "./email";
 export * from "./queue";
-export * from "./google";
+export * from "./mailbox";
 export * from "./gmail";
 export * from "./thread";
 

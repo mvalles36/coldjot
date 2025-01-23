@@ -1,32 +1,15 @@
 import { Queue, Job } from "bullmq";
 import {
-  ProcessingJob,
-  EmailJob,
-  EmailJobEnum,
-  SequenceContactStatusEnum,
-  SequenceStep,
-  StepStatus,
   StepPriority,
   StepTiming,
   StepTypeEnum,
   BusinessHours,
-  StepType,
   BusinessScheduleEnum,
 } from "@coldjot/types";
 import { logger } from "@/lib/log";
 import { RateLimitService } from "@/services/core/rate-limit/service";
 import { ScheduleGenerator, scheduleGenerator } from "@/lib/schedule";
-import { randomUUID } from "crypto";
-import { prisma } from "@coldjot/database";
-import {
-  getUserGoogleAccount,
-  getDefaultBusinessHours,
-  updateSequenceContactStatus,
-  updateSequenceContactProgress,
-  getActiveSequenceContacts,
-  getSequenceWithDetails,
-  getContactProgress,
-} from "./helper";
+import { getActiveSequenceContacts, getSequenceWithDetails } from "./helper";
 import { QUEUE_NAMES } from "@/config";
 import { getWorkerOptions } from "@/config";
 import { BaseProcessor } from "../base-processor";
@@ -37,6 +20,7 @@ import { processContactShared } from "./helper";
 interface SequenceWithRelations {
   id: string;
   userId: string;
+  mailboxId: string;
   name?: string;
   steps: {
     id: string;
@@ -54,25 +38,6 @@ interface SequenceWithRelations {
     updatedAt: Date;
   }[];
   businessHours: BusinessHours | null;
-}
-
-interface SequenceContactWithRelations {
-  id: string;
-  sequenceId: string;
-  contactId: string;
-  currentStep: number;
-  lastProcessedAt: Date | null;
-  nextScheduledAt: Date | null;
-  completed: boolean;
-  completedAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-  sequence: SequenceWithRelations;
-  contact: {
-    id: string;
-    email: string;
-  };
-  threadId?: string;
 }
 
 interface ProcessingJobData {
@@ -140,9 +105,14 @@ export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
         throw new Error("Sequence not found");
       }
 
+      if (!dbSequence.mailboxId) {
+        throw new Error("Sequence mailbox not found");
+      }
+
       // Cast database sequence to our expected type
       const sequence: SequenceWithRelations = {
         ...dbSequence,
+        mailboxId: dbSequence.mailboxId || "",
         steps: dbSequence.steps.map((step) => ({
           ...step,
           stepType: step.stepType as StepTypeEnum,
@@ -167,22 +137,10 @@ export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
         sequence: sequence.name,
       });
 
-      // TODO : Check if this is needed
-      // Get user's Google account
-      const googleAccount = await getUserGoogleAccount(data.userId);
-      if (!googleAccount) {
-        throw new Error(`No valid email account found for user ${data.userId}`);
-      }
-
       // Process each contact
       for (const sequenceContact of contacts) {
         try {
-          await this.processContact(
-            sequenceContact,
-            sequence,
-            data,
-            googleAccount
-          );
+          await this.processContact(sequenceContact, sequence, data);
         } catch (error) {
           logger.error(
             error,
@@ -211,8 +169,7 @@ export class SequenceProcessor extends BaseProcessor<ProcessingJobData> {
   private async processContact(
     sequenceContact: any,
     sequence: SequenceWithRelations,
-    data: ProcessingJobData,
-    googleAccount: any
+    data: ProcessingJobData
   ): Promise<void> {
     await processContactShared(
       {

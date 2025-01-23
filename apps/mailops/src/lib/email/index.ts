@@ -14,9 +14,9 @@ import {
   SequenceContactStatusEnum,
 } from "@coldjot/types";
 import {
-  getSenderInfoWithId,
   createEmailMessage,
   createUntrackedMessage,
+  generateSenderInfo,
 } from "./helper";
 import { EmailTrackingStatusEnum } from "@coldjot/types";
 import { getEmailThreadInfo } from "@/lib/google/helper";
@@ -57,21 +57,6 @@ export class EmailService {
           const threadId = options.threadId || `fake-thread-${Date.now()}`;
           const messageId = `fake-msg-${Date.now()}`;
 
-          // Create or update email thread record
-          // if (!options.threadId) {
-          //   await prisma.emailThread.create({
-          //     data: {
-          //       threadId,
-          //       sequenceId: options.sequenceId!,
-          //       contactId: options.contactId!,
-          //       userId: options.userId,
-          //       subject: options.subject,
-          //       firstMessageId: messageId,
-          //       isFake: true,
-          //     },
-          //   });
-          // }
-
           // Create tracking records with fake IDs
           await this.updateEmailTracking(options.tracking.id, options, {
             id: messageId,
@@ -92,11 +77,13 @@ export class EmailService {
         }
 
         // Get gmail client
-        const gmail = await gmailClientService.getClient(options.userId);
+        const gmail = await gmailClientService.getClient(
+          options.userId,
+          options.mailbox?.id!
+        );
 
-        // Get sender info using accessToken like SMTP version
-        // TODO : Get the sender info from the account for the sequence
-        const senderInfo = await getSenderInfoWithId(options.userId);
+        //TODO: Get sender info using accessToken like SMTP version - Recheck
+        const senderInfo = await generateSenderInfo(options.mailbox);
 
         // Get thread info exactly like SMTP version
         const { threadHeaders, originalSubject } = await getEmailThreadInfo(
@@ -221,7 +208,7 @@ export class EmailService {
           content: trackedContent,
           threadId: options.threadId,
           originalContent: options.html,
-          accessToken: options.account.accessToken!,
+          mailbox: options.mailbox,
         });
 
         return {
@@ -375,9 +362,9 @@ export class EmailService {
           to: options.to,
           subject: options.subject,
           threadId: options.threadId,
-          account: {
-            email: options.account.email,
-            expiryDate: new Date(options.account.expiryDate!).toISOString(),
+          mailbox: {
+            email: options.mailbox.email,
+            expiryDate: new Date(options.mailbox.expiryDate!).toISOString(),
           },
         },
       },

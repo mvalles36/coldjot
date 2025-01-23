@@ -23,6 +23,7 @@ import {
   isSenderSequenceOwner,
   shouldProcessMessage,
 } from "@/utils";
+import { getSequenceMailbox, getSequenceMailboxId } from "../sequence/helper";
 
 // Environment-specific configuration
 type Environment = "DEVELOPMENT" | "PRODUCTION";
@@ -36,7 +37,8 @@ interface ThreadCheckJob {
   type: "CHECK_THREADS";
   batchSize?: number;
   priority?: number;
-  userId?: string;
+  userId: string;
+  mailboxId: string;
   sequenceId?: string;
   threadAge?: "RECENT" | "MEDIUM" | "OLD" | "VERY_OLD";
 }
@@ -310,6 +312,8 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
           ],
         },
       ],
+
+      // TODO : remove this because userId and sequenceId are not used afaik
       // Filter by user or sequence if specified
       ...(jobData.userId && { sequence: { userId: jobData.userId } }),
       ...(jobData.sequenceId && { sequenceId: jobData.sequenceId }),
@@ -487,9 +491,20 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
   private async checkThread(thread: any): Promise<void> {
     try {
       const threadAge = this.getThreadAge(thread.createdAt);
+
+      const mailboxId = await getSequenceMailboxId(thread.sequenceId);
+
+      if (!mailboxId) {
+        logger.error(
+          `🧶 ❌ No mailbox found for sequence ${thread.sequenceId}`
+        );
+        return;
+      }
+
       const checkData: ThreadCheckData = {
         threadId: thread.threadId,
         userId: thread.sequence.userId,
+        mailboxId: mailboxId!,
         sequenceId: thread.sequenceId,
         contactId: thread.contactId,
         messageId: thread.messageId || "",
@@ -513,27 +528,12 @@ export class ThreadProcessor extends BaseProcessor<ThreadCheckJob> {
     }
   }
 
-  private shouldStopCheckingAfterError(error: any): boolean {
-    const permanentErrors = [
-      "Invalid thread ID",
-      "Thread not found",
-      "Account not found",
-      "Invalid credentials",
-      "Account disconnected",
-    ];
-
-    if (error.message) {
-      return permanentErrors.some((errMsg) => error.message.includes(errMsg));
-    }
-
-    return false;
-  }
-
   private async checkThreadForRepliesAndBounces(
     data: ThreadCheckData
   ): Promise<boolean> {
     const gmail = await GmailClientService.getInstance().getClient(
-      data.userId!
+      data.userId!,
+      data.mailboxId!
     );
 
     try {

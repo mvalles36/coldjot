@@ -79,12 +79,6 @@ export async function PATCH(req: Request, { params }: RouteParams) {
       return new NextResponse("Not Found", { status: 404 });
     }
 
-    // Merge existing settings with new settings
-    const mergedSettings = {
-      ...(currentAccount.settings as Record<string, unknown>),
-      ...(newSettings || {}),
-    };
-
     // If defaultAliasId is provided, verify it belongs to this account
     if (defaultAliasId !== undefined) {
       // Only verify if defaultAliasId is not null (null means use primary email)
@@ -111,7 +105,6 @@ export async function PATCH(req: Request, { params }: RouteParams) {
         ...(isActive !== undefined && { isActive }),
         ...(isDefault !== undefined && { isDefault }),
         ...(name !== undefined && { name }),
-        ...(newSettings !== undefined && { settings: mergedSettings }),
         ...(defaultAliasId !== undefined && { defaultAliasId }),
       },
       include: {

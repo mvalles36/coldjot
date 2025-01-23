@@ -1,55 +1,16 @@
 import { prisma } from "@coldjot/database";
 import {
   BusinessHours,
+  Mailbox,
   SequenceContactStatusEnum,
   SequenceContactStatusType,
-  StepStatus,
 } from "@coldjot/types";
-import { GoogleAccount } from "@coldjot/types";
+
 import { logger } from "@/lib/log";
 import { rateLimitService } from "@/services/core/rate-limit/service";
 import { scheduleGenerator } from "@/lib/schedule";
 import { EmailJob } from "@coldjot/types";
-
-/**
- * Get user's Google account details
- */
-export async function getUserGoogleAccount(
-  userId: string
-): Promise<GoogleAccount | null> {
-  const account = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      email: true,
-      accounts: {
-        where: {
-          provider: "google",
-        },
-        select: {
-          access_token: true,
-          refresh_token: true,
-          expires_at: true,
-        },
-        take: 1,
-      },
-    },
-  });
-
-  if (
-    !account?.email ||
-    !account.accounts[0]?.access_token ||
-    !account.accounts[0]?.refresh_token
-  ) {
-    return null;
-  }
-
-  return {
-    email: account.email,
-    accessToken: account.accounts[0].access_token,
-    refreshToken: account.accounts[0].refresh_token,
-    expiryDate: account.accounts[0].expires_at || 0,
-  };
-}
+import { getSenderMailbox } from "@/lib/mailbox";
 
 /**
  * Get default business hours if not provided
@@ -62,6 +23,33 @@ export function getDefaultBusinessHours(): BusinessHours {
     workHoursEnd: "17:00",
     holidays: [],
   };
+}
+
+/**
+ * Get sender mailbox
+ */
+export async function getSequenceMailbox(
+  sequenceId: string
+): Promise<Mailbox | null> {
+  const sequence = await prisma.sequence.findUnique({
+    where: { id: sequenceId },
+  });
+  if (!sequence) {
+    throw new Error("Sequence not found");
+  }
+  return getSenderMailbox(sequence.userId!, sequence.mailboxId!);
+}
+
+export async function getSequenceMailboxId(
+  sequenceId: string
+): Promise<string | null> {
+  const sequence = await prisma.sequence.findUnique({
+    where: { id: sequenceId },
+  });
+  if (!sequence) {
+    throw new Error("Sequence not found");
+  }
+  return sequence.mailboxId;
 }
 
 /**
@@ -286,6 +274,7 @@ interface ProcessContactOptions {
   sequence: {
     id: string;
     userId: string;
+    mailboxId: string;
     steps: any[];
     businessHours?: any;
     status?: string;
@@ -353,14 +342,6 @@ export const processContactShared = async (
       throw new Error("Step not found");
     }
 
-    // 4. Get user's Google account
-    const googleAccount = await getUserGoogleAccount(sequence.userId);
-    if (!googleAccount) {
-      throw new Error(
-        `No valid email account found for user ${sequence.userId}`
-      );
-    }
-
     // 5. Calculate send time using scheduling service
     const sendTime = await scheduleGenerator.calculateNextRun(
       new Date(),
@@ -385,9 +366,9 @@ export const processContactShared = async (
       contactId: contact.id,
       stepId: step.id,
       userId: sequence.userId,
-      to: testMode
-        ? process.env.TEST_EMAIL || googleAccount.email || ""
-        : contact.email,
+      mailboxId: sequence.mailboxId,
+      // TODO : Remove this and properly handle test mode
+      to: contact.email,
       subject: subject || "",
       threadId: options.threadId,
       scheduledTime: sendTime.toISOString(),

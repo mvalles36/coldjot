@@ -1,8 +1,8 @@
 import { prisma } from "@coldjot/database";
 import { sleep } from "@/utils";
 import { google } from "googleapis";
-import { GoogleAccount, TokenRefreshError } from "@coldjot/types";
-
+import { TokenRefreshError } from "@coldjot/types";
+import { getSenderMailbox, updateMailboxCredentials } from "@/lib/mailbox";
 // -----------------------------------------
 // -----------------------------------------
 // -----------------------------------------
@@ -10,6 +10,7 @@ import { GoogleAccount, TokenRefreshError } from "@coldjot/types";
 // TODO :  halt everything if this fails
 export async function refreshAccessToken(
   userId: string,
+  mailboxId: string,
   refreshToken: string,
   maxRetries = 3
 ): Promise<string | null> {
@@ -30,39 +31,14 @@ export async function refreshAccessToken(
       console.log(`🔄 Token refreshed successfully on attempt ${attempt + 1}`);
 
       // Save the new access token
-      console.log(`🔄 Finding account for user ${userId}`);
-      const account = await prisma.account.findFirst({
-        where: {
-          userId: userId,
-        },
+      console.log(`🔄 Finding mailbox for user ${userId}`);
+      const mailbox = await getSenderMailbox(userId, mailboxId);
+
+      console.log(`🔄 Updating mailbox ${mailbox?.id} with new access token`);
+      await updateMailboxCredentials(mailboxId, {
+        accessToken: credentials.access_token,
+        expiryDate: credentials.expiry_date!,
       });
-      console.log(`🔄 Account found: ${account?.id}`);
-
-      if (!account) {
-        console.error(`❌ Account not found for user ${userId}`);
-        return null;
-        // throw new Error("Account not found");
-      }
-
-      console.log(
-        `🔄 Updating account ${account.id} : ${userId} with new access token`
-      );
-
-      try {
-        const updatedAccount = await prisma.account.update({
-          where: { id: account.id },
-          data: {
-            accessToken: credentials.access_token,
-            expiresAt: credentials.expiry_date
-              ? credentials.expiry_date / 1000
-              : null,
-            // id_token: credentials.id_token,
-          },
-        });
-        console.log(`🔄 Updated account: ${updatedAccount}`);
-      } catch (error) {
-        console.error(`❌ Error updating account: ${error}`);
-      }
 
       return credentials.access_token;
     } catch (error) {

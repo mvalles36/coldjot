@@ -22,7 +22,7 @@ export async function POST(req: Request, { params }: RouteParams) {
     const { mailboxId } = await params;
 
     // Verify account ownership and get credentials
-    const account = await prisma.mailbox.findUnique({
+    const mailbox = await prisma.mailbox.findUnique({
       where: {
         id: mailboxId,
         userId: session.user.id,
@@ -32,11 +32,11 @@ export async function POST(req: Request, { params }: RouteParams) {
       },
     });
 
-    if (!account) {
+    if (!mailbox) {
       return new NextResponse("Not Found", { status: 404 });
     }
 
-    if (account.provider !== "gmail") {
+    if (mailbox.provider !== "gmail") {
       return new NextResponse("Only Gmail accounts supported", { status: 400 });
     }
 
@@ -48,9 +48,9 @@ export async function POST(req: Request, { params }: RouteParams) {
     );
 
     oauth2Client.setCredentials({
-      access_token: account.accessToken,
-      refresh_token: account.refreshToken,
-      expiry_date: account.expiresAt ? account.expiresAt * 1000 : undefined,
+      access_token: mailbox.access_token,
+      refresh_token: mailbox.refresh_token,
+      expiry_date: mailbox.expires_at ? mailbox.expires_at * 1000 : undefined,
     });
 
     const gmail = google.gmail({ version: "v1", auth: oauth2Client });
@@ -62,7 +62,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       });
 
       // Get current aliases
-      const currentAliases = new Set(account.aliases.map((a) => a.alias));
+      const currentAliases = new Set(mailbox.aliases.map((a) => a.alias));
 
       // Filter out primary email and prepare alias data
       const gmailAliases = new Set(

@@ -21,6 +21,7 @@ export interface EmailJob {
   contactId: string;
   stepId: string;
   userId: string;
+  mailboxId: string;
   messageId?: string;
   scheduledTime?: string;
   to: string;

@@ -1,32 +1,16 @@
 import { encode as base64Encode } from "js-base64";
-import { prisma } from "@coldjot/database";
 import { normalizeSubject } from "@/utils";
-import {
-  EmailEventEnum,
-  type EmailResult,
-  type ThreadHeaders,
-} from "@coldjot/types";
-import type { EmailTracking } from "@coldjot/types";
-import { trackEmailEvent } from "@/lib/tracking";
+import { type ThreadHeaders } from "@coldjot/types";
 
-import path from "path";
-import { logger } from "../../lib/log";
+import { Mailbox } from "@coldjot/types";
+
 import type { SenderInfo, MessageHeader, GmailMessage } from "@coldjot/types";
 
-export async function getSenderInfoWithId(id: string): Promise<SenderInfo> {
-  const account = await prisma.user.findFirst({
-    where: { id: id },
-    include: {
-      accounts: {},
-    },
-  });
-
-  if (!account?.accounts[0]?.access_token) {
-    throw new Error("User email not found");
-  }
-
-  const senderEmail = account.email;
-  const senderName = account.name;
+export async function generateSenderInfo(
+  mailbox: Mailbox
+): Promise<SenderInfo> {
+  const senderEmail = mailbox.email;
+  const senderName = mailbox.name;
   const header = senderName ? `${senderName} <${senderEmail}>` : senderEmail;
 
   return {

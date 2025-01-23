@@ -196,7 +196,7 @@ export default function Sidebar() {
           </div> */}
 
           {/* Management Section */}
-          <div className="space-y-1">
+          <div className="space-y-2">
             <SectionTitle>Management</SectionTitle>
 
             {managementRoutes.map((route) => (
@@ -212,7 +212,7 @@ export default function Sidebar() {
               >
                 <route.icon
                   className={cn(
-                    "h-4 w-4 flex-shrink-0",
+                    "h-5 w-5 flex-shrink-0",
                     pathname === route.href ? "text-gray-900" : "text-gray-500"
                   )}
                 />

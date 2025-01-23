@@ -2,7 +2,7 @@ import { generateMessageId } from "@/utils";
 import { logger } from "@/lib/log";
 import { refreshAccessToken } from "@/lib/google";
 import {
-  GmailCredentials,
+  MailboxCredentials,
   GmailMessage,
   MessageHeader,
   ThreadHeaders,
@@ -16,7 +16,7 @@ import {
  * Check if the access token needs to be refreshed
  * Refreshes token if it's about to expire within 5 minutes
  */
-export function shouldRefreshToken(credentials: GmailCredentials): boolean {
+export function shouldRefreshToken(credentials: MailboxCredentials): boolean {
   // If expiryDate exists and is within 5 minutes of expiring
   // const needsRefresh =
   // credentials.expiryDate &&
@@ -46,7 +46,7 @@ export function shouldRefreshToken(credentials: GmailCredentials): boolean {
  * Returns the current valid access token (either refreshed or existing)
  */
 export async function refreshTokenIfNeeded(
-  credentials: GmailCredentials
+  credentials: MailboxCredentials
 ): Promise<string> {
   try {
     if (shouldRefreshToken(credentials)) {
@@ -55,8 +55,10 @@ export async function refreshTokenIfNeeded(
         "🔄 Attempting to refresh access token"
       );
 
+      // Check the refresh token where it's stored
       const newAccessToken = await refreshAccessToken(
         credentials.userId,
+        credentials.mailboxId,
         credentials.refreshToken
       );
 
@@ -94,9 +96,12 @@ export async function refreshTokenIfNeeded(
  * Validate required Gmail credentials
  * Throws an error if required credentials are missing
  */
-export function validateGmailCredentials(credentials: GmailCredentials): void {
+export function validateGmailCredentials(
+  credentials: MailboxCredentials
+): void {
   logger.info("🔄 Validating Gmail credentials");
 
+  // TODO : check the code and remove if necessary
   const isTokenExpired =
     !credentials.expiryDate || new Date(credentials.expiryDate) <= new Date();
   if (!credentials.accessToken || !credentials.refreshToken) {
@@ -122,7 +127,7 @@ export function validateGmailCredentials(credentials: GmailCredentials): void {
 export function setOAuth2Credentials(
   auth: any,
   accessToken: string,
-  credentials: GmailCredentials
+  credentials: MailboxCredentials
 ): void {
   auth.setCredentials({
     access_token: accessToken,

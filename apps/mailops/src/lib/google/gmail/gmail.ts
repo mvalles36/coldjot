@@ -1,7 +1,6 @@
 import { google } from "googleapis";
 import { encode as base64Encode } from "js-base64";
 import { prisma } from "@coldjot/database";
-import { GoogleAccount } from "@coldjot/types";
 
 import type { gmail_v1 } from "googleapis";
 import { logger } from "@/lib/log";
@@ -12,7 +11,6 @@ import {
 } from "./helper";
 
 import type {
-  GmailCredentials,
   GmailClientConfig,
   CreateDraftOptions,
   SendDraftOptions,
@@ -62,8 +60,11 @@ export class GmailClientService {
   /**
    * Get a Gmail client instance with automatic token refresh
    */
-  // public async getClient(options: GmailCredentials): Promise<gmail_v1.Gmail> {
-  public async getClient(userId: string): Promise<gmail_v1.Gmail> {
+  // public async getClient(options: MailboxCredentials): Promise<gmail_v1.Gmail> {
+  public async getClient(
+    userId: string,
+    mailboxId: string
+  ): Promise<gmail_v1.Gmail> {
     try {
       logger.info(
         {
@@ -72,23 +73,24 @@ export class GmailClientService {
         "🔄 Initializing Gmail client"
       );
 
-      // Lets get user account here instead of passing it in
-      const account = await prisma.account.findFirst({
+      // Lets get user mailbox here instead of passing it in
+      const mailbox = await prisma.mailbox.findUnique({
         where: {
+          id: mailboxId,
           userId: userId,
-          provider: "google",
         },
       });
 
-      if (!account) {
-        throw new Error("Account not found");
+      if (!mailbox) {
+        throw new Error("Mailbox not found");
       }
 
       const credentials = {
-        userId: account.userId,
-        accessToken: account.access_token!,
-        refreshToken: account.refresh_token!,
-        expiryDate: account.expires_at!,
+        userId: mailbox.userId,
+        mailboxId: mailbox.id,
+        accessToken: mailbox.access_token!,
+        refreshToken: mailbox.refresh_token!,
+        expiryDate: mailbox.expires_at!,
       };
 
       // Validate credentials

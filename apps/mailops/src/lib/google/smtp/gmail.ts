@@ -35,7 +35,7 @@ export async function sendGmailSMTP({
   content,
   threadId,
   originalContent,
-  accessToken,
+  mailbox,
 }: SendGmailOptions): Promise<GmailResponse> {
   // Generate message ID and boundary
   const messageId = generateMessageId();
@@ -44,30 +44,20 @@ export async function sendGmailSMTP({
   console.log("Generated message ID", messageId);
   console.log("Generated boundary", boundary);
 
-  // Get account information
-  const account = await prisma.account.findFirst({
-    where: { access_token: accessToken },
-    include: {
-      user: {
-        select: {
-          id: true,
-          email: true,
-          name: true,
-        },
-      },
-    },
-  });
+  // Get mailbox information
 
-  if (!account?.user?.email) {
-    throw new Error("User email not found");
+  if (!mailbox || !mailbox.accessToken || !mailbox.email) {
+    throw new Error("Mailbox not found");
   }
 
+  const { accessToken, refreshToken, userId, id: mailboxId, name } = mailbox;
+
   // Set up sender information
-  const senderEmail = account.user.email;
-  const fromHeader = formatSenderInfo(senderEmail, account.user.name!);
+  const senderEmail = mailbox.email;
+  const fromHeader = formatSenderInfo(senderEmail, name);
 
   // Create Gmail client for fetching thread information
-  const gmail = await gmailClientService.getClient(account.user.id!);
+  const gmail = await gmailClientService.getClient(userId!, mailboxId!);
 
   // If threadId exists, fetch the original message headers
   const { threadHeaders, originalSubject } = await getEmailThreadInfo(
@@ -109,10 +99,10 @@ export async function sendGmailSMTP({
 
   // Create transport
   const transport = await createGmailTransport(
-    account.access_token!,
-    account.refresh_token!,
+    mailbox.accessToken!,
+    mailbox.refreshToken!,
     senderEmail,
-    account.user.name!
+    mailbox.name!
   );
 
   // Send email
@@ -155,6 +145,7 @@ export async function sendGmailSMTP({
         messageId: actualMessageId,
         originalContent: originalContent || content,
         threadId: messageDetails.data.threadId!,
+        mailbox,
       });
 
       if (newInsertedId) {
@@ -181,26 +172,16 @@ export async function updateSentEmail({
   messageId,
   originalContent,
   threadId,
+  mailbox,
 }: UpdateSentEmailOptions): Promise<string> {
-  // Get account information
-  const account = await prisma.account.findFirst({
-    where: { access_token: accessToken },
-    include: {
-      user: {
-        select: {
-          id: true,
-          email: true,
-          name: true,
-        },
-      },
-    },
-  });
-
-  if (!account?.user?.id) {
-    throw new Error("User ID or account not found");
+  if (!mailbox || !mailbox.accessToken || !mailbox.email) {
+    throw new Error("Mailbox not found");
   }
 
-  const gmail = await gmailClientService.getClient(account.user.id!);
+  const gmail = await gmailClientService.getClient(
+    mailbox.userId!,
+    mailbox.id!
+  );
 
   try {
     // Get the original message

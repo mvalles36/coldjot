@@ -1,24 +1,12 @@
 import {
   BusinessHours,
-  SequenceStep,
-  StepType,
   StepTiming,
   StepPriority,
   ProcessingWindow,
   RateLimits,
-  EmailTracking,
-  GoogleAccount,
   ProcessingJob,
   EmailJob,
 } from "@coldjot/types";
-
-// Email Types
-// export interface EmailResult {
-//   success: boolean;
-//   messageId?: string;
-//   threadId?: string;
-//   error?: string;
-// }
 
 // Monitoring Types
 export interface AlertConfig {

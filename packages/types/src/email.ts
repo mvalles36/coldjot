@@ -3,7 +3,7 @@ export type MessagePartHeader = gmail_v1.Schema$MessagePartHeader;
 export type Gmail = gmail_v1.Gmail;
 export type Message = gmail_v1.Schema$Message;
 import type { EmailTracking } from "./events";
-import { GoogleAccount } from "./google";
+import { Mailbox } from "./mailbox";
 
 export interface CreateDraftOptions {
   to: string;
@@ -43,7 +43,7 @@ export interface SendEmailOptions {
   replyTo?: string;
   threadId?: string;
   tracking: EmailTracking;
-  account: GoogleAccount;
+  mailbox: Mailbox;
   userId: string;
   sequenceId: string;
   contactId: string;

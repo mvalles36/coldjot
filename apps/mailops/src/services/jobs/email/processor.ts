@@ -24,6 +24,7 @@ import { QUEUE_NAMES } from "@/config";
 import { getWorkerOptions } from "@/config";
 import { ScheduleGenerator, scheduleGenerator } from "@/lib/schedule";
 import { replacePlaceholders, validatePlaceholders } from "@/lib/placeholders";
+import { getSenderMailbox } from "@/lib/mailbox";
 
 export class EmailProcessor extends BaseProcessor<EmailJob> {
   private serviceManager = ServiceManager.getInstance();
@@ -87,21 +88,10 @@ export class EmailProcessor extends BaseProcessor<EmailJob> {
         throw new Error(`Contact ${data.contactId} not found`);
       }
 
-      // Get Google account info
-      logger.info(`🔍 Fetching Google account info ${data.userId}`);
-      const googleAccount = await prisma.account.findFirst({
-        where: { userId: data.userId },
-        include: {
-          user: {
-            select: {
-              email: true,
-            },
-          },
-        },
-      });
-
-      if (!googleAccount) {
-        throw new Error(`No Google account found for user ${data.userId}`);
+      logger.info(`🔍 Fetching mailbox info ${data.userId}`);
+      const mailbox = await getSenderMailbox(data.userId, data.mailboxId);
+      if (!mailbox) {
+        throw new Error(`No valid mailbox found for user ${data.userId}`);
       }
 
       // Create tracking metadata
@@ -158,15 +148,10 @@ export class EmailProcessor extends BaseProcessor<EmailJob> {
         to: data.to,
         subject: processedSubject,
         html: processedContent,
-        replyTo: googleAccount.user.email || "",
+        replyTo: mailbox.email || "",
         threadId: data.threadId || "",
         tracking: tracking,
-        account: {
-          email: googleAccount.user.email!,
-          accessToken: googleAccount.access_token!,
-          refreshToken: googleAccount.refresh_token!,
-          expiryDate: googleAccount.expires_at!,
-        },
+        mailbox: mailbox,
         userId: data.userId,
         sequenceId: data.sequenceId,
         contactId: data.contactId,

@@ -1,3 +1,5 @@
+import { Mailbox } from "./mailbox";
+
 // Types
 export interface GmailClientOptions {
   userId?: string;
@@ -11,7 +13,8 @@ export interface GmailClientConfig {
   redirectUri: string;
 }
 
-export interface GmailCredentials {
+export interface MailboxCredentials {
+  mailboxId: string;
   userId: string;
   accessToken: string;
   refreshToken: string;
@@ -26,6 +29,7 @@ export interface SendGmailOptions {
   threadId?: string;
   originalContent?: string;
   accessToken?: string;
+  mailbox?: Mailbox;
 }
 
 export interface GmailResponse {
@@ -40,4 +44,5 @@ export interface UpdateSentEmailOptions {
   messageId: string;
   originalContent: string;
   threadId?: string;
+  mailbox?: Mailbox;
 }

@@ -28,7 +28,7 @@ interface SequenceEmailSettingsState {
   testMode: boolean;
   disableSending: boolean;
   testEmails: string[];
-  mailboxId?: string | null;
+  mailboxId: string | null;
 }
 
 interface SequenceEmailSettingsProps {
