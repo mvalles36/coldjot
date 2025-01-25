@@ -34,15 +34,18 @@ interface EmailListsViewProps {
   searchQuery?: string;
   onSearchStart?: () => void;
   onSearchEnd?: () => void;
+  showAddModal?: boolean;
+  onAddModalClose?: () => void;
 }
 
 const EmailListsView = ({
   searchQuery = "",
   onSearchStart,
   onSearchEnd,
+  showAddModal = false,
+  onAddModalClose,
 }: EmailListsViewProps) => {
   const router = useRouter();
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [lists, setLists] = useState<EmailList[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -105,7 +108,6 @@ const EmailListsView = ({
       const newList = await response.json();
       setLists((prev) => [newList, ...prev]);
       toast.success("Email list created successfully");
-      setIsCreateModalOpen(false);
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Failed to create email list";
@@ -156,13 +158,6 @@ const EmailListsView = ({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button onClick={() => setIsCreateModalOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create List
-        </Button>
-      </div>
-
       {error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -185,7 +180,9 @@ const EmailListsView = ({
           <Button
             variant="outline"
             className="mt-4"
-            onClick={() => setIsCreateModalOpen(true)}
+            onClick={() => {
+              onAddModalClose?.();
+            }}
           >
             Create your first list
           </Button>
@@ -283,9 +280,12 @@ const EmailListsView = ({
       )}
 
       <CreateListModal
-        open={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onCreate={handleCreateList}
+        open={showAddModal}
+        onClose={() => onAddModalClose?.()}
+        onCreate={async (list) => {
+          await handleCreateList(list);
+          onAddModalClose?.();
+        }}
       />
     </div>
   );

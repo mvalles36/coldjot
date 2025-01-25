@@ -12,21 +12,26 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Edit2, Trash2, FileText, Plus, Eye } from "lucide-react";
-import PreviewTemplateModal from "./preview-template-drawer";
-import EditTemplateModal from "./edit-template-drawer";
+import PreviewTemplateDrawer from "./preview-template-drawer";
+import EditTemplateDrawer from "./edit-template-drawer";
 import DeleteTemplateDialog from "./delete-template-dialog";
 import { toast } from "react-hot-toast";
+import AddTemplateDrawer from "./add-template-drawer";
 
 interface TemplateListProps {
   searchQuery?: string;
   onSearchStart?: () => void;
   onSearchEnd?: () => void;
+  showAddModal?: boolean;
+  onAddModalClose?: () => void;
 }
 
 export default function TemplateList({
   searchQuery = "",
   onSearchStart,
   onSearchEnd,
+  onAddModalClose,
+  showAddModal = false,
 }: TemplateListProps) {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -63,13 +68,6 @@ export default function TemplateList({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Template
-        </Button>
-      </div>
-
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -125,14 +123,26 @@ export default function TemplateList({
       </div>
 
       {previewTemplate && (
-        <PreviewTemplateModal
+        <PreviewTemplateDrawer
           template={previewTemplate}
           onClose={() => setPreviewTemplate(null)}
         />
       )}
 
+      {showAddModal && (
+        <AddTemplateDrawer
+          onClose={() => {
+            onAddModalClose?.();
+          }}
+          onSave={(newTemplate) => {
+            setTemplates((prev) => [newTemplate, ...prev]);
+            onAddModalClose?.();
+          }}
+        />
+      )}
+
       {editingTemplate && (
-        <EditTemplateModal
+        <EditTemplateDrawer
           template={editingTemplate}
           onClose={() => setEditingTemplate(null)}
           onSave={(updatedTemplate) => {

@@ -74,7 +74,13 @@ export function SequenceList({
             Build custom campaigns to automate emails, set more meetings, and
             convert more customers.
           </p>
-          <Button onClick={onCloseCreateModal}>Create a sequence</Button>
+          <Button
+            onClick={() => {
+              onCloseCreateModal();
+            }}
+          >
+            Create a sequence
+          </Button>
         </div>
       ) : (
         <div className="space-y-4">

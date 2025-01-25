@@ -1,11 +1,13 @@
 "use client";
 
-import { PageHeader } from "@/components/layout/PageHeader";
-import { SequenceList } from "@/components/sequences/sequence-list";
-import { Button } from "@/components/ui/button";
-import { SequenceStatus } from "@coldjot/types";
-import { Plus } from "lucide-react";
 import { useState } from "react";
+import { Plus } from "lucide-react";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { LocalSearch } from "@/components/ui/local-search";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { SequenceList } from "@/components/sequences/sequence-list";
+import { SequenceStatus } from "@coldjot/types";
 
 interface Sequence {
   id: string;
@@ -27,27 +29,48 @@ interface SequencesPageClientProps {
 export function SequencesPageClient({
   initialSequences,
 }: SequencesPageClientProps) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeSearch, setActiveSearch] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  const handleSearch = (value: string) => {
+    setActiveSearch(value);
+    setIsSearching(true);
+  };
+
+  const handleToggleModal = () => {
+    setShowCreateModal((prev) => !prev);
+  };
 
   return (
     <div className="max-w-5xl mx-auto py-8 space-y-6">
-      <div className="flex items-center justify-between pb-6 border-b">
-        <div>
+      <div className="flex flex-col gap-6">
+        <div className="flex items-center justify-between">
           <PageHeader
             title="Sequences"
-            description="Create and manage automated email sequences."
+            description="Create and manage your email sequences"
           />
+          <div className="flex items-center gap-3">
+            <LocalSearch
+              placeholder="Search sequences..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onSearch={handleSearch}
+              isLoading={isSearching}
+            />
+            <Button onClick={handleToggleModal}>
+              <Plus className="h-4 w-4 mr-2" />
+              Create Sequence
+            </Button>
+          </div>
         </div>
-        <Button onClick={() => setShowCreateModal(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Sequence
-        </Button>
+        <Separator />
       </div>
-
       <SequenceList
         initialSequences={initialSequences}
         showCreateModal={showCreateModal}
-        onCloseCreateModal={() => setShowCreateModal(false)}
+        onCloseCreateModal={handleToggleModal}
       />
     </div>
   );

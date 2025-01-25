@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { LocalSearch } from "@/components/ui/local-search";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import EmailListsView from "../../components/lists/email-list";
 
@@ -10,10 +12,15 @@ export default function ListsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   const handleSearch = (value: string) => {
     setActiveSearch(value);
     setIsSearching(true);
+  };
+
+  const handleToggleModal = () => {
+    setShowAddModal((prev) => !prev);
   };
 
   return (
@@ -24,19 +31,27 @@ export default function ListsPage() {
             title="Email Lists"
             description="Create and manage your email lists for targeted campaigns"
           />
-          <LocalSearch
-            placeholder="Search lists..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onSearch={handleSearch}
-            isLoading={isSearching}
-          />
+          <div className="flex items-center gap-3">
+            <LocalSearch
+              placeholder="Search lists..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onSearch={handleSearch}
+              isLoading={isSearching}
+            />
+            <Button onClick={handleToggleModal}>
+              <Plus className="h-4 w-4 mr-2" />
+              Create List
+            </Button>
+          </div>
         </div>
         <Separator />
       </div>
       <EmailListsView
         searchQuery={activeSearch}
         onSearchEnd={() => setIsSearching(false)}
+        showAddModal={showAddModal}
+        onAddModalClose={handleToggleModal}
       />
     </div>
   );

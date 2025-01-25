@@ -43,6 +43,10 @@ export async function DELETE(
         where: { sequenceId: id },
       });
 
+      await tx.emailThread.deleteMany({
+        where: { sequenceId: id },
+      });
+
       // Finally, delete the sequence itself
       await tx.sequence.delete({
         where: { id },

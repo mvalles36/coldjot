@@ -23,9 +23,18 @@ export function LocalSearch({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-2">
-      <Input {...props} type="search" className={cn("w-[300px]", className)} />
-      <Button type="submit" variant="outline">
+    <form onSubmit={handleSubmit} className="relative">
+      <Input
+        {...props}
+        type="search"
+        className={cn("w-[300px] pr-9", className)}
+      />
+      <Button
+        type="submit"
+        variant="ghost"
+        size="icon"
+        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+      >
         {isLoading ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : (

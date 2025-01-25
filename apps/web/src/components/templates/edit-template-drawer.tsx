@@ -88,7 +88,7 @@ export default function EditTemplateDrawer({
   };
 
   return (
-    <Sheet open onOpenChange={handleCloseAttempt} modal={false}>
+    <Sheet open onOpenChange={handleCloseAttempt}>
       <SheetContent className="w-[800px] sm:max-w-[800px] h-[100dvh] p-0">
         <form onSubmit={onSubmit} className="flex flex-col h-full">
           <SheetHeader className="px-6 py-4 border-b">

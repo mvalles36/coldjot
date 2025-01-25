@@ -12,12 +12,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Edit2, Trash2, Building2, Users, ExternalLink } from "lucide-react";
+import { Edit2, Trash2, Building2, Users } from "lucide-react";
 import AddCompanyModal from "./add-company-drawer";
 import EditCompanyModal from "./edit-company-drawer";
 import DeleteCompanyDialog from "./delete-company-dialog";
 import CompanyDetails from "./company-details-drawer";
-import { Plus } from "lucide-react";
 import Link from "next/link";
 
 type CompanyWithContacts = Company & {
@@ -28,17 +27,20 @@ interface CompanyListProps {
   searchQuery?: string;
   onSearchStart?: () => void;
   onSearchEnd?: () => void;
+  showAddModal?: boolean;
+  onAddModalClose?: () => void;
 }
 
 export default function CompanyList({
   searchQuery = "",
   onSearchStart,
   onSearchEnd,
+  showAddModal = false,
+  onAddModalClose,
 }: CompanyListProps) {
   const router = useRouter();
   const [companies, setCompanies] = useState<CompanyWithContacts[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
   const [editingCompany, setEditingCompany] =
     useState<CompanyWithContacts | null>(null);
   const [deletingCompany, setDeletingCompany] = useState<Company | null>(null);
@@ -86,13 +88,6 @@ export default function CompanyList({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button onClick={() => setShowAddModal(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Company
-        </Button>
-      </div>
-
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -173,10 +168,12 @@ export default function CompanyList({
 
       {showAddModal && (
         <AddCompanyModal
-          onClose={() => setShowAddModal(false)}
+          onClose={() => {
+            onAddModalClose?.();
+          }}
           onAdd={(newCompany) => {
             setCompanies((prev) => [...prev, { ...newCompany, contacts: [] }]);
-            setShowAddModal(false);
+            onAddModalClose?.();
           }}
         />
       )}

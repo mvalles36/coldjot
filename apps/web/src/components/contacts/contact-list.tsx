@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Contact, Company } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import EditContactModal from "./edit-contact-drawer";
+import AddContactModal from "./add-contact-drawer";
 import AddContactButton from "./add-contact-button";
 import {
   Table,
@@ -61,6 +62,8 @@ interface ContactListProps {
   onSearchEnd?: () => void;
   initialContacts: ContactWithCompany[]; // Replace 'any' with your Contact type
   companies: Company[]; // Replace 'any' with your Company type
+  showAddModal?: boolean;
+  onAddModalClose?: () => void;
 }
 
 // Helper function to format LinkedIn URL
@@ -88,6 +91,9 @@ export default function ContactList({
   searchQuery = "",
   onSearchStart,
   onSearchEnd,
+  onAddModalClose,
+  showAddModal = false,
+  companies,
 }: ContactListProps) {
   const router = useRouter();
   const [contacts, setContacts] = useState<ContactWithCompany[]>([]);
@@ -301,7 +307,6 @@ export default function ContactList({
             </Button>
           )}
         </div>
-        <AddContactButton onAddContact={handleAddContact} companies={[]} />
       </div>
 
       <div className="rounded-md border">
@@ -521,6 +526,18 @@ export default function ContactList({
         contactId={contactToAddToList?.id || ""}
         isMultiple={contactToAddToList?.isMultiple}
       />
+
+      {showAddModal && (
+        <AddContactModal
+          onClose={() => {
+            onAddModalClose?.();
+          }}
+          onAdd={(newContact: ContactWithCompany) => {
+            setContacts((prev) => [newContact, ...prev]);
+            onAddModalClose?.();
+          }}
+        />
+      )}
     </div>
   );
 }
