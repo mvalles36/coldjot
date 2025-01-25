@@ -7,16 +7,27 @@ import { LocalSearch } from "@/components/ui/local-search";
 import { Button } from "@/components/ui/button";
 import ContactList from "../../components/contacts/contact-list";
 import { Separator } from "@/components/ui/separator";
+import AddContactModal from "@/components/contacts/add-contact-drawer";
+import { Contact, Company } from "@prisma/client";
+
+type ContactWithCompany = Contact & {
+  company: Company | null;
+};
 
 export default function ContactsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [contacts, setContacts] = useState<ContactWithCompany[]>([]);
 
   const handleSearch = (value: string) => {
     setActiveSearch(value);
     setIsSearching(true);
+  };
+
+  const handleAddContact = (newContact: ContactWithCompany) => {
+    setContacts((prev) => [newContact, ...prev]);
   };
 
   return (
@@ -43,14 +54,21 @@ export default function ContactsPage() {
         </div>
         <Separator />
       </div>
+
       <ContactList
         searchQuery={activeSearch}
-        initialContacts={[]}
+        initialContacts={contacts}
         companies={[]}
-        showAddModal={showAddModal}
         onSearchEnd={() => setIsSearching(false)}
-        onAddModalClose={() => setShowAddModal(false)}
+        onAddContact={() => setShowAddModal(true)}
       />
+
+      {showAddModal && (
+        <AddContactModal
+          onClose={() => setShowAddModal(false)}
+          onAdd={handleAddContact}
+        />
+      )}
     </div>
   );
 }

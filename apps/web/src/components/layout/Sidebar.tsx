@@ -226,10 +226,38 @@ export default function Sidebar() {
                 </span>
               </Link>
             ))}
+
+            {otherRoutes.map((route) => (
+              <Link
+                key={route.href}
+                href={route.href}
+                className={cn(
+                  "flex items-center gap-x-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:bg-gray-100",
+                  "text-gray-500 hover:text-gray-900",
+                  pathname === route.href && "bg-gray-100 text-gray-900",
+                  isCollapsed && "justify-center px-2"
+                )}
+              >
+                <route.icon
+                  className={cn(
+                    "h-5 w-5 flex-shrink-0",
+                    pathname === route.href ? "text-gray-900" : "text-gray-500"
+                  )}
+                />
+                <span
+                  className={cn(
+                    "transition-all duration-300",
+                    isCollapsed && "hidden w-0 opacity-0"
+                  )}
+                >
+                  {route.label}
+                </span>
+              </Link>
+            ))}
           </div>
 
           {/* Tools Section */}
-          <div className="space-y-2">
+          {/* <div className="space-y-2">
             <SectionTitle>Tools</SectionTitle>
             <Link
               href={apolloRoute.href}
@@ -287,10 +315,10 @@ export default function Sidebar() {
                 </div>
               )}
             </Link>
-          </div>
+          </div> */}
 
           {/* System Section */}
-          <div className="space-y-2">
+          {/* <div className="space-y-2">
             <SectionTitle>System</SectionTitle>
             {otherRoutes.map((route) => (
               <Link
@@ -319,7 +347,7 @@ export default function Sidebar() {
                 </span>
               </Link>
             ))}
-          </div>
+          </div> */}
         </div>
       </ScrollArea>
       {session?.user && (

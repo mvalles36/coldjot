@@ -7,16 +7,23 @@ import { LocalSearch } from "@/components/ui/local-search";
 import { Button } from "@/components/ui/button";
 import TemplateList from "@/components/templates/template-list";
 import { Separator } from "@/components/ui/separator";
+import AddTemplateDrawer from "@/components/templates/add-template-drawer";
+import { Template } from "@prisma/client";
 
 export default function TemplatesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [templates, setTemplates] = useState<Template[]>([]);
 
   const handleSearch = (value: string) => {
     setActiveSearch(value);
     setIsSearching(true);
+  };
+
+  const handleAddTemplate = (newTemplate: Template) => {
+    setTemplates((prev) => [newTemplate, ...prev]);
   };
 
   return (
@@ -43,12 +50,23 @@ export default function TemplatesPage() {
         </div>
         <Separator />
       </div>
+
       <TemplateList
         searchQuery={activeSearch}
+        initialTemplates={templates}
         onSearchEnd={() => setIsSearching(false)}
-        showAddModal={showAddModal}
-        onAddModalClose={() => setShowAddModal(false)}
+        onAddTemplate={() => setShowAddModal(true)}
       />
+
+      {showAddModal && (
+        <AddTemplateDrawer
+          onClose={() => setShowAddModal(false)}
+          onSave={(newTemplate) => {
+            handleAddTemplate(newTemplate);
+            setShowAddModal(false);
+          }}
+        />
+      )}
     </div>
   );
 }

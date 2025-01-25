@@ -4,8 +4,6 @@ import { useState, useEffect } from "react";
 import { Contact, Company } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import EditContactModal from "./edit-contact-drawer";
-import AddContactModal from "./add-contact-drawer";
-import AddContactButton from "./add-contact-button";
 import {
   Table,
   TableBody,
@@ -24,6 +22,7 @@ import {
   ListPlus,
   MoreHorizontal,
   SendHorizonal,
+  UserPlus,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -62,10 +61,9 @@ interface ContactListProps {
   searchQuery?: string;
   onSearchStart?: () => void;
   onSearchEnd?: () => void;
-  initialContacts: ContactWithCompany[]; // Replace 'any' with your Contact type
-  companies: Company[]; // Replace 'any' with your Company type
-  showAddModal?: boolean;
-  onAddModalClose?: () => void;
+  initialContacts: ContactWithCompany[];
+  companies: Company[];
+  onAddContact?: () => void;
 }
 
 // Helper function to format LinkedIn URL
@@ -73,9 +71,7 @@ const formatLinkedInUrl = (url: string | null) => {
   if (!url) return null;
   try {
     const urlObj = new URL(url);
-    // Get the path without leading/trailing slashes
     const path = urlObj.pathname.replace(/^\/|\/$/g, "");
-    // Get the last part of the path (usually the profile name/id)
     const profileName = path.split("/").pop();
     return profileName || url;
   } catch {
@@ -83,7 +79,6 @@ const formatLinkedInUrl = (url: string | null) => {
   }
 };
 
-// Add this interface near the top with other type definitions
 interface ContactToList {
   id: string;
   isMultiple?: boolean;
@@ -93,17 +88,19 @@ export default function ContactList({
   searchQuery = "",
   onSearchStart,
   onSearchEnd,
-  onAddModalClose,
-  showAddModal = false,
+  initialContacts,
   companies,
+  onAddContact,
 }: ContactListProps) {
   const router = useRouter();
-  const [contacts, setContacts] = useState<ContactWithCompany[]>([]);
+  const [contacts, setContacts] =
+    useState<ContactWithCompany[]>(initialContacts);
   const [editingContact, setEditingContact] =
     useState<ContactWithCompany | null>(null);
   const [deletingContact, setDeletingContact] =
     useState<ContactWithCompany | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [contactToAddToList, setContactToAddToList] =
     useState<ContactToList | null>(null);
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(
@@ -116,6 +113,11 @@ export default function ContactList({
 
   useEffect(() => {
     const fetchContacts = async () => {
+      if (!isInitialLoad && searchQuery.length === 1) {
+        return;
+      }
+
+      setIsLoading(true);
       onSearchStart?.();
       try {
         const url =
@@ -129,6 +131,8 @@ export default function ContactList({
       } catch (error) {
         console.error("Failed to fetch contacts:", error);
       } finally {
+        setIsLoading(false);
+        setIsInitialLoad(false);
         onSearchEnd?.();
       }
     };
@@ -136,11 +140,10 @@ export default function ContactList({
     if (searchQuery.length === 0 || searchQuery.length >= 2) {
       fetchContacts();
     }
-  }, [searchQuery, onSearchStart, onSearchEnd]);
+  }, [searchQuery, onSearchStart, onSearchEnd, isInitialLoad]);
 
-  const handleAddContact = (newContact: ContactWithCompany) => {
-    setContacts((prev) => [newContact, ...prev]);
-  };
+  const showLoading = isLoading || isInitialLoad;
+  const showEmptyState = !showLoading && contacts.length === 0;
 
   const handleDelete = async (contact: ContactWithCompany) => {
     const response = await fetch(`/api/contacts/${contact.id}`, {
@@ -303,185 +306,219 @@ export default function ContactList({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          {selectedContacts.size > 0 && (
-            <Button variant="outline" size="sm" onClick={handleBulkAddToList}>
-              <ListPlus className="h-4 w-4 mr-2" />
-              Add {selectedContacts.size} to List
-            </Button>
-          )}
+      {showLoading ? (
+        <div className="flex items-center justify-center py-8">
+          <div className="space-y-4 text-center">
+            <div className="animate-pulse flex flex-col items-center gap-4">
+              <div className="h-12 w-12 rounded-full bg-muted" />
+              <div className="h-4 w-48 rounded bg-muted" />
+              <div className="h-3 w-96 rounded bg-muted" />
+            </div>
+          </div>
         </div>
-      </div>
-
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[50px]">
-                <Checkbox
-                  checked={selectedContacts.size === contacts.length}
-                  onCheckedChange={(checked) => {
-                    if (checked) {
-                      setSelectedContacts(new Set(contacts.map((c) => c.id)));
-                    } else {
-                      setSelectedContacts(new Set());
-                    }
-                  }}
-                />
-              </TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Company</TableHead>
-              <TableHead>LinkedIn</TableHead>
-              <TableHead className="w-[100px]">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {contacts.map((contact) => (
-              <TableRow
-                key={contact.id}
-                className="hover:bg-muted/50 cursor-pointer"
-                onClick={(e) => {
-                  if (!(e.target as HTMLElement).closest(".checkbox-cell")) {
-                    setSelectedContactForDetails(contact);
-                  }
-                }}
-              >
-                <TableCell
-                  className="checkbox-cell"
-                  onClick={(e) => e.stopPropagation()}
+      ) : showEmptyState ? (
+        <div className="text-center py-12">
+          <div className="flex justify-center mb-4">
+            <UserPlus className="h-12 w-12 text-muted-foreground" />
+          </div>
+          <h3 className="text-lg font-medium mb-2">Add your first contact</h3>
+          <p className="text-muted-foreground mb-4">
+            Start building your network by adding contacts and managing their
+            information in one place.
+          </p>
+          <Button onClick={onAddContact}>Add Contact</Button>
+        </div>
+      ) : (
+        <>
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              {selectedContacts.size > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleBulkAddToList}
                 >
-                  <Checkbox
-                    checked={selectedContacts.has(contact.id)}
-                    onCheckedChange={(checked) =>
-                      handleCheckboxChange(contact.id, checked as boolean)
-                    }
-                  />
-                </TableCell>
-                <TableCell className="font-medium">
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-muted-foreground/70" />
-                    <Link
-                      href={`/contacts/${contact.id}`}
-                      className="hover:underline"
+                  <ListPlus className="h-4 w-4 mr-2" />
+                  Add {selectedContacts.size} to List
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[50px]">
+                    <Checkbox
+                      checked={selectedContacts.size === contacts.length}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedContacts(
+                            new Set(contacts.map((c) => c.id))
+                          );
+                        } else {
+                          setSelectedContacts(new Set());
+                        }
+                      }}
+                    />
+                  </TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Company</TableHead>
+                  <TableHead>LinkedIn</TableHead>
+                  <TableHead className="w-[100px]">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {contacts.map((contact) => (
+                  <TableRow
+                    key={contact.id}
+                    className="hover:bg-muted/50 cursor-pointer"
+                    onClick={(e) => {
+                      if (
+                        !(e.target as HTMLElement).closest(".checkbox-cell")
+                      ) {
+                        setSelectedContactForDetails(contact);
+                      }
+                    }}
+                  >
+                    <TableCell
+                      className="checkbox-cell"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      {contact.firstName} {contact.lastName}
-                    </Link>
-                  </div>
-                </TableCell>
-                <TableCell>{contact.email}</TableCell>
-                <TableCell>
-                  {contact.company ? (
-                    <Link
-                      href={`/companies/${contact.company.id}`}
-                      className="text-primary hover:underline"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {contact.company.name}
-                    </Link>
-                  ) : (
-                    "—"
-                  )}
-                </TableCell>
-                <TableCell>
-                  {contact.linkedinUrl ? (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <a
-                            href={contact.linkedinUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-primary hover:underline"
+                      <Checkbox
+                        checked={selectedContacts.has(contact.id)}
+                        onCheckedChange={(checked) =>
+                          handleCheckboxChange(contact.id, checked as boolean)
+                        }
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-muted-foreground/70" />
+                        <Link
+                          href={`/contacts/${contact.id}`}
+                          className="hover:underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {contact.firstName} {contact.lastName}
+                        </Link>
+                      </div>
+                    </TableCell>
+                    <TableCell>{contact.email}</TableCell>
+                    <TableCell>
+                      {contact.company ? (
+                        <Link
+                          href={`/companies/${contact.company.id}`}
+                          className="text-primary hover:underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {contact.company.name}
+                        </Link>
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {contact.linkedinUrl ? (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <a
+                                href={contact.linkedinUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1 text-primary hover:underline"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {formatLinkedInUrl(contact.linkedinUrl)}
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Open LinkedIn profile</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleComposeEmail(contact);
+                          }}
+                        >
+                          <Mail className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setContactToAddToSequence(contact);
+                          }}
+                        >
+                          <SendHorizonal className="h-4 w-4" />
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger
+                            asChild
                             onClick={(e) => e.stopPropagation()}
                           >
-                            {formatLinkedInUrl(contact.linkedinUrl)}
-                            <ExternalLink className="h-3 w-3" />
-                          </a>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Open LinkedIn profile</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  ) : (
-                    "—"
-                  )}
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleComposeEmail(contact);
-                      }}
-                    >
-                      <Mail className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setContactToAddToSequence(contact);
-                      }}
-                    >
-                      <SendHorizonal className="h-4 w-4" />
-                    </Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        asChild
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingContact(contact);
-                          }}
-                        >
-                          <Edit2 className="h-4 w-4 mr-2" />
-                          Edit Contact
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setContactToAddToList({
-                              id: contact.id,
-                              isMultiple: false,
-                            });
-                          }}
-                        >
-                          <ListPlus className="h-4 w-4 mr-2" />
-                          Add to List
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeletingContact(contact);
-                          }}
-                          className="text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete Contact
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingContact(contact);
+                              }}
+                            >
+                              <Edit2 className="h-4 w-4 mr-2" />
+                              Edit Contact
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setContactToAddToList({
+                                  id: contact.id,
+                                  isMultiple: false,
+                                });
+                              }}
+                            >
+                              <ListPlus className="h-4 w-4 mr-2" />
+                              Add to List
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeletingContact(contact);
+                              }}
+                              className="text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete Contact
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
+      )}
 
       {editingContact && (
         <EditContactModal
@@ -541,18 +578,6 @@ export default function ContactList({
         contactId={contactToAddToList?.id || ""}
         isMultiple={contactToAddToList?.isMultiple}
       />
-
-      {showAddModal && (
-        <AddContactModal
-          onClose={() => {
-            onAddModalClose?.();
-          }}
-          onAdd={(newContact: ContactWithCompany) => {
-            setContacts((prev) => [newContact, ...prev]);
-            onAddModalClose?.();
-          }}
-        />
-      )}
 
       {contactToAddToSequence && (
         <AddToSequenceModal

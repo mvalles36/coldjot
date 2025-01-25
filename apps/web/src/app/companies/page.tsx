@@ -7,16 +7,27 @@ import { LocalSearch } from "@/components/ui/local-search";
 import { Button } from "@/components/ui/button";
 import CompanyList from "@/components/companies/company-list";
 import { Separator } from "@/components/ui/separator";
+import AddCompanyModal from "@/components/companies/add-company-drawer";
+import { Company, Contact } from "@prisma/client";
+
+type CompanyWithContacts = Company & {
+  contacts: Contact[];
+};
 
 export default function CompaniesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [companies, setCompanies] = useState<CompanyWithContacts[]>([]);
 
   const handleSearch = (value: string) => {
     setActiveSearch(value);
     setIsSearching(true);
+  };
+
+  const handleAddCompany = (newCompany: CompanyWithContacts) => {
+    setCompanies((prev) => [newCompany, ...prev]);
   };
 
   return (
@@ -43,12 +54,23 @@ export default function CompaniesPage() {
         </div>
         <Separator />
       </div>
+
       <CompanyList
         searchQuery={activeSearch}
+        initialCompanies={companies}
         onSearchEnd={() => setIsSearching(false)}
-        showAddModal={showAddModal}
-        onAddModalClose={() => setShowAddModal(false)}
+        onAddCompany={() => setShowAddModal(true)}
       />
+
+      {showAddModal && (
+        <AddCompanyModal
+          onClose={() => setShowAddModal(false)}
+          onAdd={(newCompany) => {
+            handleAddCompany({ ...newCompany, contacts: [] });
+            setShowAddModal(false);
+          }}
+        />
+      )}
     </div>
   );
 }
