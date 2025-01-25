@@ -10,54 +10,64 @@ import { Suspense } from "react";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { StatsData, ChartData } from "@/types/stats";
+import { type DateRange } from "@/components/stats/date-range-selector";
+import { DateRangeSelectorWrapper } from "@/components/stats/date-range-selector-wrapper";
+import {
+  DEMO_STATS,
+  generateDemoChartData,
+} from "@/components/stats/demo-data";
+import { startOfToday, startOfWeek, subDays } from "date-fns";
 
-// Demo data for development and preview
-const DEMO_MODE = true; // Toggle this to switch between real and demo data
+// Demo mode for development and preview
+const DEMO_MODE = false;
 
-const DEMO_STATS: StatsData = {
-  totalEmails: 22453,
-  sentEmails: 22453,
-  openedEmails: 17234,
-  uniqueOpens: 11560,
-  clickedEmails: 8231,
-  repliedEmails: 974,
-  bouncedEmails: 0,
-  unsubscribed: 3,
-  interested: 105,
-  peopleContacted: 8560,
-  openRate: 67.85,
-  replyRate: 7.87,
-  bounceRate: 0,
-};
+function getDateRangeFilter(range: DateRange) {
+  const now = new Date();
+  switch (range) {
+    case "today":
+      return { gte: startOfToday() };
+    case "this_week":
+      return { gte: startOfWeek(now) };
+    case "last_7_days":
+      return { gte: subDays(now, 7) };
+    case "last_30_days":
+      return { gte: subDays(now, 30) };
+    case "all_time":
+    default:
+      return {};
+  }
+}
 
-const DEMO_CHART_DATA: ChartData[] = Array.from({ length: 30 }).map((_, i) => {
-  const date = new Date();
-  date.setDate(date.getDate() - (29 - i));
-  const dateStr = date.toISOString().split("T")[0];
-
-  // Create more natural variations in the data
-  const baseValue = 500;
-  const randomFactor = Math.random() * 0.4 + 0.8; // Random between 0.8 and 1.2
-  const sent = Math.round(baseValue * randomFactor);
-  const openRate = 0.67 * (Math.random() * 0.2 + 0.9); // Random between 0.9 and 1.1 of base rate
-  const replyRate = 0.08 * (Math.random() * 0.3 + 0.85); // Random between 0.85 and 1.15 of base rate
-  const uniqueOpenRate = 0.45 * (Math.random() * 0.2 + 0.9); // Random between 0.9 and 1.1 of base rate
-
-  return {
-    date: dateStr,
-    sent,
-    opened: Math.round(sent * openRate),
-    replied: Math.round(sent * replyRate),
-    uniqueOpens: Math.round(sent * uniqueOpenRate),
-  };
-});
-
-async function getOverallStats(): Promise<StatsData> {
+async function getUserStats(
+  userId: string,
+  dateRange: DateRange
+): Promise<StatsData> {
   if (DEMO_MODE) {
     return DEMO_STATS;
   }
 
+  const dateFilter = getDateRangeFilter(dateRange);
+
+  // First get all sequences for this user
+  const sequences = await prisma.sequence.findMany({
+    where: {
+      userId,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  const sequenceIds = sequences.map((s) => s.id);
+
+  // Then get stats for all these sequences
   const stats = await prisma.sequenceStats.aggregate({
+    where: {
+      sequenceId: {
+        in: sequenceIds,
+      },
+      createdAt: dateFilter,
+    },
     _sum: {
       totalEmails: true,
       sentEmails: true,
@@ -72,41 +82,79 @@ async function getOverallStats(): Promise<StatsData> {
     },
   });
 
-  const totalSent = stats._sum.sentEmails || 0;
-  const totalReplies = stats._sum.repliedEmails || 0;
+  const sum = stats._sum ?? {
+    totalEmails: 0,
+    sentEmails: 0,
+    openedEmails: 0,
+    uniqueOpens: 0,
+    clickedEmails: 0,
+    repliedEmails: 0,
+    bouncedEmails: 0,
+    unsubscribed: 0,
+    interested: 0,
+    peopleContacted: 0,
+  };
+
+  const totalSent = sum.sentEmails ?? 0;
+  const totalReplies = sum.repliedEmails ?? 0;
+  const openedEmails = sum.openedEmails ?? 0;
+  const bouncedEmails = sum.bouncedEmails ?? 0;
 
   return {
-    totalEmails: stats._sum.totalEmails || 0,
+    totalEmails: sum.totalEmails ?? 0,
     sentEmails: totalSent,
-    openedEmails: stats._sum.openedEmails || 0,
-    uniqueOpens: stats._sum.uniqueOpens || 0,
-    clickedEmails: stats._sum.clickedEmails || 0,
+    openedEmails: openedEmails,
+    uniqueOpens: sum.uniqueOpens ?? 0,
+    clickedEmails: sum.clickedEmails ?? 0,
     repliedEmails: totalReplies,
-    bouncedEmails: stats._sum.bouncedEmails || 0,
-    unsubscribed: stats._sum.unsubscribed || 0,
-    interested: stats._sum.interested || 0,
-    peopleContacted: stats._sum.peopleContacted || 0,
-    openRate:
-      totalSent > 0 ? ((stats._sum.openedEmails || 0) / totalSent) * 100 : 0,
+    bouncedEmails: bouncedEmails,
+    unsubscribed: sum.unsubscribed ?? 0,
+    interested: sum.interested ?? 0,
+    peopleContacted: sum.peopleContacted ?? 0,
+    openRate: totalSent > 0 ? (openedEmails / totalSent) * 100 : 0,
     replyRate: totalSent > 0 ? (totalReplies / totalSent) * 100 : 0,
-    bounceRate:
-      totalSent > 0 ? ((stats._sum.bouncedEmails || 0) / totalSent) * 100 : 0,
+    bounceRate: totalSent > 0 ? (bouncedEmails / totalSent) * 100 : 0,
   };
 }
 
-async function getChartData(): Promise<ChartData[]> {
+async function getUserChartData(
+  userId: string,
+  dateRange: DateRange
+): Promise<ChartData[]> {
   if (DEMO_MODE) {
-    return DEMO_CHART_DATA;
+    const days =
+      dateRange === "today"
+        ? 1
+        : dateRange === "this_week"
+          ? 7
+          : dateRange === "last_7_days"
+            ? 7
+            : dateRange === "last_30_days"
+              ? 30
+              : 30;
+    return generateDemoChartData(days);
   }
 
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const dateFilter = getDateRangeFilter(dateRange);
+
+  // First get all sequences for this user
+  const sequences = await prisma.sequence.findMany({
+    where: {
+      userId,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  const sequenceIds = sequences.map((s) => s.id);
 
   const events = await prisma.emailEvent.findMany({
     where: {
-      timestamp: {
-        gte: thirtyDaysAgo,
+      sequenceId: {
+        in: sequenceIds,
       },
+      timestamp: dateFilter,
     },
     orderBy: {
       timestamp: "asc",
@@ -173,19 +221,29 @@ function StatsLoadingGrid() {
   );
 }
 
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ range?: DateRange }>;
+}) {
   const session = await auth();
 
   if (!session) {
     redirect("/auth/signin");
   }
 
-  const stats = await getOverallStats();
-  const chartData = await getChartData();
+  const { range } = await searchParams;
+
+  const dateRange = (range || "last_30_days") as DateRange;
+  const stats = await getUserStats(session.user.id, dateRange);
+  const chartData = await getUserChartData(session.user.id, dateRange);
 
   return (
     <div className="max-w-5xl mx-auto py-10 space-y-8">
-      <h1 className="text-4xl font-semibold mb-8">Welcome to ColdJot</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-4xl font-semibold">Welcome to ColdJot</h1>
+        <DateRangeSelectorWrapper />
+      </div>
 
       <Suspense fallback={<StatsLoadingGrid />}>
         <StatsGrid stats={stats} />

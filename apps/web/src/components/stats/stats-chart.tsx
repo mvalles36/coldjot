@@ -40,7 +40,7 @@ const COLORS = {
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="rounded-lg border bg-background p-2 shadow-sm">
+      <div className="rounded-lg border bg-background p-2 shadow-none">
         <div className="grid grid-cols-2 gap-2">
           <div className="flex flex-col">
             <span className="text-[0.70rem] uppercase text-muted-foreground">
@@ -69,15 +69,15 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export function StatsChart({ data }: StatsChartProps) {
   return (
-    <Card className="p-6">
+    <Card className="pb-6 shadow-none">
       <div className="space-y-4">
-        <div>
+        <div className="p-6">
           <h2 className="text-lg font-semibold">Email Activity</h2>
           <p className="text-sm text-muted-foreground">
             Overview of email campaign performance over time
           </p>
         </div>
-        <div className="h-[400px] w-full">
+        <div className="h-[400px] w-full pr-8">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
               data={data}
