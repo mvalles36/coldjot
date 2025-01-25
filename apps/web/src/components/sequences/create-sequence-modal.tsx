@@ -75,7 +75,7 @@ export function CreateSequenceModal({
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Sequence Name</Label>
                 <Input
@@ -90,37 +90,6 @@ export function CreateSequenceModal({
                     {errors.name.message}
                   </p>
                 )}
-              </div>
-
-              <div className="space-y-2">
-                <Label>Permissions</Label>
-                <Select {...register("permissions")} defaultValue="team">
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select permissions" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="team">Team can view and use</SelectItem>
-                    <SelectItem value="private">Private</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Schedule</Label>
-              <Select {...register("schedule")} defaultValue="business">
-                <SelectTrigger>
-                  <SelectValue placeholder="Select schedule" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="business">
-                    Normal Business Hours
-                  </SelectItem>
-                  <SelectItem value="custom">Custom Schedule</SelectItem>
-                </SelectContent>
-              </Select>
-              <div className="text-sm text-muted-foreground">
-                Monday - Friday, 8 AM - 5 PM
               </div>
             </div>
           </div>

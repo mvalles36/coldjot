@@ -51,7 +51,7 @@ export function LayoutContent({ children, session }: LayoutContentProps) {
       <EnvironmentBanner />
       <div className="flex h-full">
         {showSidebar && (
-          <div className="hidden w-64 shrink-0 md:block">
+          <div className="hidden w-auto shrink-0 md:block">
             <Sidebar />
           </div>
         )}

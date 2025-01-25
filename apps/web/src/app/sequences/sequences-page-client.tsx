@@ -39,10 +39,6 @@ export function SequencesPageClient({
     setIsSearching(true);
   };
 
-  const handleToggleModal = () => {
-    setShowCreateModal((prev) => !prev);
-  };
-
   return (
     <div className="max-w-5xl mx-auto py-8 space-y-6">
       <div className="flex flex-col gap-6">
@@ -59,7 +55,7 @@ export function SequencesPageClient({
               onSearch={handleSearch}
               isLoading={isSearching}
             />
-            <Button onClick={handleToggleModal}>
+            <Button onClick={() => setShowCreateModal(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Create Sequence
             </Button>
@@ -70,7 +66,7 @@ export function SequencesPageClient({
       <SequenceList
         initialSequences={initialSequences}
         showCreateModal={showCreateModal}
-        onCloseCreateModal={handleToggleModal}
+        onCloseCreateModal={() => setShowCreateModal(false)}
       />
     </div>
   );
