@@ -23,6 +23,7 @@ import {
   User,
   ListPlus,
   MoreHorizontal,
+  SendHorizonal,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -51,6 +52,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
 import ContactDetailsDrawer from "./contact-details-drawer";
+import { AddToSequenceModal } from "./add-to-sequence-modal";
 
 type ContactWithCompany = Contact & {
   company: Company | null;
@@ -109,6 +111,8 @@ export default function ContactList({
   );
   const [selectedContactForDetails, setSelectedContactForDetails] =
     useState<ContactWithCompany | null>(null);
+  const [contactToAddToSequence, setContactToAddToSequence] =
+    useState<Contact | null>(null);
 
   useEffect(() => {
     const fetchContacts = async () => {
@@ -243,13 +247,14 @@ export default function ContactList({
         const contact = row.original;
         return (
           <div className="flex items-center gap-2">
-            <Button
+            {/* <Button
               variant="ghost"
               size="icon"
               onClick={() => handleComposeEmail(contact)}
             >
               <Mail className="h-4 w-4" />
-            </Button>
+            </Button> */}
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                 <Button variant="ghost" size="icon">
@@ -417,6 +422,16 @@ export default function ContactList({
                     >
                       <Mail className="h-4 w-4" />
                     </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setContactToAddToSequence(contact);
+                      }}
+                    >
+                      <SendHorizonal className="h-4 w-4" />
+                    </Button>
                     <DropdownMenu>
                       <DropdownMenuTrigger
                         asChild
@@ -536,6 +551,14 @@ export default function ContactList({
             setContacts((prev) => [newContact, ...prev]);
             onAddModalClose?.();
           }}
+        />
+      )}
+
+      {contactToAddToSequence && (
+        <AddToSequenceModal
+          open={!!contactToAddToSequence}
+          onClose={() => setContactToAddToSequence(null)}
+          contact={contactToAddToSequence}
         />
       )}
     </div>
