@@ -79,9 +79,6 @@ export class EmailProcessor extends BaseProcessor<EmailJob> {
       logger.info(`🔍 Fetching contact info ${data.contactId}`);
       const contact = await prisma.contact.findUnique({
         where: { id: data.contactId },
-        include: {
-          company: true, // Include company info for personalization
-        },
       });
 
       if (!contact) {
