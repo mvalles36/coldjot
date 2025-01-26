@@ -11,6 +11,11 @@ import {
   ElementFormatType,
   $createParagraphNode,
   $getNodeByKey,
+  RangeSelection,
+  UNDO_COMMAND,
+  REDO_COMMAND,
+  CAN_UNDO_COMMAND,
+  CAN_REDO_COMMAND,
 } from "lexical";
 import { $setBlocksType } from "@lexical/selection";
 import { $createHeadingNode, $isHeadingNode } from "@lexical/rich-text";
@@ -38,8 +43,16 @@ import {
   AlignCenter,
   AlignRight,
   Plus,
+  Image,
+  Code2,
+  Grip,
+  Star,
+  Minus,
+  RotateCcw,
+  RotateCw,
 } from "lucide-react";
 import { INSERT_COMPONENT_COMMAND } from "./plugins/component-picker-plugin";
+import { Button } from "@/components/ui/button";
 
 const blockTypeToBlockName = {
   paragraph: "Normal",
@@ -59,46 +72,58 @@ export function Toolbar() {
   const [isItalic, setIsItalic] = useState(false);
   const [isUnderline, setIsUnderline] = useState(false);
   const [isCode, setIsCode] = useState(false);
+  const [isEditorFocused, setIsEditorFocused] = useState(false);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+  const [activeStyles, setActiveStyles] = useState(new Set<string>());
 
   const updateToolbar = useCallback(() => {
     const selection = $getSelection();
-    if (!$isRangeSelection(selection)) return;
-
-    setIsBold(selection.hasFormat("bold"));
-    setIsItalic(selection.hasFormat("italic"));
-    setIsUnderline(selection.hasFormat("underline"));
-    setIsCode(selection.hasFormat("code"));
-
-    const anchorNode = selection.anchor.getNode();
-    const element =
-      anchorNode.getKey() === "root"
-        ? anchorNode
-        : anchorNode.getTopLevelElement();
-
-    if (element) {
-      const elementKey = element.getKey();
-      const elementDOM = editor.getElementByKey(elementKey);
-      if (elementDOM) {
-        if ($isHeadingNode(element)) {
-          const tag = element.getTag();
-          setBlockType(tag);
-        } else {
-          setBlockType("paragraph");
-        }
-      }
+    if ($isRangeSelection(selection)) {
+      const rangeSelection = selection as RangeSelection;
+      const styles = new Set<string>();
+      if (rangeSelection.hasFormat("bold")) styles.add("bold");
+      if (rangeSelection.hasFormat("italic")) styles.add("italic");
+      if (rangeSelection.hasFormat("underline")) styles.add("underline");
+      setActiveStyles(styles);
+      setIsEditorFocused(!rangeSelection.isCollapsed());
+    } else {
+      setIsEditorFocused(false);
     }
-  }, [editor]);
+  }, []);
 
   useEffect(() => {
     return editor.registerCommand(
       SELECTION_CHANGE_COMMAND,
-      () => {
+      (_payload, newEditor) => {
         updateToolbar();
         return false;
       },
       COMMAND_PRIORITY_NORMAL
     );
   }, [editor, updateToolbar]);
+
+  useEffect(() => {
+    return editor.registerCommand(
+      CAN_UNDO_COMMAND,
+      (payload) => {
+        setCanUndo(payload);
+        return false;
+      },
+      COMMAND_PRIORITY_NORMAL
+    );
+  }, [editor]);
+
+  useEffect(() => {
+    return editor.registerCommand(
+      CAN_REDO_COMMAND,
+      (payload) => {
+        setCanRedo(payload);
+        return false;
+      },
+      COMMAND_PRIORITY_NORMAL
+    );
+  }, [editor]);
 
   const formatHeading = (headingSize: keyof typeof blockTypeToBlockName) => {
     if (headingSize === "paragraph") {
@@ -119,15 +144,15 @@ export function Toolbar() {
   };
 
   return (
-    <div className="border-b flex items-center gap-1 p-1">
+    <div className="flex items-center gap-2 px-4 py-2">
       <Select
         value={blockType}
-        onValueChange={(value: keyof typeof blockTypeToBlockName) =>
-          formatHeading(value)
+        onValueChange={(value) =>
+          formatHeading(value as keyof typeof blockTypeToBlockName)
         }
       >
-        <SelectTrigger className="w-[180px] h-8">
-          <SelectValue placeholder="Style" />
+        <SelectTrigger className="h-8 w-[120px] text-sm">
+          <SelectValue>{blockTypeToBlockName[blockType]}</SelectValue>
         </SelectTrigger>
         <SelectContent>
           {Object.entries(blockTypeToBlockName).map(([type, name]) => (
@@ -138,147 +163,102 @@ export function Toolbar() {
         </SelectContent>
       </Select>
 
-      <Separator orientation="vertical" className="mx-1 h-6" />
+      <Separator orientation="vertical" className="h-6" />
 
-      <Toggle
-        size="sm"
-        pressed={isBold}
-        onPressedChange={() => {
-          editor.dispatchCommand(FORMAT_TEXT_COMMAND, "bold");
-        }}
-        aria-label="Bold"
-      >
-        <Bold className="h-4 w-4" />
-      </Toggle>
+      <div className="flex items-center gap-1">
+        <Toggle
+          size="sm"
+          pressed={activeStyles.has("bold")}
+          onPressedChange={() =>
+            editor.dispatchCommand(FORMAT_TEXT_COMMAND, "bold")
+          }
+        >
+          <Bold className="h-4 w-4" />
+        </Toggle>
+        <Toggle
+          size="sm"
+          pressed={activeStyles.has("italic")}
+          onPressedChange={() =>
+            editor.dispatchCommand(FORMAT_TEXT_COMMAND, "italic")
+          }
+        >
+          <Italic className="h-4 w-4" />
+        </Toggle>
+        <Toggle
+          size="sm"
+          pressed={activeStyles.has("underline")}
+          onPressedChange={() =>
+            editor.dispatchCommand(FORMAT_TEXT_COMMAND, "underline")
+          }
+        >
+          <Underline className="h-4 w-4" />
+        </Toggle>
+      </div>
 
-      <Toggle
-        size="sm"
-        pressed={isItalic}
-        onPressedChange={() => {
-          editor.dispatchCommand(FORMAT_TEXT_COMMAND, "italic");
-        }}
-        aria-label="Italic"
-      >
-        <Italic className="h-4 w-4" />
-      </Toggle>
+      <Separator orientation="vertical" className="h-6" />
 
-      <Toggle
-        size="sm"
-        pressed={isUnderline}
-        onPressedChange={() => {
-          editor.dispatchCommand(FORMAT_TEXT_COMMAND, "underline");
-        }}
-        aria-label="Underline"
-      >
-        <Underline className="h-4 w-4" />
-      </Toggle>
+      <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "left")}
+        >
+          <AlignLeft className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() =>
+            editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "center")
+          }
+        >
+          <AlignCenter className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() =>
+            editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "right")
+          }
+        >
+          <AlignRight className="h-4 w-4" />
+        </Button>
+      </div>
 
-      <Separator orientation="vertical" className="mx-1 h-6" />
+      <Separator orientation="vertical" className="h-6" />
 
-      <Toggle
-        size="sm"
-        onPressedChange={() => {
-          editor.dispatchCommand(
-            FORMAT_ELEMENT_COMMAND,
-            "left" as ElementFormatType
-          );
-        }}
-        aria-label="Align Left"
-      >
-        <AlignLeft className="h-4 w-4" />
-      </Toggle>
+      <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={!canUndo}
+          onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)}
+        >
+          <RotateCcw className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={!canRedo}
+          onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)}
+        >
+          <RotateCw className="h-4 w-4" />
+        </Button>
+      </div>
 
-      <Toggle
-        size="sm"
-        onPressedChange={() => {
-          editor.dispatchCommand(
-            FORMAT_ELEMENT_COMMAND,
-            "center" as ElementFormatType
-          );
-        }}
-        aria-label="Align Center"
-      >
-        <AlignCenter className="h-4 w-4" />
-      </Toggle>
+      <Separator orientation="vertical" className="h-6" />
 
-      <Toggle
-        size="sm"
-        onPressedChange={() => {
-          editor.dispatchCommand(
-            FORMAT_ELEMENT_COMMAND,
-            "right" as ElementFormatType
-          );
-        }}
-        aria-label="Align Right"
-      >
-        <AlignRight className="h-4 w-4" />
-      </Toggle>
-
-      <Separator orientation="vertical" className="mx-1 h-6" />
-
-      <Toggle
-        size="sm"
-        onPressedChange={() => {
-          editor.dispatchCommand(
-            FORMAT_ELEMENT_COMMAND,
-            "bullet" as ElementFormatType
-          );
-        }}
-        aria-label="Bullet List"
-      >
-        <List className="h-4 w-4" />
-      </Toggle>
-
-      <Toggle
-        size="sm"
-        onPressedChange={() => {
-          editor.dispatchCommand(
-            FORMAT_ELEMENT_COMMAND,
-            "number" as ElementFormatType
-          );
-        }}
-        aria-label="Numbered List"
-      >
-        <ListOrdered className="h-4 w-4" />
-      </Toggle>
-
-      <Separator orientation="vertical" className="mx-1 h-6" />
-
-      <Toggle
-        size="sm"
-        onPressedChange={() => {
-          editor.dispatchCommand(
-            FORMAT_ELEMENT_COMMAND,
-            "quote" as ElementFormatType
-          );
-        }}
-        aria-label="Quote"
-      >
-        <Quote className="h-4 w-4" />
-      </Toggle>
-
-      <Toggle
-        size="sm"
-        pressed={isCode}
-        onPressedChange={() => {
-          editor.dispatchCommand(FORMAT_TEXT_COMMAND, "code");
-        }}
-        aria-label="Code"
-      >
-        <Code className="h-4 w-4" />
-      </Toggle>
-
-      <Separator orientation="vertical" className="mx-1 h-6" />
-
-      <Toggle
-        size="sm"
-        onPressedChange={() => {
-          editor.dispatchCommand(INSERT_COMPONENT_COMMAND, undefined);
-        }}
-        aria-label="Insert Component"
-      >
-        <Plus className="h-4 w-4" />
-      </Toggle>
+      <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() =>
+            editor.dispatchCommand(INSERT_COMPONENT_COMMAND, undefined)
+          }
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 }

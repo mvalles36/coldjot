@@ -4,6 +4,7 @@ import {
   LexicalNode,
   NodeKey,
   SerializedElementNode,
+  Spread,
 } from "lexical";
 
 export interface SerializedDraggableBlockNode extends SerializedElementNode {
@@ -22,8 +23,10 @@ export class DraggableBlockNode extends ElementNode {
 
   createDOM(config: EditorConfig): HTMLElement {
     const dom = document.createElement("div");
-    dom.className = "relative";
+    dom.className = config.theme.draggableBlock || "";
     dom.setAttribute("draggable", "true");
+    dom.setAttribute("data-lexical-node-key", this.__key);
+    dom.classList.add("editor-paragraph");
     return dom;
   }
 
