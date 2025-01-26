@@ -38,6 +38,9 @@ export const authConfig: NextAuthConfig = {
           ].join(" "),
         },
       },
+      profile(profile) {
+        return { role: profile.role ?? "user", ...profile };
+      },
     }),
   ],
   trustHost: true,
@@ -127,12 +130,17 @@ export const authConfig: NextAuthConfig = {
               }),
             });
           }
+
+          session.user.role = user.role ? user.role : "user";
+
+          return session;
         } catch (error) {
           console.error("Error refreshing access_token", error);
           // If we fail to refresh the token, return an error so we can handle it on the page
           session.error = "RefreshTokenError";
         }
       }
+
       return session;
     },
 

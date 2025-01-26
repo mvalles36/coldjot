@@ -46,10 +46,11 @@ const managementRoutes = [
     href: "/",
   },
   {
-    label: "Contacts",
-    icon: Users,
-    href: "/contacts",
+    label: "Sequences",
+    icon: Sparkles, // Assuming Sparkles icon is suitable; replace with appropriate icon if needed
+    href: "/sequences",
   },
+
   {
     label: "Templates",
     icon: FileText,
@@ -61,9 +62,9 @@ const managementRoutes = [
     href: "/lists",
   },
   {
-    label: "Sequences",
-    icon: Sparkles, // Assuming Sparkles icon is suitable; replace with appropriate icon if needed
-    href: "/sequences",
+    label: "Contacts",
+    icon: Users,
+    href: "/contacts",
   },
 ];
 
@@ -166,8 +167,8 @@ export default function Sidebar() {
         <GlobalSearch isCollapsed={isCollapsed} />
       </div>
 
-      <ScrollArea className="flex-1 px-3">
-        <div className="space-y-6 py-4">
+      <ScrollArea className="flex-1 px-3 h-full">
+        <div className="space-y-6 py-4 h-full flex-1">
           {/* Compose Section */}
           {/* <div>
             <Link
@@ -200,34 +201,6 @@ export default function Sidebar() {
                 href={route.href}
                 className={cn(
                   "flex items-center gap-x-3 rounded-lg px-3 py-1.5 text-sm font-medium transition-all hover:bg-gray-100 h-8",
-                  "text-gray-500 hover:text-gray-900",
-                  pathname === route.href && "bg-gray-100 text-gray-900",
-                  isCollapsed && "justify-center px-2"
-                )}
-              >
-                <route.icon
-                  className={cn(
-                    "h-5 w-5 flex-shrink-0",
-                    pathname === route.href ? "text-gray-900" : "text-gray-500"
-                  )}
-                />
-                <span
-                  className={cn(
-                    "transition-all duration-300",
-                    isCollapsed && "hidden w-0 opacity-0"
-                  )}
-                >
-                  {route.label}
-                </span>
-              </Link>
-            ))}
-
-            {otherRoutes.map((route) => (
-              <Link
-                key={route.href}
-                href={route.href}
-                className={cn(
-                  "flex items-center gap-x-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:bg-gray-100",
                   "text-gray-500 hover:text-gray-900",
                   pathname === route.href && "bg-gray-100 text-gray-900",
                   isCollapsed && "justify-center px-2"
@@ -345,6 +318,40 @@ export default function Sidebar() {
           </div> */}
         </div>
       </ScrollArea>
+
+      {/* System Section */}
+      <div className="px-3 py-2">
+        <div className="space-y-2">
+          {otherRoutes.map((route) => (
+            <Link
+              key={route.href}
+              href={route.href}
+              className={cn(
+                "flex items-center gap-x-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:bg-gray-100",
+                "text-gray-500 hover:text-gray-900",
+                pathname === route.href && "bg-gray-100 text-gray-900",
+                isCollapsed && "justify-center px-2"
+              )}
+            >
+              <route.icon
+                className={cn(
+                  "h-5 w-5 flex-shrink-0",
+                  pathname === route.href ? "text-gray-900" : "text-gray-500"
+                )}
+              />
+              <span
+                className={cn(
+                  "transition-all duration-300",
+                  isCollapsed && "hidden w-0 opacity-0"
+                )}
+              >
+                {route.label}
+              </span>
+            </Link>
+          ))}
+        </div>
+      </div>
+
       {session?.user && (
         <div className="border-t p-3">
           <DropdownMenu>
