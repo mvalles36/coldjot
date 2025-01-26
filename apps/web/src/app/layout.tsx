@@ -6,9 +6,7 @@ import { auth } from "@/auth";
 
 import "./globals.css";
 import { Providers } from "./providers";
-import Sidebar from "@/components/layout/Sidebar";
 import { QueryProvider } from "@/providers/query-provider";
-import { EnvironmentBanner } from "@/components/layout/environment-banner";
 import { LayoutContent } from "@/components/layout/layout-content";
 
 export const metadata: Metadata = {

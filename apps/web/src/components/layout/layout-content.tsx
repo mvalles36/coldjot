@@ -48,7 +48,7 @@ export function LayoutContent({ children, session }: LayoutContentProps) {
 
   return (
     <div className="relative h-screen">
-      {/* <EnvironmentBanner /> */}
+      <EnvironmentBanner />
       <div className="flex h-full">
         {showSidebar && (
           <div className="hidden w-auto shrink-0 md:block">
