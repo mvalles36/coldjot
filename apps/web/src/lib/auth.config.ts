@@ -38,9 +38,9 @@ export const authConfig: NextAuthConfig = {
           ].join(" "),
         },
       },
-      profile(profile) {
-        return { role: profile.role ?? "user", ...profile };
-      },
+      // profile(profile) {
+      //   return { role: profile.role ?? "user", ...profile };
+      // },
     }),
   ],
   trustHost: true,
@@ -52,11 +52,10 @@ export const authConfig: NextAuthConfig = {
           console.log("🚀 Signing in with Google...");
           console.log(user, account, profile);
 
+          // const existingAccount = await findGoogleAccount(user.sub!);
           const existingAccount = await findGoogleAccount(
             account.providerAccountId
           );
-
-          console.log("existingAccount", existingAccount);
 
           if (existingAccount) {
             await updateGoogleAccount(account.providerAccountId, {
@@ -68,6 +67,7 @@ export const authConfig: NextAuthConfig = {
             });
 
             console.log("updatedAccount");
+            return true;
           } else {
             if (!user.id) return false;
           }
