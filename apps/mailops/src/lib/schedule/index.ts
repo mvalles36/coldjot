@@ -25,12 +25,6 @@ export interface ScheduleGenerator {
     rateLimits?: RateLimits,
     isDemoMode?: boolean
   ): Promise<Date>;
-
-  distributeLoad(
-    jobs: ProcessingJob[],
-    window: ProcessingWindow,
-    limits: RateLimits
-  ): ProcessingJob[];
 }
 
 export class ScheduleGenerator implements ScheduleGenerator {
@@ -287,40 +281,6 @@ export class ScheduleGenerator implements ScheduleGenerator {
     }
   }
 
-  distributeLoad(
-    jobs: ProcessingJob[],
-    window: ProcessingWindow,
-    limits: RateLimits = this.defaultRateLimits
-  ): ProcessingJob[] {
-    try {
-      this.logAndSave("🔄 Distributing load");
-
-      // Sort by priority
-      const sortedJobs = [...jobs].sort((a, b) => a.priority - b.priority);
-
-      const windowDuration = window.end.getTime() - window.start.getTime();
-      const maxJobsForWindow = Math.min(
-        window.maxJobsPerWindow,
-        Math.floor((windowDuration / (60 * 1000)) * limits.perMinute)
-      );
-
-      if (window.currentLoad >= maxJobsForWindow) {
-        this.logAndSave("⚠️ Window at capacity");
-        return [];
-      }
-
-      const availableCapacity = maxJobsForWindow - window.currentLoad;
-      const selectedJobs = sortedJobs.slice(0, availableCapacity);
-
-      this.logAndSave("✅ Load distribution complete");
-
-      return selectedJobs;
-    } catch (error) {
-      this.logErrorAndSave("Error distributing load:");
-      return [];
-    }
-  }
-
   private calculateBaseDelay(step: SequenceStep, isDemoMode: boolean): number {
     this.logAndSave("⌛ Starting base delay calculation");
 
@@ -333,6 +293,23 @@ export class ScheduleGenerator implements ScheduleGenerator {
           this.logDebugAndSave("Using default delay for WAIT step");
         } else {
           delay = this.convertToMinutes(step.delayAmount, step.delayUnit);
+          // Add natural distribution for longer delays
+          if (step.delayUnit.toLowerCase() === "days") {
+            // For day-based delays, add 1-4 hours of random variation
+            const additionalHours = Math.floor(Math.random() * 4) + 1;
+            const additionalMinutes = Math.floor(Math.random() * 60);
+            delay += additionalHours * 60 + additionalMinutes;
+            this.logDebugAndSave(
+              `⏳ Added natural distribution of ${additionalHours}h ${additionalMinutes}m to day-based delay`
+            );
+          } else if (step.delayUnit.toLowerCase() === "hours") {
+            // For hour-based delays, add 5-30 minutes of random variation
+            const additionalMinutes = Math.floor(Math.random() * 26) + 5;
+            delay += additionalMinutes;
+            this.logDebugAndSave(
+              `⏳ Added natural distribution of ${additionalMinutes}m to hour-based delay`
+            );
+          }
           this.logDebugAndSave("⏳ Calculated WAIT delay");
         }
         break;
@@ -340,14 +317,31 @@ export class ScheduleGenerator implements ScheduleGenerator {
       case StepTypeEnum.MANUAL_EMAIL:
       case StepTypeEnum.AUTOMATED_EMAIL:
         if (step.timing === TimingType.IMMEDIATE) {
+          // TODO : Add couple of minutes of delay. Default it to 30 minutes
           delay = 0; // No delay for immediate
           this.logDebugAndSave("⚡ Immediate email, no delay");
         } else if (step.timing === TimingType.DELAY && step.delayAmount) {
-          // Use exact delay if specified
-          // delay = step.delayAmount;
-          // this.logDebugAndSave("⏰ Using exact specified delay");
           delay = this.convertToMinutes(step.delayAmount, step.delayUnit!);
-          this.logDebugAndSave("⏰ Using specified delay");
+          // Add natural distribution for longer delays
+          if (step.delayUnit?.toLowerCase() === "days") {
+            // For day-based delays, add 1-3 hours of random variation
+            const additionalHours = Math.floor(Math.random() * 3) + 1;
+            const additionalMinutes = Math.floor(Math.random() * 60);
+            delay += additionalHours * 60 + additionalMinutes;
+            this.logDebugAndSave(
+              `⏳ Added natural distribution of ${additionalHours}h ${additionalMinutes}m to day-based delay`
+            );
+          } else if (step.delayUnit?.toLowerCase() === "hours") {
+            // For hour-based delays, add 5-30 minutes of random variation
+            const additionalMinutes = Math.floor(Math.random() * 26) + 5;
+            delay += additionalMinutes;
+            this.logDebugAndSave(
+              `⏳ Added natural distribution of ${additionalMinutes}m to hour-based delay`
+            );
+          }
+          this.logDebugAndSave(
+            "⏰ Using specified delay with natural distribution"
+          );
         } else {
           delay = RATE_LIMIT_CONFIG.SCHEDULING.DEFAULT_DELAY;
           this.logDebugAndSave("⚠️ No timing specified, using default delay");
@@ -373,7 +367,7 @@ export class ScheduleGenerator implements ScheduleGenerator {
       this.logAndSave("🎮 Demo mode delay adjustment");
     }
 
-    this.logAndSave("✅ Final base delay calculated");
+    this.logAndSave(`✅ Final base delay calculated: ${delay} minutes`);
 
     return delay;
   }
