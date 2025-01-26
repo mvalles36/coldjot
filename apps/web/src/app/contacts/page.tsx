@@ -8,25 +8,21 @@ import { Button } from "@/components/ui/button";
 import ContactList from "../../components/contacts/contact-list";
 import { Separator } from "@/components/ui/separator";
 import AddContactModal from "@/components/contacts/add-contact-drawer";
-import { Contact, Company } from "@prisma/client";
-
-type ContactWithCompany = Contact & {
-  company: Company | null;
-};
+import { Contact } from "@prisma/client";
 
 export default function ContactsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [contacts, setContacts] = useState<ContactWithCompany[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
 
   const handleSearch = (value: string) => {
     setActiveSearch(value);
     setIsSearching(true);
   };
 
-  const handleAddContact = (newContact: ContactWithCompany) => {
+  const handleAddContact = (newContact: Contact) => {
     setContacts((prev) => [newContact, ...prev]);
   };
 
@@ -34,10 +30,7 @@ export default function ContactsPage() {
     <div className="max-w-5xl mx-auto py-8 space-y-6">
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
-          <PageHeader
-            title="Contacts"
-            description="Manage your contacts and their associated companies."
-          />
+          <PageHeader title="Contacts" description="Manage your contacts." />
           <div className="flex items-center gap-3">
             <LocalSearch
               placeholder="Search contacts..."
@@ -58,7 +51,6 @@ export default function ContactsPage() {
       <ContactList
         searchQuery={activeSearch}
         initialContacts={contacts}
-        companies={[]}
         onSearchEnd={() => setIsSearching(false)}
         onAddContact={() => setShowAddModal(true)}
       />

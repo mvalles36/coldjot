@@ -3,7 +3,7 @@ import { prisma } from "@coldjot/database";
 import { notFound, redirect } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Separator } from "@/components/ui/separator";
-import EditContactForm from "../../../../components/contacts/edit-contact-form";
+import EditContactForm from "@/components/contacts/edit-contact-form";
 
 export default async function EditContactPage({
   params,
@@ -16,17 +16,12 @@ export default async function EditContactPage({
   }
   const { id } = await params;
   try {
-    const [contact, companies] = await Promise.all([
+    const [contact] = await Promise.all([
       prisma.contact.findFirst({
         where: {
           id: id,
           userId: session.user.id,
         },
-        include: { company: true },
-      }),
-      prisma.company.findMany({
-        where: { userId: session.user.id },
-        orderBy: { name: "asc" },
       }),
     ]);
 
@@ -42,7 +37,7 @@ export default async function EditContactPage({
         />
         <Separator />
         <div className="max-w-3xl w-full">
-          <EditContactForm contact={contact} companies={companies} />
+          <EditContactForm contact={contact} />
         </div>
       </div>
     );

@@ -114,39 +114,23 @@ export default function ApolloSearchComponent({ userId }: Props) {
       const enrichedData = await response.json();
       const enrichedContact = enrichedData.person || enrichedData;
 
-      // Save to database with company
+      // Save to database
       const saveResponse = await fetch("/api/contacts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          firstName: contact.first_name,
+          lastName: contact.last_name,
           name: `${contact.first_name} ${contact.last_name}`,
           email:
             enrichedContact.email ||
             enrichedContact.personal_email ||
             contact.email,
-          title: contact.title,
-          linkedinUrl: contact.linkedin_url,
           domain:
             contact.organization?.primary_domain ||
             contact.account?.domain ||
             contact.organization_name.toLowerCase().replace(/[^a-z0-9]/g, "") +
               ".com",
-          company: {
-            name: contact.organization?.name || contact.organization_name,
-            website:
-              contact.organization?.website_url || contact.account?.website_url,
-            domain:
-              contact.organization?.primary_domain ||
-              contact.account?.domain ||
-              contact.organization_name
-                .toLowerCase()
-                .replace(/[^a-z0-9]/g, "") + ".com",
-            address: `${contact.city || ""}, ${contact.state || ""}, ${
-              contact.country || ""
-            }`
-              .trim()
-              .replace(/^,\s*|,\s*$/g, ""),
-          },
         }),
       });
 

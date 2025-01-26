@@ -22,11 +22,7 @@ export default async function SequencesPage() {
       },
       contacts: {
         include: {
-          contact: {
-            include: {
-              company: true,
-            },
-          },
+          contact: true,
         },
       },
       _count: {

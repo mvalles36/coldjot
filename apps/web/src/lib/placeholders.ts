@@ -1,11 +1,7 @@
-import { Contact, Company } from "@prisma/client";
-
-type ContactWithCompany = Contact & {
-  company: Company | null;
-};
+import { Contact } from "@prisma/client";
 
 export interface PlaceholderContext {
-  contact?: ContactWithCompany | null;
+  contact?: Contact | null;
   fallbacks: Record<string, string>;
   customValues?: Record<string, string>;
 }
@@ -20,12 +16,7 @@ export function replacePlaceholders(
   if (context.contact) {
     result = result
       .replace(/{{name}}/g, context.contact.name)
-      .replace(/{{email}}/g, context.contact.email)
-      .replace(/{{title}}/g, context.contact.title || "")
-      .replace(
-        /{{company}}/g,
-        context.contact.company?.name || context.fallbacks.company || ""
-      );
+      .replace(/{{email}}/g, context.contact.email);
   }
 
   // Replace custom values

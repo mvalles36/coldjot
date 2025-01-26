@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Contact, Company } from "@prisma/client";
+import { Contact } from "@prisma/client";
 import { Check, ChevronsUpDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -19,19 +19,15 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-type ContactWithCompany = Contact & {
-  company: Company | null;
-};
-
 interface Props {
-  selectedContact: ContactWithCompany | null;
-  onSelect: (contact: ContactWithCompany | null) => void;
+  selectedContact: Contact | null;
+  onSelect: (contact: Contact | null) => void;
 }
 
 export function ContactSearch({ selectedContact, onSelect }: Props) {
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
-  const [searchResults, setSearchResults] = useState<ContactWithCompany[]>([]);
+  const [searchResults, setSearchResults] = useState<Contact[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   // Set initial value if contact is pre-selected
@@ -94,7 +90,7 @@ export function ContactSearch({ selectedContact, onSelect }: Props) {
         <PopoverContent className="w-[400px] p-0" align="start">
           <Command shouldFilter={false}>
             <CommandInput
-              placeholder="Search by name, email or company..."
+              placeholder="Search by name, email..."
               value={inputValue}
               onValueChange={(value) => {
                 setInputValue(value);
@@ -131,7 +127,6 @@ export function ContactSearch({ selectedContact, onSelect }: Props) {
                           </span>
                           <span className="truncate text-sm text-muted-foreground">
                             {contact.email}
-                            {contact.company && ` • ${contact.company.name}`}
                           </span>
                         </div>
                       </div>

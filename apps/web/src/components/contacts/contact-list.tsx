@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Contact, Company } from "@prisma/client";
+import { Contact } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import EditContactModal from "./edit-contact-drawer";
 import {
@@ -53,16 +53,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import ContactDetailsDrawer from "./contact-details-drawer";
 import { AddToSequenceModal } from "./add-to-sequence-modal";
 
-type ContactWithCompany = Contact & {
-  company: Company | null;
-};
-
 interface ContactListProps {
   searchQuery?: string;
   onSearchStart?: () => void;
   onSearchEnd?: () => void;
-  initialContacts: ContactWithCompany[];
-  companies: Company[];
+  initialContacts: Contact[];
   onAddContact?: () => void;
 }
 
@@ -89,16 +84,12 @@ export default function ContactList({
   onSearchStart,
   onSearchEnd,
   initialContacts,
-  companies,
   onAddContact,
 }: ContactListProps) {
   const router = useRouter();
-  const [contacts, setContacts] =
-    useState<ContactWithCompany[]>(initialContacts);
-  const [editingContact, setEditingContact] =
-    useState<ContactWithCompany | null>(null);
-  const [deletingContact, setDeletingContact] =
-    useState<ContactWithCompany | null>(null);
+  const [contacts, setContacts] = useState<Contact[]>(initialContacts);
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
+  const [deletingContact, setDeletingContact] = useState<Contact | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [contactToAddToList, setContactToAddToList] =
@@ -107,7 +98,7 @@ export default function ContactList({
     new Set()
   );
   const [selectedContactForDetails, setSelectedContactForDetails] =
-    useState<ContactWithCompany | null>(null);
+    useState<Contact | null>(null);
   const [contactToAddToSequence, setContactToAddToSequence] =
     useState<Contact | null>(null);
 
@@ -145,7 +136,7 @@ export default function ContactList({
   const showLoading = isLoading || isInitialLoad;
   const showEmptyState = !showLoading && contacts.length === 0;
 
-  const handleDelete = async (contact: ContactWithCompany) => {
+  const handleDelete = async (contact: Contact) => {
     const response = await fetch(`/api/contacts/${contact.id}`, {
       method: "DELETE",
     });
@@ -155,15 +146,13 @@ export default function ContactList({
     }
   };
 
-  const handleComposeEmail = (contact: ContactWithCompany) => {
+  const handleComposeEmail = (contact: Contact) => {
     localStorage.setItem(
       "selectedContact",
       JSON.stringify({
         id: contact.id,
         name: contact.name,
         email: contact.email,
-        companyId: contact.companyId,
-        company: contact.company,
       })
     );
     router.push("/compose");
@@ -187,122 +176,6 @@ export default function ContactList({
       isMultiple: true,
     });
   };
-
-  const columns: ColumnDef<ContactWithCompany>[] = [
-    {
-      accessorKey: "name",
-      header: "Name",
-    },
-    {
-      accessorKey: "email",
-      header: "Email",
-    },
-    {
-      accessorKey: "company",
-      header: "Company",
-      cell: ({ row }) => {
-        const company = row.original.company;
-        return company ? (
-          <Link
-            href={`/companies/${company.id}`}
-            className="text-primary hover:underline"
-          >
-            {company.name}
-          </Link>
-        ) : (
-          "—"
-        );
-      },
-    },
-    {
-      accessorKey: "linkedinUrl",
-      header: "LinkedIn",
-      cell: ({ row }) => {
-        const linkedinUrl = row.original.linkedinUrl;
-        return linkedinUrl ? (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <a
-                  href={linkedinUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-primary hover:underline"
-                >
-                  {formatLinkedInUrl(linkedinUrl)}
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Open LinkedIn profile</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        ) : (
-          "—"
-        );
-      },
-    },
-    {
-      id: "actions",
-      header: "Actions",
-      cell: ({ row }) => {
-        const contact = row.original;
-        return (
-          <div className="flex items-center gap-2">
-            {/* <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => handleComposeEmail(contact)}
-            >
-              <Mail className="h-4 w-4" />
-            </Button> */}
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <Button variant="ghost" size="icon">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setEditingContact(contact);
-                  }}
-                >
-                  <Edit2 className="h-4 w-4 mr-2" />
-                  Edit Contact
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setContactToAddToList({
-                      id: contact.id,
-                      isMultiple: false,
-                    });
-                  }}
-                >
-                  <ListPlus className="h-4 w-4 mr-2" />
-                  Add to List
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDeletingContact(contact);
-                  }}
-                  className="text-destructive"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete Contact
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        );
-      },
-    },
-  ];
 
   return (
     <div className="space-y-4">
@@ -365,8 +238,6 @@ export default function ContactList({
                   </TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Company</TableHead>
-                  <TableHead>LinkedIn</TableHead>
                   <TableHead className="w-[100px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -407,44 +278,6 @@ export default function ContactList({
                       </div>
                     </TableCell>
                     <TableCell>{contact.email}</TableCell>
-                    <TableCell>
-                      {contact.company ? (
-                        <Link
-                          href={`/companies/${contact.company.id}`}
-                          className="text-primary hover:underline"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {contact.company.name}
-                        </Link>
-                      ) : (
-                        "—"
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {contact.linkedinUrl ? (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <a
-                                href={contact.linkedinUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-1 text-primary hover:underline"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                {formatLinkedInUrl(contact.linkedinUrl)}
-                                <ExternalLink className="h-3 w-3" />
-                              </a>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Open LinkedIn profile</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      ) : (
-                        "—"
-                      )}
-                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Button

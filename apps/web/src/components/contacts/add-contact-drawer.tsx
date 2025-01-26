@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "react-hot-toast";
-import { Contact, Company } from "@prisma/client";
+import { Contact } from "@prisma/client";
 import {
   Sheet,
   SheetContent,
@@ -14,11 +14,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
-import CompanySearchDropdown from "@/components/search/company-search-dropdown";
-
-type ContactWithCompany = Contact & {
-  company: Company | null;
-};
 
 type FormData = {
   firstName: string;
@@ -29,7 +24,7 @@ type FormData = {
 
 interface AddContactModalProps {
   onClose: () => void;
-  onAdd: (contact: ContactWithCompany) => void;
+  onAdd: (contact: Contact) => void;
 }
 
 export default function AddContactModal({
@@ -42,7 +37,6 @@ export default function AddContactModal({
     formState: { errors },
   } = useForm<FormData>();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true);
@@ -54,20 +48,14 @@ export default function AddContactModal({
         },
         body: JSON.stringify({
           ...data,
-          companyId: selectedCompany?.id,
         }),
       });
 
       if (!response.ok) throw new Error("Failed to add contact");
 
       const contact = await response.json();
-      const contactWithCompany: ContactWithCompany = {
-        ...contact,
-        company: selectedCompany,
-      };
-
       toast.success("Contact added successfully");
-      onAdd(contactWithCompany);
+      onAdd(contact);
       onClose();
     } catch (error) {
       toast.error("Failed to add contact");
@@ -142,14 +130,6 @@ export default function AddContactModal({
                     {errors.email.message}
                   </p>
                 )}
-              </div>
-
-              <div className="space-y-2">
-                <Label>Company</Label>
-                <CompanySearchDropdown
-                  selectedCompany={selectedCompany}
-                  onSelect={setSelectedCompany}
-                />
               </div>
 
               <div className="space-y-2">

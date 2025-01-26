@@ -25,9 +25,7 @@ export async function GET(req: Request) {
     };
     const contacts = await prisma.contact.findMany({
       where: where as any, // Type assertion to bypass TypeScript error
-      include: {
-        company: true,
-      },
+      include: {},
       orderBy: {
         createdAt: "desc",
       },
@@ -51,8 +49,7 @@ export async function POST(req: Request) {
     }
 
     const json = await req.json();
-    const { firstName, lastName, name, email, title, linkedinUrl, companyId } =
-      json;
+    const { firstName, lastName, name, email, title } = json;
 
     console.log("[CONTACT_POST]", json);
 
@@ -71,14 +68,9 @@ export async function POST(req: Request) {
         lastName,
         name: name || `${firstName} ${lastName}`,
         email,
-        title,
-        linkedinUrl,
-        companyId,
         userId: session.user.id,
       },
-      include: {
-        company: true,
-      },
+      include: {},
     });
 
     return NextResponse.json(contact);

@@ -20,7 +20,6 @@ export async function DELETE(req: Request) {
     await prisma.$transaction([
       prisma.draft.deleteMany({ where: { userId } }),
       prisma.contact.deleteMany({ where: { userId } }),
-      prisma.company.deleteMany({ where: { userId } }),
       prisma.template.deleteMany({ where: { userId } }),
     ]);
 

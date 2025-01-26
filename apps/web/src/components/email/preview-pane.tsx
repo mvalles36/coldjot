@@ -1,6 +1,6 @@
 "use client";
 
-import { Contact, Company } from "@prisma/client";
+import { Contact } from "@prisma/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -13,14 +13,10 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 
-type ContactWithCompany = Contact & {
-  company: Company | null;
-};
-
 interface PreviewPaneProps {
   subject: string;
   content: string;
-  contact: ContactWithCompany | null;
+  contact: Contact | null;
   fallbacks: Record<string, string>;
   customValues: Record<string, string>;
   open: boolean;

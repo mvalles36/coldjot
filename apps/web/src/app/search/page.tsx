@@ -45,14 +45,12 @@ function SearchContent() {
 
     setIsLoading(true);
     try {
-      const [contactsRes, companiesRes] = await Promise.all([
+      const [contactsRes] = await Promise.all([
         fetch(`/api/contacts/search?q=${encodeURIComponent(searchQuery)}`),
-        fetch(`/api/companies/search?q=${encodeURIComponent(searchQuery)}`),
       ]);
 
-      const [contacts, companies] = await Promise.all([
+      const [contacts] = await Promise.all([
         contactsRes.ok ? contactsRes.json() : [],
-        companiesRes.ok ? companiesRes.json() : [],
       ]);
 
       const searchResults: SearchResult[] = [
@@ -62,13 +60,6 @@ function SearchContent() {
           title: `${contact.firstName} ${contact.lastName}`,
           subtitle: contact.email,
           url: `/contacts/${contact.id}`,
-        })),
-        ...companies.map((company: any) => ({
-          id: company.id,
-          type: "company",
-          title: company.name,
-          subtitle: company.website,
-          url: `/companies/${company.id}`,
         })),
       ];
 
@@ -105,7 +96,7 @@ function SearchContent() {
         <div className="flex items-center justify-between">
           <PageHeader
             title="Search"
-            description="Search across all your contacts, companies, and templates."
+            description="Search across all your contacts and templates."
           />
           <form onSubmit={handleSearch} className="flex gap-2">
             <Input
@@ -141,9 +132,6 @@ function SearchContent() {
               </TabsTrigger>
               <TabsTrigger value="contact">
                 Contacts ({results.filter((r) => r.type === "contact").length})
-              </TabsTrigger>
-              <TabsTrigger value="company">
-                Companies ({results.filter((r) => r.type === "company").length})
               </TabsTrigger>
             </TabsList>
           </div>

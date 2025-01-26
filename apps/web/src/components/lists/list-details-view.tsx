@@ -25,23 +25,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
 import Link from "next/link";
-import { Contact, Company } from "@prisma/client";
+import { Contact } from "@prisma/client";
 import ContactDetailsDrawer from "@/components/contacts/contact-details-drawer";
 
-type ContactWithCompany = Contact & {
-  company: Company | null;
-};
-
 type EmailListWithContacts = Omit<EmailList, "contacts"> & {
-  contacts: ContactWithCompany[];
+  contacts: Contact[];
 };
 
 const RECENT_CONTACTS_KEY = "recentContacts";
@@ -56,7 +46,7 @@ export default function ListDetailsView() {
     new Set()
   );
   const [selectedContactForDetails, setSelectedContactForDetails] =
-    useState<ContactWithCompany | null>(null);
+    useState<Contact | null>(null);
 
   useEffect(() => {
     fetchList();
@@ -203,15 +193,13 @@ export default function ListDetailsView() {
     }
   };
 
-  const handleComposeEmail = (contact: ContactWithCompany) => {
+  const handleComposeEmail = (contact: Contact) => {
     localStorage.setItem(
       "selectedContact",
       JSON.stringify({
         id: contact.id,
         name: contact.name,
         email: contact.email,
-        companyId: contact.companyId,
-        company: contact.company,
       })
     );
 
@@ -298,7 +286,7 @@ export default function ListDetailsView() {
               </TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
-              <TableHead>Company</TableHead>
+
               <TableHead className="w-[100px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -341,19 +329,7 @@ export default function ListDetailsView() {
                   </div>
                 </TableCell>
                 <TableCell>{contact.email}</TableCell>
-                <TableCell>
-                  {contact.company ? (
-                    <Link
-                      href={`/companies/${contact.company.id}`}
-                      className="text-primary hover:underline"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {contact.company.name}
-                    </Link>
-                  ) : (
-                    "—"
-                  )}
-                </TableCell>
+
                 <TableCell className="action-cell">
                   <div className="flex items-center gap-2">
                     <Button

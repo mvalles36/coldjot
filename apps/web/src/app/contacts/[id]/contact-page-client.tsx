@@ -8,12 +8,8 @@ import Link from "next/link";
 import { formatLinkedInUrl } from "@/lib/utils";
 import ActionButtons from "../../../components/contacts/action-buttons";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import CopyButton from "../../../components/common/copy";
-import { Contact, Company } from "@prisma/client";
-
-type ContactWithCompany = Contact & {
-  company: Company | null;
-};
+import CopyButton from "@/components/common/copy";
+import { Contact } from "@prisma/client";
 
 interface ContactPageClientProps {
   contactId: string;
@@ -22,7 +18,7 @@ interface ContactPageClientProps {
 export default function ContactPageClient({
   contactId,
 }: ContactPageClientProps) {
-  const [contact, setContact] = useState<ContactWithCompany | null>(null);
+  const [contact, setContact] = useState<Contact | null>(null);
 
   useEffect(() => {
     const fetchContact = async () => {
@@ -47,7 +43,7 @@ export default function ContactPageClient({
     return null; // Or loading state
   }
 
-  const handleContactUpdate = (updatedContact: ContactWithCompany) => {
+  const handleContactUpdate = (updatedContact: Contact) => {
     setContact(updatedContact);
   };
 
@@ -101,22 +97,6 @@ export default function ContactPageClient({
                   <CopyButton textToCopy={contact.email} />
                 </div>
               </div>
-              {contact.linkedinUrl && (
-                <div className="flex items-center gap-3 text-sm">
-                  <div className="flex items-center gap-2 min-w-[120px] text-muted-foreground">
-                    <Linkedin className="h-4 w-4" />
-                    <span>LinkedIn</span>
-                  </div>
-                  <a
-                    href={contact.linkedinUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-medium text-primary hover:underline"
-                  >
-                    {formatLinkedInUrl(contact.linkedinUrl)}
-                  </a>
-                </div>
-              )}
               <div className="flex items-center gap-3 text-sm">
                 <div className="flex items-center gap-2 min-w-[120px] text-muted-foreground">
                   <Calendar className="h-4 w-4" />
@@ -129,54 +109,6 @@ export default function ContactPageClient({
             </div>
           </CardContent>
         </Card>
-
-        {/* Company Information Card */}
-        {contact.company && (
-          <Card className="shadow-none">
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                <Building2 className="h-5 w-5 text-primary" />
-                Company Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-3">
-                <div className="flex items-center gap-3 text-sm">
-                  <div className="flex items-center gap-2 min-w-[120px] text-muted-foreground">
-                    <Building2 className="h-4 w-4" />
-                    <span>Company</span>
-                  </div>
-                  <Link
-                    href={`/companies/${contact.company.id}`}
-                    className="font-medium text-primary hover:underline"
-                  >
-                    {contact.company.name}
-                  </Link>
-                </div>
-                {contact.company.website && (
-                  <div className="flex items-center gap-3 text-sm">
-                    <div className="flex items-center gap-2 min-w-[120px] text-muted-foreground">
-                      <Globe className="h-4 w-4" />
-                      <span>Website</span>
-                    </div>
-                    <a
-                      href={
-                        contact.company.website.startsWith("http")
-                          ? contact.company.website
-                          : `https://${contact.company.website}`
-                      }
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-medium text-primary hover:underline"
-                    >
-                      {contact.company.website}
-                    </a>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </div>
     </div>
   );

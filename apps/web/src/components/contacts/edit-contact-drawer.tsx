@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "react-hot-toast";
-import { Contact, Company } from "@prisma/client";
+import { Contact } from "@prisma/client";
 import {
   Sheet,
   SheetContent,
@@ -14,23 +14,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
-import CompanySearchDropdown from "@/components/search/company-search-dropdown";
-
-type ContactWithCompany = Contact & {
-  company: Company | null;
-};
 
 type FormData = {
   firstName: string;
   lastName: string;
   email: string;
-  linkedinUrl?: string;
 };
 
 interface EditContactDrawerProps {
-  contact: ContactWithCompany;
+  contact: Contact;
   onClose: () => void;
-  onSave: (contact: ContactWithCompany) => void;
+  onSave: (contact: Contact) => void;
 }
 
 export default function EditContactDrawer({
@@ -39,9 +33,6 @@ export default function EditContactDrawer({
   onSave,
 }: EditContactDrawerProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedCompany, setSelectedCompany] = useState<Company | null>(
-    contact.company
-  );
   const {
     register,
     handleSubmit,
@@ -51,7 +42,6 @@ export default function EditContactDrawer({
       firstName: contact.firstName,
       lastName: contact.lastName,
       email: contact.email,
-      linkedinUrl: contact.linkedinUrl || "",
     },
   });
 
@@ -63,19 +53,14 @@ export default function EditContactDrawer({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...data,
-          companyId: selectedCompany?.id,
         }),
       });
 
       if (!response.ok) throw new Error("Failed to update contact");
 
       const updatedContact = await response.json();
-      const contactWithCompany: ContactWithCompany = {
-        ...updatedContact,
-        company: selectedCompany,
-      };
+      onSave(updatedContact);
 
-      onSave(contactWithCompany);
       toast.success("Contact updated successfully");
     } catch (error) {
       toast.error("Failed to update contact");
@@ -151,23 +136,6 @@ export default function EditContactDrawer({
                     {errors.email.message}
                   </p>
                 )}
-              </div>
-
-              <div className="space-y-2">
-                <Label>Company</Label>
-                <CompanySearchDropdown
-                  selectedCompany={selectedCompany}
-                  onSelect={setSelectedCompany}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="linkedinUrl">LinkedIn URL</Label>
-                <Input
-                  id="linkedinUrl"
-                  {...register("linkedinUrl")}
-                  placeholder="Enter LinkedIn profile URL"
-                />
               </div>
             </div>
           </div>

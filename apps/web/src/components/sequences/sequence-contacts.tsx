@@ -36,38 +36,16 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { SequenceContact, StepStatus } from "@coldjot/types";
+import type { Contact, SequenceContact, StepStatus } from "@coldjot/types";
 import { SequenceContactStatusEnum } from "@coldjot/types";
 import type { SequenceContactStatusType } from "@coldjot/types";
-
-interface ContactWithCompany {
-  id: string;
-  name: string;
-  title: string | null;
-  firstName: string;
-  lastName: string;
-  email: string;
-  linkedinUrl: string | null;
-  companyId: string | null;
-  userId: string;
-  createdAt: Date;
-  updatedAt: Date;
-  company: {
-    id: string;
-    name: string;
-    userId: string;
-    createdAt: Date;
-    updatedAt: Date;
-    website: string | null;
-    domain: string | null;
-  } | null;
-}
 
 // Add extended SequenceContact type with all required properties
 interface ExtendedSequenceContact {
   id: string;
   sequenceId: string;
   contactId: string;
+  contact: Contact;
   status: SequenceContactStatusType;
   currentStep: number;
   nextScheduledAt: Date | null;
@@ -78,15 +56,6 @@ interface ExtendedSequenceContact {
   threadId: string | null;
   createdAt: Date;
   updatedAt: Date;
-  contact: {
-    id: string;
-    name: string;
-    email: string;
-    company?: {
-      id: string;
-      name: string;
-    } | null;
-  };
 }
 
 interface SequenceContactsProps {
@@ -99,13 +68,11 @@ export function SequenceContacts({
   isActive,
 }: SequenceContactsProps) {
   const [contacts, setContacts] = useState<ExtendedSequenceContact[]>([]);
-  const [selectedContact, setSelectedContact] =
-    useState<ContactWithCompany | null>(null);
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [totalSteps, setTotalSteps] = useState(0);
-  const { stats, isLoading: statsLoading } = useSequenceStats(sequenceId);
 
-  const handleAddContact = async (contact: ContactWithCompany) => {
+  const handleAddContact = async (contact: Contact) => {
     try {
       setIsLoading(true);
       const response = await fetch(`/api/sequences/${sequenceId}/contacts`, {
@@ -287,26 +254,6 @@ export function SequenceContacts({
                       <div>
                         <div className="font-medium flex items-center gap-2">
                           {sequenceContact.contact.name}
-                          {sequenceContact.contact.company && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <a
-                                    href={`/companies/${sequenceContact.contact.company.id}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-muted-foreground hover:text-primary"
-                                  >
-                                    <Building2 className="h-4 w-4" />
-                                  </a>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  {sequenceContact.contact.company.name}
-                                  <ExternalLink className="h-3 w-3 ml-1 inline" />
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
                         </div>
                         <div className="text-sm text-muted-foreground">
                           {sequenceContact.contact.email}

@@ -77,16 +77,14 @@ export function GlobalSearch({ isCollapsed }: { isCollapsed?: boolean }) {
       setIsLoading(true);
 
       try {
-        const [contactsRes, companiesRes] = await Promise.all([
+        const [contactsRes] = await Promise.all([
           fetch(`/api/contacts/search?q=${encodeURIComponent(query)}`),
-          fetch(`/api/companies/search?q=${encodeURIComponent(query)}`),
         ]);
 
         if (!active) return;
 
-        const [contacts, companies] = await Promise.all([
+        const [contacts] = await Promise.all([
           contactsRes.ok ? contactsRes.json() : [],
-          companiesRes.ok ? companiesRes.json() : [],
         ]);
 
         if (!active) return;
@@ -98,13 +96,6 @@ export function GlobalSearch({ isCollapsed }: { isCollapsed?: boolean }) {
             title: `${contact.firstName} ${contact.lastName}`,
             subtitle: contact.email,
             url: `/contacts/${contact.id}`,
-          })),
-          ...companies.map((company: any) => ({
-            id: company.id,
-            type: "company",
-            title: company.name,
-            subtitle: company.website,
-            url: `/companies/${company.id}`,
           })),
         ];
 
@@ -200,7 +191,7 @@ export function GlobalSearch({ isCollapsed }: { isCollapsed?: boolean }) {
           }}
         >
           <CommandInput
-            placeholder="Search contacts & companies..."
+            placeholder="Search contacts & templates..."
             value={query}
             onValueChange={setQuery}
             className="border-none focus:ring-0"

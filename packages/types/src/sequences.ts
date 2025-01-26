@@ -99,9 +99,6 @@ export interface SequenceContact {
     id: string;
     name: string;
     email: string;
-    company?: {
-      name: string;
-    } | null;
   };
 }
 
@@ -182,9 +179,6 @@ export interface SequenceContact {
     id: string;
     name: string;
     email: string;
-    company?: {
-      name: string;
-    } | null;
   };
 }
 

@@ -51,11 +51,6 @@ const managementRoutes = [
     href: "/contacts",
   },
   {
-    label: "Companies",
-    icon: Building2,
-    href: "/companies",
-  },
-  {
     label: "Templates",
     icon: FileText,
     href: "/templates",

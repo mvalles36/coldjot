@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Mail, Edit2, Trash2, ListPlus, MoreHorizontal } from "lucide-react";
-import { Contact, Company } from "@prisma/client";
+import { Contact } from "@prisma/client";
 import { useState } from "react";
 import EditContactModal from "./edit-contact-drawer";
 import { useRouter } from "next/navigation";
@@ -25,13 +25,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import AddToListDrawer from "@/components/lists/add-to-list-drawer";
 
-type ContactWithCompany = Contact & {
-  company: Company | null;
-};
-
 interface ActionButtonsProps {
-  contact: ContactWithCompany;
-  onContactUpdate?: (updatedContact: ContactWithCompany) => void;
+  contact: Contact;
+  onContactUpdate?: (updatedContact: Contact) => void;
 }
 
 const RECENT_CONTACTS_KEY = "recentContacts";
@@ -41,13 +37,12 @@ export default function ActionButtons({
   contact,
   onContactUpdate,
 }: ActionButtonsProps) {
-  const [editingContact, setEditingContact] =
-    useState<ContactWithCompany | null>(null);
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showAddToList, setShowAddToList] = useState(false);
   const router = useRouter();
 
-  const handleSave = (updatedContact: ContactWithCompany) => {
+  const handleSave = (updatedContact: Contact) => {
     setEditingContact(null);
     onContactUpdate?.(updatedContact);
   };
@@ -60,8 +55,6 @@ export default function ActionButtons({
         id: contact.id,
         name: contact.name,
         email: contact.email,
-        companyId: contact.companyId,
-        company: contact.company,
       })
     );
 

@@ -29,11 +29,6 @@ export const DEFAULT_PLACEHOLDERS: Placeholder[] = [
     description: "The full name of the email recipient",
   },
   {
-    name: "company_name",
-    label: "Company Name",
-    description: "The name of the recipient's company",
-  },
-  {
     name: "job_title",
     label: "Job Title",
     description: "The job title being applied for",

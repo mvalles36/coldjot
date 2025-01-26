@@ -1,56 +1,4 @@
 {
-    "companies": [
-        {
-            "name": "Tech Corp",
-            "website": "https://techcorp.com",
-            "domain": "techcorp.com"
-        },
-        {
-            "name": "Dev Solutions",
-            "website": "https://devsolutions.com",
-            "domain": "devsolutions.com"
-        },
-        {
-            "name": "Innovate Inc",
-            "website": "https://innovateinc.com",
-            "domain": "innovateinc.com"
-        },
-        {
-            "name": "Digital Dynamics",
-            "website": "https://digitaldynamics.com",
-            "domain": "digitaldynamics.com"
-        },
-        {
-            "name": "Future Systems",
-            "website": "https://futuresystems.com",
-            "domain": "futuresystems.com"
-        },
-        {
-            "name": "Cloud Nine Solutions",
-            "website": "https://cloudnine.com",
-            "domain": "cloudnine.com"
-        },
-        {
-            "name": "Data Driven Ltd",
-            "website": "https://datadriven.com",
-            "domain": "datadriven.com"
-        },
-        {
-            "name": "Smart Software Co",
-            "website": "https://smartsoftware.com",
-            "domain": "smartsoftware.com"
-        },
-        {
-            "name": "AI Solutions Group",
-            "website": "https://aisolutions.com",
-            "domain": "aisolutions.com"
-        },
-        {
-            "name": "Web Wizards",
-            "website": "https://webwizards.com",
-            "domain": "webwizards.com"
-        }
-    ],
     "templates": [
         {
             "name": "Job Application",
@@ -66,41 +14,6 @@
             "name": "Sales Pitch",
             "subject": "Enhancing {{company}}'s {{department}} with Our Solution",
             "content": "Dear {{name}},\n\nI noticed that {{company}} is looking to improve its {{department}}. Our solution has helped similar companies achieve {{benefit}}.\n\nWould you be interested in a brief demo?\n\nBest regards,\n{{sender_name}}"
-        },
-        {
-            "name": "Partnership Proposal",
-            "subject": "Partnership Opportunity: {{company}} x {{partner_company}}",
-            "content": "Dear {{name}},\n\nI'm reaching out regarding a potential partnership between {{company}} and {{partner_company}} in the {{industry}} space.\n\nBest regards,\n{{sender_name}}"
-        },
-        {
-            "name": "Event Invitation",
-            "subject": "You're Invited: {{event_name}}",
-            "content": "Dear {{name}},\n\nWe would like to invite you to {{event_name}}, happening on {{event_date}}. This {{event_type}} will feature {{event_highlights}}.\n\nBest regards,\n{{sender_name}}"
-        },
-        {
-            "name": "Project Update",
-            "subject": "{{project_name}} Project Update",
-            "content": "Hi {{name}},\n\nI wanted to provide an update on the {{project_name}} project. We've completed {{milestone}} and are on track for {{next_milestone}}.\n\nBest,\n{{sender_name}}"
-        },
-        {
-            "name": "Service Proposal",
-            "subject": "{{service_type}} Services for {{company}}",
-            "content": "Dear {{name}},\n\nBased on our discussion about {{company}}'s needs, I've prepared a proposal for our {{service_type}} services.\n\nBest regards,\n{{sender_name}}"
-        },
-        {
-            "name": "Thank You Note",
-            "subject": "Thank You for {{occasion}}",
-            "content": "Dear {{name}},\n\nI wanted to thank you for {{occasion}}. Your {{contribution_type}} was greatly appreciated.\n\nBest regards,\n{{sender_name}}"
-        },
-        {
-            "name": "Introduction Email",
-            "subject": "Introduction: {{sender_name}} from {{company}}",
-            "content": "Hi {{name}},\n\n{{mutual_contact}} suggested I reach out to you regarding {{topic}}. I work with {{company}} and we specialize in {{specialty}}.\n\nBest regards,\n{{sender_name}}"
-        },
-        {
-            "name": "Feedback Request",
-            "subject": "Quick Feedback on {{topic}}",
-            "content": "Hi {{name}},\n\nWe value your opinion and would love to get your feedback on {{topic}}. Your insights would help us {{purpose}}.\n\nBest regards,\n{{sender_name}}"
         }
     ],
     "contactGenerator": {

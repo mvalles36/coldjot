@@ -22,22 +22,10 @@ import { toast } from "react-hot-toast";
 import { Search, Loader2 } from "lucide-react";
 import { Contact } from "@prisma/client";
 
-interface ContactWithCompany extends Contact {
-  company: {
-    id: string;
-    name: string;
-    userId: string;
-    createdAt: Date;
-    updatedAt: Date;
-    website: string | null;
-    domain: string | null;
-  } | null;
-}
-
 interface ContactListSelectorProps {
   open: boolean;
   onClose: () => void;
-  onSelect: (contacts: ContactWithCompany[]) => void;
+  onSelect: (contacts: Contact[]) => void;
   sequenceId: string;
 }
 
@@ -47,7 +35,7 @@ export function ContactListSelector({
   onSelect,
   sequenceId,
 }: ContactListSelectorProps) {
-  const [contacts, setContacts] = useState<ContactWithCompany[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(
     new Set()
   );
@@ -140,7 +128,6 @@ export function ContactListSelector({
                   </TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Company</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -154,7 +141,6 @@ export function ContactListSelector({
                     </TableCell>
                     <TableCell>{contact.name}</TableCell>
                     <TableCell>{contact.email}</TableCell>
-                    <TableCell>{contact.company?.name || "-"}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

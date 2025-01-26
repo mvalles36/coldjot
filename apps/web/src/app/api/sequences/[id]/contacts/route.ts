@@ -42,49 +42,12 @@ export async function GET(
         },
       },
       include: {
-        contact: {
-          include: {
-            company: true,
-          },
-        },
-        // sequence: {
-        // include: {
-        // steps: {
-        //   orderBy: {
-        //     order: "asc",
-        //   },
-        // },
-        // },
-        // },
+        contact: {},
       },
       orderBy: {
         updatedAt: "desc",
       },
     });
-
-    // Get the latest email events for all contacts
-    // const emailEvents = await prisma.emailEvent.findMany({
-    //   where: {
-    //     sequenceId: id,
-    //     contactId: {
-    //       in: sequenceContacts.map((contact) => contact.contactId),
-    //     },
-    //   },
-    //   orderBy: {
-    //     timestamp: "desc",
-    //   },
-    // });
-
-    // Create a map of contactId to their latest email event
-    // const latestEventsByContact = emailEvents.reduce((acc, event) => {
-    //   if (
-    //     !acc.has(event.contactId!) ||
-    //     acc.get(event.contactId!)!.timestamp < event.timestamp
-    //   ) {
-    //     acc.set(event.contactId!, event);
-    //   }
-    //   return acc;
-    // }, new Map<string, (typeof emailEvents)[0]>());
 
     // Format contacts with their latest status and activity
     const enrichedContacts = sequenceContacts.map((contact) => {
@@ -153,11 +116,7 @@ export async function POST(
         currentStep: 0,
       },
       include: {
-        contact: {
-          include: {
-            company: true,
-          },
-        },
+        contact: {},
         sequence: {
           include: {
             steps: {

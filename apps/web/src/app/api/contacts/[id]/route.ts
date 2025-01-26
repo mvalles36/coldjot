@@ -20,7 +20,6 @@ export async function GET(
         id: contactId,
         userId: session.user.id,
       },
-      include: { company: true },
     });
 
     if (!contact) {
@@ -60,11 +59,6 @@ export async function PUT(
         firstName: data.firstName,
         lastName: data.lastName,
         email: data.email,
-        linkedinUrl: data.linkedinUrl,
-        companyId: data.companyId,
-      },
-      include: {
-        company: true,
       },
     });
 
@@ -119,13 +113,6 @@ export async function PATCH(
           }`,
         }),
         ...(data.email !== undefined && { email: data.email }),
-        ...(data.linkedinUrl !== undefined && {
-          linkedinUrl: data.linkedinUrl,
-        }),
-        ...(data.companyId !== undefined && { companyId: data.companyId }),
-      },
-      include: {
-        company: true,
       },
     });
 

@@ -59,11 +59,7 @@ export async function POST(
           },
           update: {},
           include: {
-            contact: {
-              include: {
-                company: true,
-              },
-            },
+            contact: {},
           },
         })
       )

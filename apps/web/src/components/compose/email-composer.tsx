@@ -10,16 +10,12 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Send, Save, Code, Loader2 } from "lucide-react";
-import { Contact, Company, Template } from "@prisma/client";
+import { Contact, Template } from "@prisma/client";
 import { toast } from "react-hot-toast";
 import { Label } from "@/components/ui/label";
 import { ContactSearch } from "../search/contact-search-dropdown";
 import { RichTextEditor } from "@/components/editor/rich-text-editor";
 import { Input } from "@/components/ui/input";
-
-type ContactWithCompany = Contact & {
-  company: Company | null;
-};
 
 interface Props {
   templates: Template[];
@@ -36,19 +32,19 @@ function flattenObject(obj: any, prefix = ""): Record<string, string> {
   const flattened: Record<string, string> = {};
 
   for (const [key, value] of Object.entries(obj)) {
-    if (key === "company" && value && typeof value === "object") {
-      // Special handling for company object
-      Object.entries(value).forEach(([companyKey, companyValue]) => {
-        if (
-          companyValue !== null &&
-          companyValue !== undefined &&
-          !["id", "userId", "createdAt", "updatedAt"].includes(companyKey)
-        ) {
-          flattened[`company_${companyKey}`] = String(companyValue);
-        }
-      });
-      continue; // Skip the default handling for company object
-    }
+    // if (key === "company" && value && typeof value === "object") {
+    //   // Special handling for company object
+    //   Object.entries(value).forEach(([companyKey, companyValue]) => {
+    //     if (
+    //       companyValue !== null &&
+    //       companyValue !== undefined &&
+    //       !["id", "userId", "createdAt", "updatedAt"].includes(companyKey)
+    //     ) {
+    //       flattened[`company_${companyKey}`] = String(companyValue);
+    //     }
+    //   });
+    //   continue; // Skip the default handling for company object
+    // }
 
     if (value && typeof value === "object" && !Array.isArray(value)) {
       // For other nested objects
@@ -59,7 +55,7 @@ function flattenObject(obj: any, prefix = ""): Record<string, string> {
     } else if (
       value !== null &&
       value !== undefined &&
-      !["id", "userId", "companyId", "createdAt", "updatedAt"].includes(key)
+      !["id", "userId", "createdAt", "updatedAt"].includes(key)
     ) {
       // For direct values, excluding certain fields
       flattened[key] = String(value);
@@ -87,8 +83,7 @@ function replaceVariablesWithValues(
 }
 
 export default function EmailComposer({ templates }: Props) {
-  const [selectedContact, setSelectedContact] =
-    useState<ContactWithCompany | null>(null);
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [rawContent, setRawContent] = useState("");
   const [processedContent, setProcessedContent] = useState("");
@@ -135,7 +130,6 @@ export default function EmailComposer({ templates }: Props) {
       // Flatten contact data
       const flatData = flattenObject({
         ...selectedContact,
-        company: selectedContact.company || {},
       });
 
       console.log(flatData);
@@ -295,7 +289,6 @@ export default function EmailComposer({ templates }: Props) {
 
     const flatData = flattenObject({
       ...selectedContact,
-      company: selectedContact.company || {},
     });
 
     return (

@@ -60,35 +60,18 @@ model Contact {
     lastName    String
     name        String
     email       String            @unique
-    linkedinUrl String?
-    title       String?
-    companyId   String?
     userId      String
     createdAt   DateTime          @default(now())
     updatedAt   DateTime          @updatedAt
     contacts    SequenceContact[] @relation("ContactToSequence")
     stats       SequenceStats[]
-
-    user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+    user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
     drafts      Draft[]
-    company     Company?      @relation(fields: [companyId], references: [id])
-    emailLists  EmailList[]   @relation("EmailListContacts")
+    emailLists  EmailList[]       @relation("EmailListContacts")
     EmailEvent  EmailEvent[]
     EmailThread EmailThread[]
 
     @@index([userId])
-    @@index([companyId])
-}
-
-model Company {
-    id        String    @id @default(cuid())
-    userId    String
-    name      String
-    website   String?
-    domain    String?
-    contacts  Contact[]
-    createdAt DateTime  @default(now())
-    updatedAt DateTime  @updatedAt
 }
 
 model Template {
@@ -155,7 +138,7 @@ model Sequence {
     createdAt      DateTime          @default(now())
     updatedAt      DateTime          @updatedAt
     steps          SequenceStep[]
-    user           User              @relation(fields: [userId], references: [id])
+    user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
     mailbox        Mailbox?          @relation(fields: [mailboxId], references: [id])
     EmailList      EmailList?        @relation(fields: [emailListId], references: [id])
     emailListId    String?
@@ -369,7 +352,7 @@ model EmailThread {
     createdAt      DateTime  @default(now())
     updatedAt      DateTime  @updatedAt
 
-    user     User     @relation(fields: [userId], references: [id])
+    user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
     sequence Sequence @relation(fields: [sequenceId], references: [id])
     contact  Contact  @relation(fields: [contactId], references: [id])
 

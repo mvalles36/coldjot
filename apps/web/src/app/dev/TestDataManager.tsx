@@ -47,18 +47,6 @@ export default function TestDataManager({ userId }: TestDataManagerProps) {
   const addTestData = async () => {
     setIsLoading(true);
     try {
-      // Add companies first
-      const companies = await Promise.all(
-        testData.companies.map(async (company) => {
-          const response = await fetch("/api/companies", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(company),
-          });
-          return response.json();
-        })
-      );
-
       // Generate and add contacts with company associations
       const contacts = generateContacts(testData.contactGenerator.count);
       await Promise.all(
@@ -68,7 +56,6 @@ export default function TestDataManager({ userId }: TestDataManagerProps) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               ...contact,
-              companyId: companies[index % companies.length].id,
             }),
           });
           return response.json();
