@@ -67,6 +67,7 @@ export function SequencesPageClient({
         initialSequences={initialSequences}
         showCreateModal={showCreateModal}
         onCloseCreateModal={() => setShowCreateModal(false)}
+        onAddSequence={() => setShowCreateModal(true)}
       />
     </div>
   );

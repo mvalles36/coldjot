@@ -344,8 +344,10 @@ export class ScheduleGenerator implements ScheduleGenerator {
           this.logDebugAndSave("⚡ Immediate email, no delay");
         } else if (step.timing === TimingType.DELAY && step.delayAmount) {
           // Use exact delay if specified
-          delay = step.delayAmount;
-          this.logDebugAndSave("⏰ Using exact specified delay");
+          // delay = step.delayAmount;
+          // this.logDebugAndSave("⏰ Using exact specified delay");
+          delay = this.convertToMinutes(step.delayAmount, step.delayUnit!);
+          this.logDebugAndSave("⏰ Using specified delay");
         } else {
           delay = RATE_LIMIT_CONFIG.SCHEDULING.DEFAULT_DELAY;
           this.logDebugAndSave("⚠️ No timing specified, using default delay");
@@ -377,15 +379,21 @@ export class ScheduleGenerator implements ScheduleGenerator {
   }
 
   private convertToMinutes(amount: number, unit: string): number {
-    switch (unit) {
+    switch (unit.toLowerCase()) {
       case "minutes":
+      case "minute":
         return amount;
       case "hours":
+      case "hour":
         return amount * 60;
       case "days":
+      case "day":
         return amount * 24 * 60;
       default:
-        return 60; // default
+        this.logAndSave(
+          `⚠️ Unknown time unit: ${unit}, defaulting to 60 minutes`
+        );
+        return 60; // default to 1 hour
     }
   }
 

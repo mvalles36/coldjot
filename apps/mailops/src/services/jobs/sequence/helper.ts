@@ -278,6 +278,8 @@ interface ProcessContactOptions {
     steps: any[];
     businessHours?: any;
     status?: string;
+    disableSending?: boolean;
+    testMode?: boolean;
   };
   contact: {
     id: string;
@@ -373,7 +375,7 @@ export const processContactShared = async (
       threadId: options.threadId,
       scheduledTime: sendTime.toISOString(),
       testMode,
-      disableSending: options.disableSending,
+      disableSending: sequence.disableSending,
     };
 
     // 7. Add to queue

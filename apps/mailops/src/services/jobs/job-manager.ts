@@ -62,7 +62,7 @@ export class JobManager {
     }
 
     return await queue.add(QUEUE_NAMES.EMAIL, job, {
-      delay,
+      // delay,
       removeOnComplete: {
         count: 5,
       },
