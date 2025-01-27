@@ -77,7 +77,7 @@ export function StatsChart({ data }: StatsChartProps) {
             Overview of email campaign performance over time
           </p>
         </div>
-        <div className="h-[400px] w-full pr-8">
+        <div className="h-[300px] w-full pr-8">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
               data={data}

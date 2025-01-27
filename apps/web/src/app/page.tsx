@@ -19,7 +19,7 @@ import {
 import { startOfToday, startOfWeek, subDays } from "date-fns";
 
 // Demo mode for development and preview
-const DEMO_MODE = false;
+const DEMO_MODE = true;
 
 function getDateRangeFilter(range: DateRange) {
   const now = new Date();
@@ -239,9 +239,14 @@ export default async function Home({
   const chartData = await getUserChartData(session.user.id, dateRange);
 
   return (
-    <div className="max-w-5xl mx-auto py-10 space-y-8">
+    <div className="max-w-5xl mx-auto py-8 space-y-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-4xl font-semibold">Welcome to ColdJot</h1>
+        <div>
+          <h1 className="text-2xl font-semibold">Welcome to ColdJot</h1>
+          <p className="text-sm text-muted-foreground">
+            Check your email stats and manage your email sequences.
+          </p>
+        </div>
         <DateRangeSelectorWrapper />
       </div>
 
