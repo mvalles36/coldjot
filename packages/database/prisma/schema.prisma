@@ -537,5 +537,55 @@ model ListSyncRecord {
     @@index([listId])
     @@index([sequenceId])
     @@index([status])
-    @@index([createdAt])
+    @@index([```prisma
+model VapiCredentials {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  apiKey    String
+  orgId     String
+  callerId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+
+model CallTracking {
+  id           String    @id @default(cuid())
+  callId       String    @unique
+  contactId    String
+  sequenceId   String?
+  stepId       String?
+  userId       String
+  status       String
+  outcome      String?
+  duration     Int?
+  recordingUrl String?
+  transcript   String?   @db.Text
+  summary      String?   @db.Text
+  startedAt    DateTime
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  
+  contact      Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sequence     Sequence? @relation(fields: [sequenceId], references: [id], onDelete: SetNull)
+}
+
+model DailyCallAnalytics {
+  id             String   @id @default(cuid())
+  userId         String
+  date           DateTime
+  totalCalls     Int      @default(0)
+  connectedCalls Int      @default(0)
+  totalDuration  Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, date])
+}
+```
+
+
