@@ -20,6 +20,7 @@ import {
 import { toast } from "react-hot-toast";
 import { cn } from "@/lib/utils";
 import type { SequenceStep } from "@coldjot/types";
+import { Phone } from "lucide-react"; // 1. import Phone icon
 
 interface Props {
   steps: SequenceStep[];
@@ -36,6 +37,10 @@ interface StepActionsProps {
   onEditTemplate: (step: SequenceStep) => void;
   onDuplicate: (step: SequenceStep) => Promise<void>;
   onDelete: (step: SequenceStep) => Promise<void>;
+}
+
+interface StepActionsPropsWithType extends StepActionsProps {
+  isCall: boolean;
 }
 
 export function SequenceStepList({
@@ -103,19 +108,42 @@ export function SequenceStepList({
                     >
                       <DragHandleDots2Icon className="h-5 w-5 text-muted-foreground" />
                     </div>
-                    <div className="flex-shrink-0">
-                      <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                        <Mail className="h-4 w-4 text-primary" />
-                      </div>
-                    </div>
+                    {(() => {
+                      /* Determine if this is a call step */
+                      const isCall =
+                        step.stepType === "call" ||
+                        step.stepType === "CALL";
+                      const Icon = isCall ? Phone : Mail;
+                      return (
+                        <div className="flex-shrink-0">
+                          <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                            <Icon className="h-4 w-4 text-primary" />
+                          </div>
+                        </div>
+                      );
+                    })()}
                     <div className="flex-grow">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium">
-                          Day {index + 1}: Manual email
-                        </span>
+                        {(() => {
+                          const isCall =
+                            step.stepType === "call" ||
+                            step.stepType === "CALL";
+                          return (
+                            <span className="font-medium">
+                              {`Day ${index + 1}: ${isCall ? "Call" : "Manual email"}`}
+                            </span>
+                          );
+                        })()}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {step.subject || "(No Subject)"}
+                        {(() => {
+                          const isCall =
+                            step.stepType === "call" ||
+                            step.stepType === "CALL";
+                          return isCall
+                            ? step.note || "(Call step)"
+                            : step.subject || "(No Subject)";
+                        })()}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -126,6 +154,10 @@ export function SequenceStepList({
                         onEditTemplate={onEditTemplate}
                         onDuplicate={onDuplicate}
                         onDelete={onDelete}
+                        isCall={
+                          step.stepType === "call" ||
+                          step.stepType === "CALL"
+                        }
                       />
                     </div>
                   </div>

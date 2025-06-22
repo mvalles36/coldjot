@@ -64,6 +64,38 @@ export async function GET(
       },
     });
 
+    /* ------------------------------------------------------------------
+     * Call metrics
+     * ------------------------------------------------------------------ */
+    const callTrackings = await prisma.callTracking.findMany({
+      where: {
+        sequenceId: id,
+        updatedAt: {
+          gte: startDate,
+        },
+      },
+    });
+
+    const totalCallsPlaced = callTrackings.length;
+
+    // Status strings are based on CallStatus enum introduced earlier
+    const callsConnected = callTrackings.filter((c) =>
+      ["answered", "completed"].includes(c.status)
+    ).length;
+    const voicemailsLeft = callTrackings.filter(
+      (c) => c.status === "left_voicemail"
+    ).length;
+    const appointmentsSet = callTrackings.filter(
+      (c) => c.status === "appointment_set"
+    ).length;
+
+    const callConnectRate =
+      totalCallsPlaced > 0 ? (callsConnected / totalCallsPlaced) * 100 : 0;
+    const voicemailRate =
+      totalCallsPlaced > 0 ? (voicemailsLeft / totalCallsPlaced) * 100 : 0;
+    const appointmentsSetRate =
+      callsConnected > 0 ? (appointmentsSet / callsConnected) * 100 : 0;
+
     // TODO: Fix it as we have removed status from sequence step
     // Calculate stats
     // const stats = {
@@ -93,6 +125,15 @@ export async function GET(
     return NextResponse.json({
       // stats,
       activities,
+      callStats: {
+        totalCallsPlaced,
+        callsConnected,
+        voicemailsLeft,
+        appointmentsSet,
+        callConnectRate,
+        voicemailRate,
+        appointmentsSetRate,
+      },
     });
   } catch (error) {
     console.error("Error fetching sequence stats:", error);

@@ -7,9 +7,16 @@ import { SequenceStepEditor } from "./sequence-step-editor";
 import { SequenceEmailEditor } from "../editor/sequence-email-editor";
 import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
-import type { SequenceStep, StepData, EmailData } from "@coldjot/types";
+import type {
+  SequenceStep,
+  StepData,
+  EmailData,
+  CallData,
+} from "@coldjot/types";
+import { StepTypeEnum } from "@coldjot/types";
 import { addStepToSequence } from "@/lib/client-actions";
 import { useSequence } from "@/lib/sequence-context";
+import { SequenceCallEditor } from "../editor/sequence-call-editor";
 
 interface AddSequenceStepProps {
   sequenceId: string;
@@ -17,7 +24,7 @@ interface AddSequenceStepProps {
   steps: SequenceStep[];
 }
 
-type ActiveDrawer = "none" | "step" | "email";
+type ActiveDrawer = "none" | "step" | "email" | "call";
 
 export function AddSequenceStep({
   sequenceId,
@@ -27,12 +34,22 @@ export function AddSequenceStep({
   const [activeDrawer, setActiveDrawer] = useState<ActiveDrawer>("none");
   const [stepData, setStepData] = useState<StepData | null>(null);
   const [emailData, setEmailData] = useState<EmailData | null>(null);
+  const [callData, setCallData] = useState<CallData | null>(null);
   const router = useRouter();
   const { updateReadinessField } = useSequence();
 
   const handleStepSave = async (data: StepData) => {
     setStepData(data);
-    setActiveDrawer("email");
+    // Determine which editor to open based on step type
+    if (
+      (data as any).stepType === StepTypeEnum.CALL ||
+      (data as any).type === "call" ||
+      (data as any).stepType === "call"
+    ) {
+      setActiveDrawer("call");
+    } else {
+      setActiveDrawer("email");
+    }
   };
 
   const handleEmailSave = async (data: EmailData) => {
@@ -63,6 +80,33 @@ export function AddSequenceStep({
     }
   };
 
+  const handleCallSave = async (data: CallData) => {
+    if (!stepData) return;
+
+    try {
+      const previousStepId =
+        steps.length > 0 ? steps[steps.length - 1].id : undefined;
+
+      const stepDataToSave = {
+        ...stepData,
+        ...data,
+        order: steps.length,
+        previousStepId,
+      };
+
+      await addStepToSequence(sequenceId, stepDataToSave, updateReadinessField);
+
+      toast.success("Step added successfully");
+      setActiveDrawer("none");
+      setStepData(null);
+      setCallData(null);
+      onStepAdded?.();
+    } catch (error) {
+      console.error("Error adding call step:", error);
+      toast.error("Failed to add step");
+    }
+  };
+
   return (
     <>
       <Button
@@ -88,6 +132,14 @@ export function AddSequenceStep({
         previousStepId={
           steps.length > 0 ? steps[steps.length - 1].id : undefined
         }
+      />
+
+      <SequenceCallEditor
+        open={activeDrawer === "call"}
+        onClose={() => setActiveDrawer("none")}
+        onSave={handleCallSave}
+        sequenceId={sequenceId}
+        previousStepId={steps.length > 0 ? steps[steps.length - 1].id : undefined}
       />
     </>
   );

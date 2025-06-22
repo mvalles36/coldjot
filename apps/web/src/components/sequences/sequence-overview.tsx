@@ -7,6 +7,7 @@ import { SequenceStepList } from "./steps/sequence-step-list";
 import { AddSequenceStep } from "./steps/add-sequence-step";
 import { SequenceStepEditor } from "./steps/sequence-step-editor";
 import { SequenceEmailEditor } from "./editor/sequence-email-editor";
+import { SequenceCallEditor } from "./editor/sequence-call-editor";
 import { toast } from "react-hot-toast";
 import {
   type SequenceStats as SequenceStatsType,
@@ -77,10 +78,14 @@ export function SequenceOverview({ sequence, stats }: SequenceOverviewProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [showStepEditor, setShowStepEditor] = useState(false);
   const [showEmailEditor, setShowEmailEditor] = useState(false);
+  const [showCallEditor, setShowCallEditor] = useState(false);
   const [editingStep, setEditingStep] = useState<SequenceStep | null>(null);
   const [emailEditorData, setEmailEditorData] = useState<
     EmailEditorData | undefined
   >(undefined);
+  const [callEditorData, setCallEditorData] = useState<any | undefined>(
+    undefined
+  );
   const [stepEditorData, setStepEditorData] = useState<
     StepEditorData | undefined
   >(undefined);
@@ -143,21 +148,36 @@ export function SequenceOverview({ sequence, stats }: SequenceOverviewProps) {
   };
 
   const handleTemplateEdit = (step: SequenceStep) => {
+    const isCallStep =
+      step.stepType === "CALL" || step.stepType === "call" || step.stepType === "Call";
+
     const currentStepIndex = steps.findIndex((s) => s.id === step.id);
     const previousStepId =
       currentStepIndex > 0 ? steps[currentStepIndex - 1].id : undefined;
 
-    const emailData: EmailEditorData = {
-      subject: step.subject || undefined,
-      content: step.content || undefined,
-      includeSignature: step.includeSignature,
-      replyToThread: step.replyToThread ?? undefined,
-      previousStepId,
-      templateId: step.templateId || undefined,
-    };
-    setEditingStep(step);
-    setEmailEditorData(emailData);
-    setShowEmailEditor(true);
+    if (isCallStep) {
+      // For call steps we pass the assistant config & note
+      const callData = {
+        assistantConfig: (step as any).assistantConfig,
+        note: step.note || undefined,
+        previousStepId,
+      };
+      setEditingStep(step);
+      setCallEditorData(callData);
+      setShowCallEditor(true);
+    } else {
+      const emailData: EmailEditorData = {
+        subject: step.subject || undefined,
+        content: step.content || undefined,
+        includeSignature: step.includeSignature,
+        replyToThread: step.replyToThread ?? undefined,
+        previousStepId,
+        templateId: step.templateId || undefined,
+      };
+      setEditingStep(step);
+      setEmailEditorData(emailData);
+      setShowEmailEditor(true);
+    }
   };
 
   const handleStepAdded = async () => {
@@ -169,6 +189,40 @@ export function SequenceOverview({ sequence, stats }: SequenceOverviewProps) {
       setSteps(updatedSteps);
     } catch (error) {
       toast.error("Failed to refresh steps");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCallSave = async (callData: any) => {
+    if (!editingStep) return;
+
+    try {
+      setIsLoading(true);
+      const response = await fetch(
+        `/api/sequences/${sequence.id}/steps/${editingStep.id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...editingStep,
+            ...callData,
+          }),
+        }
+      );
+
+      if (!response.ok) throw new Error("Failed to update step");
+
+      const updatedSteps = await fetch(
+        `/api/sequences/${sequence.id}/steps`
+      ).then((res) => res.json());
+      setSteps(updatedSteps);
+      setShowCallEditor(false);
+      setEditingStep(null);
+      setCallEditorData(undefined);
+      toast.success("Call step updated successfully");
+    } catch (error) {
+      toast.error("Failed to update call step");
     } finally {
       setIsLoading(false);
     }
@@ -400,6 +454,19 @@ export function SequenceOverview({ sequence, stats }: SequenceOverviewProps) {
         sequenceId={sequence.id}
         stepId={editingStep?.id}
         previousStepId={emailEditorData?.previousStepId}
+      />
+
+      <SequenceCallEditor
+        open={showCallEditor}
+        onClose={() => {
+          setShowCallEditor(false);
+          setEditingStep(null);
+          setCallEditorData(undefined);
+        }}
+        onSave={handleCallSave}
+        initialData={callEditorData}
+        sequenceId={sequence.id}
+        stepId={editingStep?.id}
       />
     </div>
   );

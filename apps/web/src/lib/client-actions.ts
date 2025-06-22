@@ -54,12 +54,26 @@ export async function addStepToSequence(
   ) => void
 ) {
   try {
+    /* -----------------------------------------------------------
+     * Normalise the step payload before sending it to the backend.
+     * 1. The API expects `stepType` instead of `type`.
+     * 2. For call steps we only need to rename the key; the editor
+     *    already attaches `assistantConfig`, `note`, etc.
+     * ----------------------------------------------------------- */
+    const formattedStepData: any = { ...stepData };
+
+    if ("type" in formattedStepData) {
+      // Preserve the original value but move it to `stepType`
+      formattedStepData.stepType = formattedStepData.type;
+      delete formattedStepData.type;
+    }
+
     const response = await fetch(`/api/sequences/${sequenceId}/steps`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(stepData),
+      body: JSON.stringify(formattedStepData),
     });
 
     if (!response.ok) {

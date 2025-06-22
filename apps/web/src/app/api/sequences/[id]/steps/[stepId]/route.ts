@@ -1,10 +1,14 @@
 import { auth } from "@/auth";
 import { prisma } from "@coldjot/database";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function PUT(
-  req: Request,
-  { params }: { params: Promise<{ id: string; stepId: string }> }
+/**
+ * GET handler for /api/sequences/[id]/steps/[stepId]
+ * Retrieves a specific sequence step
+ */
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { id: string; stepId: string } }
 ) {
   try {
     const session = await auth();
@@ -12,28 +16,100 @@ export async function PUT(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { id: sequenceId, stepId } = await params;
+    const { id, stepId } = params;
 
-    console.log("sequenceId", sequenceId);
-    console.log("stepId", stepId);
-
-    // Verify sequence ownership and existence
+    // Check if the user has access to this sequence
     const sequence = await prisma.sequence.findUnique({
       where: {
-        id: sequenceId,
+        id,
         userId: session.user.id,
       },
+      select: { id: true },
     });
 
     if (!sequence) {
       return new NextResponse("Sequence not found", { status: 404 });
     }
 
-    // Verify step belongs to the sequence
+    // Get the step
+    const step = await prisma.sequenceStep.findUnique({
+      where: {
+        id: stepId,
+        sequenceId: id,
+      },
+    });
+
+    if (!step) {
+      return new NextResponse("Step not found", { status: 404 });
+    }
+
+    // If it's a call step, also fetch the call assistant configuration
+    if (step.stepType === "call" || step.stepType === "CALL") {
+      const callAssistant = await prisma.callAssistant.findFirst({
+        where: {
+          sequenceId: id,
+          userId: session.user.id,
+        },
+      });
+
+      if (callAssistant) {
+        // Merge call assistant config with step data
+        return NextResponse.json({
+          ...step,
+          assistantConfig: {
+            vapiAssistantId: callAssistant.vapiAssistantId,
+            voiceId: callAssistant.voiceId,
+            systemPrompt: callAssistant.systemPrompt,
+            leaveVoicemail: callAssistant.leaveVoicemail,
+            voicemailText: callAssistant.voicemailText,
+            phoneNumberId: callAssistant.phoneNumberId,
+          },
+        });
+      }
+    }
+
+    return NextResponse.json(step);
+  } catch (error) {
+    console.error("[SEQUENCE_STEP_GET]", error);
+    return new NextResponse("Internal Error", { status: 500 });
+  }
+}
+
+/**
+ * PUT handler for /api/sequences/[id]/steps/[stepId]
+ * Updates a sequence step, handling both email and call types
+ */
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: { id: string; stepId: string } }
+) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    const { id, stepId } = params;
+    const json = await req.json();
+
+    // Check if the user has access to this sequence
+    const sequence = await prisma.sequence.findUnique({
+      where: {
+        id,
+        userId: session.user.id,
+      },
+      select: { id: true },
+    });
+
+    if (!sequence) {
+      return new NextResponse("Sequence not found", { status: 404 });
+    }
+
+    // Get the step to determine its type
     const existingStep = await prisma.sequenceStep.findUnique({
       where: {
         id: stepId,
-        sequenceId: sequenceId,
+        sequenceId: id,
       },
     });
 
@@ -41,47 +117,93 @@ export async function PUT(
       return new NextResponse("Step not found", { status: 404 });
     }
 
-    const json = await req.json();
-    delete json.sequenceId;
-    delete json.type;
+    // Determine if this is a call step
+    const isCallStep = 
+      existingStep.stepType === "call" || 
+      existingStep.stepType === "CALL";
 
-    // Prepare update data
-    const updateData = { ...json };
+    // Extract common step data
+    const {
+      timing,
+      priority,
+      delayAmount,
+      delayUnit,
+      note,
+      order,
+      previousStepId,
+      assistantConfig,
+      ...otherData
+    } = json;
 
-    // If templateId is explicitly set to null (unlinking), remove it and keep content/subject
-    if (json.templateId === null) {
-      updateData.templateId = null;
+    // Prepare update data based on step type
+    const stepUpdateData: any = {
+      timing,
+      priority,
+      delayAmount,
+      delayUnit,
+      note,
+      order,
+      previousStepId,
+    };
+
+    // For email steps, include email-specific fields
+    if (!isCallStep) {
+      const { subject, content, includeSignature, replyToThread, templateId } = otherData;
+      Object.assign(stepUpdateData, {
+        subject,
+        content,
+        includeSignature,
+        replyToThread,
+        templateId,
+      });
     }
-
-    // If templateId is provided, clear content and subject
-    if (json.templateId) {
-      updateData.content = null;
-      updateData.subject = null;
-    }
-
-    console.log("Update Data", updateData);
 
     // Update the step
-    const step = await prisma.sequenceStep.update({
+    const updatedStep = await prisma.sequenceStep.update({
       where: {
         id: stepId,
-        sequenceId: sequenceId,
       },
-      data: updateData,
+      data: stepUpdateData,
     });
 
-    return NextResponse.json(step);
+    // If it's a call step and we have assistant config, update that too
+    if (isCallStep && assistantConfig) {
+      await prisma.callAssistant.upsert({
+        where: {
+          sequenceId_userId: {
+            sequenceId: id,
+            userId: session.user.id,
+          },
+        },
+        update: assistantConfig,
+        create: {
+          sequenceId: id,
+          userId: session.user.id,
+          ...assistantConfig,
+        },
+      });
+
+      // Return the updated step with assistant config
+      return NextResponse.json({
+        ...updatedStep,
+        assistantConfig,
+      });
+    }
+
+    return NextResponse.json(updatedStep);
   } catch (error) {
-    console.error("[SEQUENCE_STEP_UPDATE]", error);
+    console.error("[SEQUENCE_STEP_PUT]", error);
     return new NextResponse("Internal Error", { status: 500 });
   }
 }
 
-// TODO : reset order of steps after a deletion
-
+/**
+ * DELETE handler for /api/sequences/[id]/steps/[stepId]
+ * Deletes a sequence step
+ */
 export async function DELETE(
-  req: Request,
-  { params }: { params: Promise<{ id: string; stepId: string }> }
+  req: NextRequest,
+  { params }: { params: { id: string; stepId: string } }
 ) {
   try {
     const session = await auth();
@@ -89,36 +211,73 @@ export async function DELETE(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { id: sequenceId, stepId } = await params;
+    const { id, stepId } = params;
 
-    // Verify sequence ownership and existence
+    // Check if the user has access to this sequence
     const sequence = await prisma.sequence.findUnique({
       where: {
-        id: sequenceId,
+        id,
         userId: session.user.id,
       },
+      select: { id: true },
     });
 
     if (!sequence) {
       return new NextResponse("Sequence not found", { status: 404 });
     }
 
-    // Verify and delete the step
+    // Delete the step
     await prisma.sequenceStep.delete({
       where: {
         id: stepId,
-        sequenceId: sequenceId, // Extra safety: ensure step belongs to sequence
+        sequenceId: id,
       },
     });
 
-    // Reset order of steps after deletion
-    // TODO : this is not working
-    // await prisma.sequenceStep.updateMany({
-    //   where: { sequenceId: sequenceId },
-    //   data: { order: { decrement: 1 } },
-    // });
+    // Get remaining steps to reorder them
+    const remainingSteps = await prisma.sequenceStep.findMany({
+      where: {
+        sequenceId: id,
+      },
+      orderBy: {
+        order: "asc",
+      },
+    });
 
-    return NextResponse.json({ success: true });
+    // Reorder remaining steps
+    if (remainingSteps.length > 0) {
+      await Promise.all(
+        remainingSteps.map((step, index) =>
+          prisma.sequenceStep.update({
+            where: {
+              id: step.id,
+            },
+            data: {
+              order: index,
+              previousStepId: index > 0 ? remainingSteps[index - 1].id : null,
+            },
+          })
+        )
+      );
+    }
+
+    // Update sequence metadata if no steps remain
+    if (remainingSteps.length === 0) {
+      await prisma.sequence.update({
+        where: {
+          id,
+        },
+        data: {
+          metadata: {
+            readiness: {
+              hasSteps: false,
+            },
+          },
+        },
+      });
+    }
+
+    return new NextResponse(null, { status: 204 });
   } catch (error) {
     console.error("[SEQUENCE_STEP_DELETE]", error);
     return new NextResponse("Internal Error", { status: 500 });

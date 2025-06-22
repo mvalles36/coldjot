@@ -20,6 +20,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Loader2, Mail } from "lucide-react";
+import { Phone } from "lucide-react";
 import { useForm, Controller } from "react-hook-form";
 import { format } from "date-fns";
 
@@ -83,12 +84,13 @@ export function SequenceStepEditor({
   const timing = watch("timing");
   const delayAmount = watch("delayAmount");
   const delayUnit = watch("delayUnit");
+  const stepTypeWatch = watch("type");
 
   const onSubmit = async (data: StepFormData) => {
     setIsSubmitting(true);
     try {
       const formattedData = {
-        type: "manual_email",
+        type: data.type,
         timing: data.timing,
         priority: data.priority,
         ...(data.timing === "delay" && {
@@ -117,15 +119,66 @@ export function SequenceStepEditor({
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 mt-6">
           <div className="space-y-4">
-            <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
-              <Mail className="h-6 w-6 text-primary" />
-              <div>
-                <h3 className="font-medium">Manual email</h3>
-                <p className="text-sm text-muted-foreground">
-                  Task is created to edit and deliver email.
-                </p>
-              </div>
-            </div>
+            {/* Step type selector */}
+            <Controller
+              name="type"
+              control={control}
+              render={({ field }) => (
+                <RadioGroup
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                  className="grid grid-cols-2 gap-4"
+                >
+                  {/* Manual Email option */}
+                  <Label
+                    htmlFor="manual_email"
+                    className={`flex items-center gap-4 p-4 rounded-lg cursor-pointer border
+                    ${
+                      stepTypeWatch === "manual_email"
+                        ? "border-primary bg-muted/50"
+                        : "bg-muted/30"
+                    }`}
+                  >
+                    <RadioGroupItem
+                      value="manual_email"
+                      id="manual_email"
+                      className="sr-only"
+                    />
+                    <Mail className="h-6 w-6 text-primary" />
+                    <div>
+                      <h3 className="font-medium">Manual email</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Task is created to edit and deliver email.
+                      </p>
+                    </div>
+                  </Label>
+
+                  {/* Call option */}
+                  <Label
+                    htmlFor="call"
+                    className={`flex items-center gap-4 p-4 rounded-lg cursor-pointer border
+                    ${
+                      stepTypeWatch === "call"
+                        ? "border-primary bg-muted/50"
+                        : "bg-muted/30"
+                    }`}
+                  >
+                    <RadioGroupItem
+                      value="call"
+                      id="call"
+                      className="sr-only"
+                    />
+                    <Phone className="h-6 w-6 text-primary" />
+                    <div>
+                      <h3 className="font-medium">Call</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Automated or assisted phone call step.
+                      </p>
+                    </div>
+                  </Label>
+                </RadioGroup>
+              )}
+            />
 
             <div className="space-y-4">
               <Label>When to start this step:</Label>

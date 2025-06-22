@@ -47,25 +47,76 @@ export async function POST(
       note,
       replyToThread,
       previousStepId,
+      assistantConfig,
     } = json;
 
-    const step = await prisma.sequenceStep.create({
-      data: {
-        sequenceId: sequence.id,
-        stepType: type,
-        timing,
-        priority,
-        delayAmount,
-        delayUnit,
+    // normalise step type
+    const stepType = (type as string)?.toLowerCase();
+
+    /* ----------------------------------------------------------------
+     * If the step is a CALL step we need to make sure an assistant
+     * configuration exists (create or update) for this sequence.
+     * The assistantConfig shape is expected to come from the UI:
+     * {
+     *   vapiAssistantId, voiceId, systemPrompt,
+     *   leaveVoicemail, voicemailText?, phoneNumberId
+     * }
+     * ---------------------------------------------------------------- */
+    let callAssistantRecord = null;
+    if (stepType === "call") {
+      if (!assistantConfig) {
+        return new NextResponse(
+          "assistantConfig missing for call step",
+          { status: 400 }
+        );
+      }
+
+      callAssistantRecord = await prisma.callAssistant.upsert({
+        where: {
+          sequenceId_userId: {
+            sequenceId: sequence.id,
+            userId: session.user.id,
+          },
+        },
+        update: {
+          ...assistantConfig,
+        },
+        create: {
+          sequenceId: sequence.id,
+          userId: session.user.id,
+          ...assistantConfig,
+        },
+      });
+    }
+
+    // Prepare common step data
+    const stepData: any = {
+      sequenceId: sequence.id,
+      stepType: stepType,
+      timing,
+      priority,
+      delayAmount,
+      delayUnit,
+      note,
+      order: sequence.steps.length + 1,
+      previousStepId,
+    };
+
+    if (stepType === "call") {
+      // For call steps we don't store email-related fields
+      stepData.includeSignature = false;
+      stepData.replyToThread = false;
+    } else {
+      // Email step – retain original behaviour
+      Object.assign(stepData, {
         subject,
         content,
         includeSignature,
-        note,
-        order: sequence.steps.length + 1,
         replyToThread,
-        previousStepId,
-      },
-    });
+      });
+    }
+
+    const step = await prisma.sequenceStep.create({ data: stepData });
 
     // Update the sequence metadata only if this is the first step
     // or if the metadata doesn't already indicate that steps exist
@@ -76,7 +127,10 @@ export async function POST(
       await updateSequenceReadinessField(sequence.id, "hasSteps", true);
     }
 
-    return NextResponse.json(step);
+    return NextResponse.json({
+      step,
+      callAssistant: callAssistantRecord,
+    });
   } catch (error) {
     console.error("[SEQUENCE_STEPS_POST]", error);
     return new NextResponse("Internal Error", { status: 500 });

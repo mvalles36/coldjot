@@ -7,6 +7,7 @@ import { SequenceMailbox } from "./mailbox";
 export enum StepTypeEnum {
   MANUAL_EMAIL = "MANUAL_EMAIL",
   AUTOMATED_EMAIL = "AUTOMATED_EMAIL",
+  CALL = "CALL",
   WAIT = "WAIT",
   CONDITION = "CONDITION",
   ACTION = "ACTION",
@@ -38,6 +39,18 @@ export enum StepStatus {
   SENT = "sent",
   FAILED = "failed",
   BOUNCED = "bounced",
+}
+
+// Granular statuses specific to call steps
+export enum CallStatus {
+  INITIAL = "initial",
+  NO_ANSWER = "no_answer",
+  LEFT_VOICEMAIL = "left_voicemail",
+  ANSWERED = "answered",
+  APPOINTMENT_SET = "appointment_set",
+  CALLBACK_REQUESTED = "callback_requested",
+  NO_INTEREST = "no_interest",
+  DO_NOT_CALL = "do_not_call",
 }
 
 export enum SequenceStatus {
@@ -227,4 +240,31 @@ export interface EmailData {
   includeSignature: boolean;
   replyToThread?: boolean;
   templateId?: string;
+}
+
+// ------------------------
+// Call-related data types
+// ------------------------
+
+// Configuration saved per campaign when user sets up a Vapi assistant
+export interface CallAssistantConfig {
+  /** Vapi.ai Assistant identifier to be used for the call. */
+  vapiAssistantId: string;
+  /** Voice ID chosen for this assistant/persona. */
+  voiceId: string;
+  /** System prompt sent to the voice assistant. */
+  systemPrompt: string;
+  /** Whether to leave a voicemail when contact doesn't answer. */
+  leaveVoicemail: boolean;
+  /** Text that will be spoken as voicemail if leaveVoicemail is true. */
+  voicemailText?: string;
+  /** Outbound phone number (owned by the user in Vapi) used to place the call. */
+  phoneNumberId: string;
+}
+
+// Shape of data when saving a Call step
+export interface CallData {
+  assistantConfig: CallAssistantConfig;
+  /** Optional note or instructions similar to email note field */
+  note?: string;
 }

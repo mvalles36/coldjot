@@ -30,14 +30,14 @@
         "type-check": "tsc --noEmit"
     },
     "dependencies": {
-        "@prisma/client": "^6.2.1",
+        "@prisma/client": "^6.8.2",
         "tsup": "^8.0.1"
     },
     "devDependencies": {
         "@types/node": "^20.10.4",
         "dotenv": "^16.4.7",
         "dotenv-cli": "^7.3.0",
-        "prisma": "^6.2.1",
+        "prisma": "^6.8.2",
         "rimraf": "^5.0.5",
         "typescript": "^5.3.3"
     }
