@@ -513,13 +513,25 @@ model ProcessedMessage {
   id        String   @id @default(cuid())
   messageId String   @unique
   threadId  String
-  type      String // 'REPLY', 'BOUNCE', etc.
+  /// 'reply', 'bounce', etc.
+  type      String   @default("reply")
+  /// Sets to true once the message is processed so we don't re-process it.
   processed Boolean  @default(true)
+  /// Owning user (mailbox owner)
+  userId    String
+  /// Optional JSON with additional processing metadata (e.g. errors, retries)
+  processingDetails Json?
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([messageId])
   @@index([threadId])
   @@index([type])
+  @@index([userId])
+  @@index([processed])
 }
 
 // Model to track list sync operations

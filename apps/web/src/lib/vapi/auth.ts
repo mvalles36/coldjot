@@ -203,6 +203,29 @@ export async function getOptimizedCallTime(
   }
 
   /* ---------------- Respect business hours ---------------- */
+  // -----------------------------------------------------------------
+  // Use engagementScore to prioritise highly-engaged contacts earlier
+  // in the day.  Score bands:
+  //   ≥ 70  → high priority      → no offset
+  //   40-69 → medium priority    → +1 hour
+  //   < 40  → low priority       → +2 hours
+  // -----------------------------------------------------------------
+  let engagementOffset = 0;
+  try {
+    const contact = await prisma.contact.findUnique({
+      where: { id: contactId },
+      select: { metadata: true },
+    });
+    const score =
+      (contact?.metadata as Record<string, any>)?.engagementScore ?? 0;
+
+    if (score < 40) engagementOffset = 2;
+    else if (score < 70) engagementOffset = 1;
+  } catch (err) {
+    // If anything goes wrong just default to zero offset
+    console.error("Error fetching engagementScore:", err);
+  }
+
   const businessHours = await prisma.businessHours.findFirst({
     where: { userId },
   });
@@ -218,6 +241,8 @@ export async function getOptimizedCallTime(
   // Clamp bestHour into working window
   if (bestHour < workStart) bestHour = workStart;
   if (bestHour >= workEnd) bestHour = workStart;
+  // Apply engagement offset while staying within the allowed window
+  bestHour = Math.min(bestHour + engagementOffset, workEnd - 1);
 
   /* ---------------- Calculate next occurrence ---------------- */
   const now = new Date();
