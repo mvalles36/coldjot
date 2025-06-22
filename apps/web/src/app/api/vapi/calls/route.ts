@@ -4,62 +4,13 @@ import { authOptions } from "@/lib/auth.config";
 import { fetchVapiApi } from "@/lib/vapi/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-// OpenAI voicemail personalisation
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? "";
+
+// Mistral-based voicemail personalisation helper
+import { generatePersonalizedVoicemail } from "@/lib/ai/mistral";
 
 /**
- * Generate a personalised voicemail message using OpenAI.
- * Falls back to the provided template if generation fails or the API key
- * is not configured.
+ * Schema for validating call creation request
  */
-async function generatePersonalizedVoicemail(
-  contact: { firstName?: string | null; lastName?: string | null; name?: string | null },
-  template: string
-): Promise<string> {
-  try {
-    if (!OPENAI_API_KEY || template.trim().length === 0) {
-      return template;
-    }
-
-    const name =
-      contact?.name ||
-      [contact?.firstName, contact?.lastName].filter(Boolean).join(" ") ||
-      "there";
-
-    const prompt = `You are an SDR leaving a voicemail. Personalise the following voicemail script by addressing the contact by name and making it sound natural, without exceeding 20 seconds when spoken. Keep the core message but personalise it:\n\nContact name: ${name}\n\nScript:\n${template}\n\nPersonalised Voicemail:`;
-
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-3.5-turbo",
-        messages: [
-          { role: "user", content: prompt },
-        ],
-        temperature: 0.7,
-        max_tokens: 120,
-      }),
-    });
-
-    if (!res.ok) {
-      console.error("OpenAI voicemail generation error:", await res.text());
-      return template;
-    }
-
-    const data = await res.json();
-    const personalised =
-      data.choices?.[0]?.message?.content?.trim() ?? template;
-    return personalised.length > 0 ? personalised : template;
-  } catch (err) {
-    console.error("Voicemail personalisation failed:", err);
-    return template;
-  }
-}
-
-// Schema for validating call creation request
 const createCallSchema = z.object({
   contactId: z.string().min(1, "Contact ID is required"),
   sequenceId: z.string().min(1, "Sequence ID is required"),

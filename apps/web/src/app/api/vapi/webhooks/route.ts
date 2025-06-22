@@ -155,34 +155,73 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // If call is completed and has a summary, update the contact notes
-    if (
-      (status === "completed" || status === "left_voicemail") &&
-      data.summary
-    ) {
-      // Get the contact
-      const contact = await prisma.contact.findUnique({
-        where: { id: contactId as string },
+    /* ------------------------------------------------------------------
+     * Contact enrichment
+     * ------------------------------------------------------------------
+     * 1. Append a call log entry to the contact metadata
+     * 2. Maintain a running `engagementScore` that we can use for
+     *    prioritisation in AI-optimised call-timing.
+     *    The score is adjusted based on the outcome of the call.
+     * ------------------------------------------------------------------ */
+
+    const contact = await prisma.contact.findUnique({
+      where: { id: contactId as string },
+    });
+
+    if (contact) {
+      const meta = (contact.metadata as Record<string, any>) || {};
+
+      // Initialise callHistory array
+      const history: any[] = meta.callHistory ?? [];
+
+      history.push({
+        timestamp: new Date().toISOString(),
+        status,
+        duration: data.duration,
+        summary: data.summary,
+        callId: data.id,
       });
 
-      if (contact) {
-        // Update contact notes with call summary
-        // This is a simplified example - in a real implementation, you might
-        // want to append to existing notes or store in a dedicated notes field
-        await prisma.contact.update({
-          where: { id: contact.id },
-          data: {
-            // Assuming there's a notes field in the Contact model
-            // If not, you'd need to adjust this based on your data model
-            metadata: {
-              ...(contact.metadata as object || {}),
-              callSummary: data.summary,
-              lastCallAt: new Date().toISOString(),
-              lastCallStatus: status,
-            },
-          },
-        });
+      // Compute engagement score
+      const currentScore = meta.engagementScore ?? 0;
+      let delta = 0;
+      switch (status) {
+        case "appointment_set":
+          delta = 50;
+          break;
+        case "answered":
+        case "completed":
+          delta = 10;
+          break;
+        case "left_voicemail":
+          delta = 2;
+          break;
+        case "no_interest":
+        case "do_not_call":
+          delta = -40;
+          break;
+        case "failed":
+        case "no_answer":
+          delta = -5;
+          break;
+        default:
+          delta = 0;
       }
+
+      const newScore = Math.max(0, currentScore + delta);
+
+      await prisma.contact.update({
+        where: { id: contact.id },
+        data: {
+          metadata: {
+            ...meta,
+            lastCallAt: new Date().toISOString(),
+            lastCallStatus: status,
+            callHistory: history,
+            engagementScore: newScore,
+          },
+        },
+      });
     }
 
     // If the call result indicates the contact should be removed from the sequence
