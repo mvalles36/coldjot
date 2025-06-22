@@ -1,202 +1,229 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
 import { TimelineItem } from "./timeline-item";
 import { EmailDetailsDrawer } from "./email-details-drawer";
-import { PaginationControls } from "@/components/pagination";
-import { useInView } from "react-intersection-observer";
+import { CallTimelineItem } from "./call-timeline-item";
+import { CallDetailsDrawer } from "./call-details-drawer";
+import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { EmailTracking } from "@/types/email";
 
-interface TimelineListProps {
-  sequenceId?: string;
-  userId?: string;
-  page: number;
-  limit: number;
-  onPageChange: (page: number) => void;
-  onPageSizeChange: (size: number) => void;
-  isInfiniteScroll: boolean;
-  onScrollModeToggle?: () => void;
+// Define the CallTracking interface for call events
+interface CallTracking {
+  id: string;
+  sequenceId: string;
+  contactId: string;
+  stepId: string;
+  status: string;
+  callId?: string | null;
+  duration?: number | null;
+  summary?: string | null;
+  startedAt?: Date | null;
+  completedAt?: Date | null;
+  metadata?: any;
+  createdAt: Date;
+  updatedAt: Date;
+  contact?: {
+    name: string;
+    email: string;
+    phone?: string;
+    phoneNumber?: string;
+  } | null;
 }
 
-interface TimelineResponse {
-  emails: EmailTracking[];
-  total: number;
-  page: number;
-  limit: number;
-  hasMore: boolean;
-  nextPage: number | undefined;
+// Define a unified timeline item type that can be either an email or a call
+interface TimelineEvent {
+  type: "email" | "call";
+  item: EmailTracking | CallTracking;
+  timestamp: Date; // For sorting purposes
+}
+
+interface TimelineListProps {
+  userId: string;
+  sequenceId?: string;
+  initialEmails?: EmailTracking[];
+  initialCalls?: CallTracking[];
 }
 
 export function TimelineList({
-  sequenceId,
   userId,
-  page,
-  limit,
-  onPageChange,
-  onPageSizeChange,
-  isInfiniteScroll,
-  onScrollModeToggle,
+  sequenceId,
+  initialEmails = [],
+  initialCalls = [],
 }: TimelineListProps) {
-  const [selectedEmail, setSelectedEmail] = useState<EmailTracking | null>(
-    null
-  );
-  const { ref, inView } = useInView();
+  const [emails, setEmails] = useState<EmailTracking[]>(initialEmails);
+  const [calls, setCalls] = useState<CallTracking[]>(initialCalls);
+  const [isLoading, setIsLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [selectedEmail, setSelectedEmail] = useState<EmailTracking | null>(null);
+  const [selectedCall, setSelectedCall] = useState<CallTracking | null>(null);
+  const [showEmailDetails, setShowEmailDetails] = useState(false);
+  const [showCallDetails, setShowCallDetails] = useState(false);
 
-  const fetchTimelineData = async (
-    pageParam = page
-  ): Promise<TimelineResponse> => {
-    const queryParams = new URLSearchParams();
-    queryParams.set("page", pageParam.toString());
-    queryParams.set("limit", limit.toString());
-    if (userId) queryParams.set("userId", userId);
+  // Combined timeline events
+  const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
 
-    const endpoint = sequenceId
-      ? `/api/sequences/${sequenceId}/timeline`
-      : `/api/timeline`;
-
-    const response = await fetch(`${endpoint}?${queryParams.toString()}`);
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch timeline data");
+  // Fetch timeline data on component mount
+  useEffect(() => {
+    if (initialEmails.length === 0 && initialCalls.length === 0) {
+      fetchTimelineData();
+    } else {
+      // Combine and sort initial data
+      combineAndSortEvents(initialEmails, initialCalls);
     }
+  }, []);
 
-    return response.json();
+  // Combine and sort email and call events
+  const combineAndSortEvents = (emailEvents: EmailTracking[], callEvents: CallTracking[]) => {
+    const combined: TimelineEvent[] = [
+      ...emailEvents.map((email) => ({
+        type: "email" as const,
+        item: email,
+        timestamp: new Date(email.sentAt || email.createdAt),
+      })),
+      ...callEvents.map((call) => ({
+        type: "call" as const,
+        item: call,
+        timestamp: new Date(call.startedAt || call.createdAt),
+      })),
+    ];
+
+    // Sort by timestamp, newest first
+    combined.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    setTimelineEvents(combined);
   };
 
-  // Regular pagination query
-  const paginationQuery = useQuery<TimelineResponse>({
-    queryKey: ["timeline", sequenceId, userId, page, limit],
-    queryFn: () => fetchTimelineData(page),
-    enabled: !isInfiniteScroll,
-  });
+  // Fetch timeline data
+  const fetchTimelineData = async () => {
+    setIsLoading(true);
+    try {
+      // Fetch emails
+      const emailsResponse = await fetch(
+        `/api/timeline?userId=${userId}${
+          sequenceId ? `&sequenceId=${sequenceId}` : ""
+        }&page=${page}&limit=20`
+      );
+      const emailsData = await emailsResponse.json();
+      
+      // Fetch calls
+      const callsResponse = await fetch(
+        `/api/calls/timeline?userId=${userId}${
+          sequenceId ? `&sequenceId=${sequenceId}` : ""
+        }&page=${page}&limit=20`
+      );
+      const callsData = await callsResponse.json();
 
-  // Infinite scroll query
-  const infiniteQuery = useInfiniteQuery({
-    queryKey: ["timeline-infinite", sequenceId, userId, limit],
-    queryFn: ({ pageParam = 1 }) => fetchTimelineData(pageParam),
-    initialPageParam: 1,
-    getNextPageParam: (lastPage) =>
-      lastPage.hasMore ? lastPage.nextPage : undefined,
-    enabled: isInfiniteScroll,
-  });
-
-  // Load more when scrolling to the bottom
-  if (
-    isInfiniteScroll &&
-    inView &&
-    infiniteQuery.hasNextPage &&
-    !infiniteQuery.isFetchingNextPage
-  ) {
-    infiniteQuery.fetchNextPage();
-  }
-
-  if (
-    (!isInfiniteScroll && paginationQuery.isLoading) ||
-    (isInfiniteScroll && infiniteQuery.isLoading)
-  ) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
-
-  if (
-    (!isInfiniteScroll && paginationQuery.isError) ||
-    (isInfiniteScroll && infiniteQuery.isError)
-  ) {
-    return (
-      <div className="text-center py-8 text-muted-foreground">
-        Failed to load timeline data
-      </div>
-    );
-  }
-
-  const renderEmails = () => {
-    if (isInfiniteScroll) {
-      const emails =
-        infiniteQuery.data?.pages.flatMap((page) => page.emails) ?? [];
-      if (emails.length === 0) {
-        return (
-          <div className="text-center py-8 text-muted-foreground">
-            No emails found
-          </div>
+      if (page === 1) {
+        setEmails(emailsData.emails || []);
+        setCalls(callsData.calls || []);
+        combineAndSortEvents(emailsData.emails || [], callsData.calls || []);
+      } else {
+        setEmails((prev) => [...prev, ...(emailsData.emails || [])]);
+        setCalls((prev) => [...prev, ...(callsData.calls || [])]);
+        combineAndSortEvents(
+          [...emails, ...(emailsData.emails || [])],
+          [...calls, ...(callsData.calls || [])]
         );
       }
 
-      return (
-        <>
-          {emails.map((email) => (
-            <TimelineItem
-              key={email.id}
-              email={email}
-              onSelect={() => setSelectedEmail(email)}
-            />
-          ))}
-        </>
+      // Check if there are more pages
+      setHasMore(
+        emailsData.hasMore || callsData.hasMore
       );
+    } catch (error) {
+      console.error("Error fetching timeline data:", error);
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    const data = paginationQuery.data;
-    if (!data || data.emails.length === 0) {
-      return (
-        <div className="text-center py-8 text-muted-foreground">
-          No emails found
-        </div>
-      );
-    }
+  // Load more timeline data
+  const loadMore = () => {
+    setPage((prev) => prev + 1);
+    fetchTimelineData();
+  };
 
-    return data.emails.map((email) => (
-      <TimelineItem
-        key={email.id}
-        email={email}
-        onSelect={() => setSelectedEmail(email)}
-      />
-    ));
+  // Handle email selection
+  const handleEmailSelect = (email: EmailTracking) => {
+    setSelectedEmail(email);
+    setShowEmailDetails(true);
+  };
+
+  // Handle call selection
+  const handleCallSelect = (call: CallTracking) => {
+    setSelectedCall(call);
+    setShowCallDetails(true);
   };
 
   return (
-    <>
-      <div className="h-full flex flex-col space-y-12">
-        <div className="flex-1 overflow-auto min-h-0">
-          <div className="space-y-4">{renderEmails()}</div>
+    <div className="space-y-4">
+      {timelineEvents.length === 0 && !isLoading ? (
+        <div className="p-8 text-center">
+          <p className="text-muted-foreground">No timeline events found.</p>
         </div>
-        <div className="flex-none">
-          <PaginationControls
-            currentPage={page}
-            totalPages={Math.ceil(
-              (isInfiniteScroll
-                ? infiniteQuery.data?.pages[0]?.total
-                : paginationQuery.data?.total) ?? 0 / limit
-            )}
-            pageSize={limit}
-            totalItems={
-              isInfiniteScroll
-                ? (infiniteQuery.data?.pages[0]?.total ?? 0)
-                : (paginationQuery.data?.total ?? 0)
-            }
-            onPageChange={onPageChange}
-            onPageSizeChange={onPageSizeChange}
-            isInfiniteScroll={isInfiniteScroll}
-            onScrollModeToggle={onScrollModeToggle}
-            isLoading={
-              (!isInfiniteScroll && paginationQuery.isLoading) ||
-              (isInfiniteScroll && infiniteQuery.isLoading)
-            }
-            hasNextPage={infiniteQuery.hasNextPage}
-            isFetchingNextPage={infiniteQuery.isFetchingNextPage}
-            infiniteScrollRef={isInfiniteScroll ? ref : undefined}
-          />
-        </div>
-      </div>
+      ) : (
+        <>
+          <div className="space-y-4">
+            {timelineEvents.map((event) => (
+              <div key={`${event.type}-${event.item.id}`}>
+                {event.type === "email" ? (
+                  <TimelineItem
+                    email={event.item as EmailTracking}
+                    onSelect={handleEmailSelect}
+                  />
+                ) : (
+                  <CallTimelineItem
+                    call={event.item as CallTracking}
+                    onSelect={handleCallSelect}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
 
+          {hasMore && (
+            <div className="flex justify-center mt-6">
+              <Button
+                variant="outline"
+                onClick={loadMore}
+                disabled={isLoading}
+                className="w-40"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  "Load More"
+                )}
+              </Button>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Email Details Drawer */}
       <EmailDetailsDrawer
         email={selectedEmail}
-        isOpen={!!selectedEmail}
-        onClose={() => setSelectedEmail(null)}
+        open={showEmailDetails}
+        onClose={() => {
+          setShowEmailDetails(false);
+          setSelectedEmail(null);
+        }}
       />
-    </>
+
+      {/* Call Details Drawer */}
+      <CallDetailsDrawer
+        call={selectedCall}
+        open={showCallDetails}
+        onClose={() => {
+          setShowCallDetails(false);
+          setSelectedCall(null);
+        }}
+      />
+    </div>
   );
 }
