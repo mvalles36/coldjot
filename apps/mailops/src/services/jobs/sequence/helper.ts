@@ -12,6 +12,8 @@ import { rateLimitService } from "@/services/core/rate-limit/service";
 import { scheduleGenerator } from "@/lib/schedule";
 import { EmailJob } from "@coldjot/types";
 import { getSenderMailbox } from "@/lib/mailbox";
+import { StepTypeEnum } from "@coldjot/types";
+import { QUEUE_NAMES } from "@/config/queue";
 
 /**
  * Get default business hours if not provided
@@ -330,6 +332,43 @@ export const processContactShared = async (
 
     if (!sendTime) {
       throw new Error("Could not calculate send time");
+    }
+
+    /* ------------------------------------------------------------------
+     * Handle CALL steps (enqueue a call-processing job)
+     * ------------------------------------------------------------------ */
+    if (step.stepType === StepTypeEnum.CALL) {
+      // Fetch call-assistant configuration
+      const callAssistant = await prisma.callAssistant.findFirst({
+        where: {
+          sequenceId: sequence.id,
+          userId: sequence.userId,
+        },
+      });
+
+      if (!callAssistant) {
+        throw new Error("Call assistant configuration not found");
+      }
+
+      // Ensure we have a phone number field on the contact
+      const phoneNumber =
+        // @ts-ignore – older schema may use either field
+        contact.phoneNumber ?? contact.phone ?? null;
+
+      if (!phoneNumber) {
+        throw new Error("Contact has no phone number");
+      }
+
+      // Queue the call job
+      await jobManager.queueJob(QUEUE_NAMES.CALL, {
+        sequenceId: sequence.id,
+        contactId: contact.id,
+        stepId: step.id,
+        assistantId: callAssistant.vapiAssistantId,
+        phoneNumber,
+        callbackUrl: `${process.env.API_BASE_URL}/api/vapi/webhooks`,
+        userId: sequence.userId,
+      });
     }
 
     // 8. Update contact status and progress

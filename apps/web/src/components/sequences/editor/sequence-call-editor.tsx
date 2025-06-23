@@ -117,6 +117,29 @@ export function SequenceCallEditor({
   const [audioPreviewUrl, setAudioPreviewUrl] = useState<string>("");
   const [audioPlayer, setAudioPlayer] = useState<HTMLAudioElement | null>(null);
 
+  // ------------------------------------------------------------------
+  // Form validation state
+  // ------------------------------------------------------------------
+  const [formValid, setFormValid] = useState<boolean>(false);
+
+  // Compute validity whenever relevant fields change
+  useEffect(() => {
+    setFormValid(
+      selectedAssistantId.trim().length > 0 &&
+        selectedVoiceId.trim().length > 0 &&
+        selectedPhoneNumberId.trim().length > 0 &&
+        systemPrompt.trim().length > 0 &&
+        (!leaveVoicemail || voicemailText.trim().length > 0)
+    );
+  }, [
+    selectedAssistantId,
+    selectedVoiceId,
+    selectedPhoneNumberId,
+    systemPrompt,
+    leaveVoicemail,
+    voicemailText,
+  ]);
+
   // Fetch assistants, voices, and phone numbers when component mounts
   useEffect(() => {
     if (open) {
@@ -130,6 +153,7 @@ export function SequenceCallEditor({
       if (audioPlayer) {
         audioPlayer.pause();
         audioPlayer.src = "";
+        setAudioPlayer(null);
       }
     };
   }, [open]);
@@ -137,6 +161,12 @@ export function SequenceCallEditor({
   // Create audio player when audio preview URL changes
   useEffect(() => {
     if (audioPreviewUrl) {
+      // 🔄 Dispose previous player (if any) before creating a new one
+      if (audioPlayer) {
+        audioPlayer.pause();
+        audioPlayer.src = "";
+      }
+
       const player = new Audio(audioPreviewUrl);
       player.onended = () => setIsPlaying(false);
       setAudioPlayer(player);
@@ -144,6 +174,7 @@ export function SequenceCallEditor({
       return () => {
         player.pause();
         player.src = "";
+        setAudioPlayer(null);
       };
     }
   }, [audioPreviewUrl]);
@@ -658,7 +689,7 @@ export function SequenceCallEditor({
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSaving}>
+              <Button type="submit" disabled={isSaving || !formValid}>
                 {isSaving ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

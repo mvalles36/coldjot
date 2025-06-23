@@ -21,6 +21,7 @@ import { EmailProcessor } from "./jobs/email/processor";
 import { ContactProcessor } from "./jobs/contact/processor";
 import { ScheduleProcessor } from "./jobs/schedule/processor";
 import { ListSyncProcessor } from "./jobs/list/processor";
+import { CallProcessor } from "./jobs/call/processor";
 import { WatchCleanupService } from "./watch/cleanup";
 import { PubSubService } from "./pubsub/client";
 
@@ -146,6 +147,7 @@ export class ServiceManager {
         // [QUEUE_NAMES.THREAD_WATCHER]: (queue: Queue) =>
         //   new ThreadProcessor(queue),
         [QUEUE_NAMES.CONTACT]: (queue: Queue) => new ContactProcessor(queue),
+        [QUEUE_NAMES.CALL]: (queue: Queue) => new CallProcessor(queue),
         [QUEUE_NAMES.EMAIL_SCHEDULE]: (queue: Queue) =>
           new ScheduleProcessor(queue),
         [QUEUE_NAMES.LIST_SYNC]: (queue: Queue) => new ListSyncProcessor(queue),

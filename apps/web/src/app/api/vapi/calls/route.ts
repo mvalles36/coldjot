@@ -86,6 +86,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ------------------------------------------------------------------
+    // Validate that the contact has a phone number on record
+    // Accept both `phoneNumber` (preferred) or legacy `phone` field
+    // ------------------------------------------------------------------
+    // @ts-ignore – legacy schema may not include both fields on the type
+    const contactPhone: string | undefined =
+      // Prefer explicit phoneNumber if present
+      (contact as any).phoneNumber ??
+      // Fallback to generic phone field
+      (contact as any).phone;
+
+    if (!contactPhone || contactPhone.trim().length === 0) {
+      return NextResponse.json(
+        {
+          error: "Contact has no phone number",
+          details:
+            "Add a valid phone number to the contact before initiating a call.",
+        },
+        { status: 400 }
+      );
+    }
+
     // Get call assistant configuration
     const callAssistant = sequence.CallAssistant || 
       await prisma.callAssistant.findFirst({
@@ -218,9 +240,42 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Error initiating call:", error);
+
+    // ---------------- Granular error handling ----------------
+    let statusCode = 500;
+    let clientMessage = "Failed to initiate call";
+    let errorType = "unknown";
+
+    if (error instanceof TypeError) {
+      // Fetch/network errors usually bubble up as TypeError
+      statusCode = 503;
+      clientMessage =
+        "Could not reach the voice service. Please try again later.";
+      errorType = "network";
+    } else if (
+      error instanceof Error &&
+      /auth|credential|token|unauthorised|unauthorized/i.test(error.message)
+    ) {
+      statusCode = 401;
+      clientMessage = "Authentication with the voice service failed.";
+      errorType = "auth";
+    } else if (error instanceof Error) {
+      // Generic runtime error
+      clientMessage = error.message;
+      errorType = "runtime";
+    }
+
     return NextResponse.json(
-      { error: "Failed to initiate call" },
-      { status: 500 }
+      {
+        error: clientMessage,
+        type: errorType,
+        // Send raw message for debugging in non-prod environments
+        details:
+          process.env.NODE_ENV === "production"
+            ? undefined
+            : (error as any)?.message ?? error,
+      },
+      { status: statusCode }
     );
   }
 }

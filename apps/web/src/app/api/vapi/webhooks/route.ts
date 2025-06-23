@@ -27,11 +27,19 @@ const statusMapping: Record<string, string> = {
   initiated: "initial",
   ringing: "ringing",
   in_progress: "in_progress",
+  // Explicit call outcomes
+  answered: "answered",
   completed: "completed",
   failed: "failed",
   no_answer: "no_answer",
   busy: "busy",
   voicemail: "left_voicemail",
+  left_voicemail: "left_voicemail",
+  // These sometimes appear directly in `status` instead of `call_result`
+  appointment_set: "appointment_set",
+  callback_requested: "callback_requested",
+  not_interested: "no_interest",
+  do_not_call: "do_not_call",
 };
 
 // Map call results to our contact statuses
@@ -40,6 +48,10 @@ const callResultMapping: Record<string, string> = {
   callback_requested: "callback_requested",
   not_interested: "no_interest",
   do_not_call: "do_not_call",
+  // Direct pass-through mappings for completeness
+  answered: "answered",
+  left_voicemail: "left_voicemail",
+  no_answer: "no_answer",
 };
 
 /**
@@ -70,8 +82,25 @@ function verifyWebhookSignature(
  */
 export async function POST(request: NextRequest) {
   try {
-    // Get the raw request body for signature verification
+    // ------- Signature verification (if secret configured) -------
     const rawBody = await request.text();
+    const signature =
+      request.headers.get("x-vapi-signature") ??
+      request.headers.get("X-Vapi-Signature");
+    const webhookSecret = process.env.VAPI_WEBHOOK_SECRET;
+
+    if (
+      webhookSecret &&
+      !verifyWebhookSignature(rawBody, signature, webhookSecret)
+    ) {
+      console.error("Invalid Vapi webhook signature");
+      return NextResponse.json(
+        { error: "Invalid webhook signature" },
+        { status: 401 }
+      );
+    }
+
+    // --------------------------------------------------------------
     let body: any;
 
     try {
@@ -182,6 +211,11 @@ export async function POST(request: NextRequest) {
         callId: data.id,
       });
 
+      // Keep only the 10 most-recent call entries to avoid unbounded growth
+      if (history.length > 10) {
+        history.splice(0, history.length - 10);
+      }
+
       // Compute engagement score
       const currentScore = meta.engagementScore ?? 0;
       let delta = 0;
@@ -217,7 +251,7 @@ export async function POST(request: NextRequest) {
             ...meta,
             lastCallAt: new Date().toISOString(),
             lastCallStatus: status,
-            callHistory: history,
+            callHistory: history, // already trimmed above
             engagementScore: newScore,
           },
         },

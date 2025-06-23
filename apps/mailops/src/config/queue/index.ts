@@ -10,6 +10,7 @@ export const QUEUE_NAMES = {
   SEQUENCE: "sequence-processing",
   THREAD_WATCHER: "thread-watcher",
   CONTACT: "contact-processing",
+  CALL: "call-processing",
   EMAIL_SCHEDULE: "email-schedule",
   LIST_SYNC: "list-sync",
 } as const;
@@ -22,6 +23,7 @@ export const JOB_ATTEMPTS = {
   EMAIL: 2,
   THREAD: 3,
   CONTACT: 3,
+  CALL: 3,
   EMAIL_SCHEDULE: 2,
   LIST_SYNC: 3,
 } as const;
@@ -32,6 +34,7 @@ export const RETRY_DELAYS = {
   EMAIL: 1000, // 1 second
   THREAD: 1000, // 1 second
   CONTACT: 1000, // 1 second
+  CALL: 1000, // 1 second
   EMAIL_SCHEDULE: 1000, // 1 second
   LIST_SYNC: 5000, // 5 seconds
 } as const;
@@ -64,6 +67,13 @@ export const RETRY_OPTIONS = {
     backoff: {
       type: "exponential" as const,
       delay: RETRY_DELAYS.CONTACT,
+    },
+  },
+  CALL: {
+    attempts: JOB_ATTEMPTS.CALL,
+    backoff: {
+      type: "exponential" as const,
+      delay: RETRY_DELAYS.CALL,
     },
   },
   EMAIL_SCHEDULE: {
@@ -157,6 +167,7 @@ export const PROCESSOR_CONCURRENCY = {
   SEQUENCE: 3,
   THREAD_WATCHER: 2,
   CONTACT: 5,
+  CALL: 5,
   EMAIL_SCHEDULE: 3,
   LIST_SYNC: 5,
 } as const;
@@ -250,6 +261,35 @@ export const PROCESSOR_CONFIG = {
     },
   },
   [QUEUE_NAMES.CONTACT]: {
+    worker: {
+      prefix: QUEUE_PREFIX.slice(0, -1),
+      concurrency: 5,
+      limiter: {
+        max: 100,
+        duration: 1000,
+      },
+      connection: {
+        maxRetriesPerRequest: null,
+        enableReadyCheck: false,
+      },
+    },
+    rateLimits: {
+      maxPerSecond: 100,
+      maxPerMinute: 1000,
+    },
+    queueOptions: {
+      prefix: QUEUE_PREFIX.slice(0, -1),
+      removeOnComplete: {
+        count: 1000,
+        age: 24 * 60 * 60,
+      },
+      removeOnFail: {
+        count: 5000,
+        age: 7 * 24 * 60 * 60,
+      },
+    },
+  },
+  [QUEUE_NAMES.CALL]: {
     worker: {
       prefix: QUEUE_PREFIX.slice(0, -1),
       concurrency: 5,

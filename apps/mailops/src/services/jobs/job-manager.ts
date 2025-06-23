@@ -3,6 +3,7 @@ import { logger } from "@/lib/log";
 import { QUEUE_NAMES } from "@/config";
 import type { ProcessingJob, EmailJob } from "@coldjot/types";
 import { ServiceManager } from "../service-manager";
+import type { JobOptions } from "bullmq";
 
 export class JobManager {
   private serviceManager: ServiceManager;
@@ -27,6 +28,34 @@ export class JobManager {
         count: 3, // Keep last 3 failed jobs
       },
     });
+  }
+
+  /**
+   * Generic helper to queue a job on any queue
+   */
+  public async queueJob<T extends Record<string, any>>(
+    queueName: keyof typeof QUEUE_NAMES,
+    data: T,
+    options: JobOptions = {}
+  ): Promise<Job> {
+    const queue = this.serviceManager.getQueue(queueName);
+    if (!queue) {
+      throw new Error(`Queue ${queueName} not initialized`);
+    }
+
+    // Provide minimal defaults if caller didn't specify them
+    const jobOpts: JobOptions = {
+      removeOnComplete: {
+        count: 100,
+      },
+      removeOnFail: {
+        count: 10,
+      },
+      ...options,
+    };
+
+    logger.info(`Adding job to ${queueName} queue`);
+    return await queue.add(queueName as string, data, jobOpts);
   }
 
   /**
@@ -69,6 +98,17 @@ export class JobManager {
       removeOnFail: {
         count: 5, // Keep last 5 failed jobs
       },
+    });
+  }
+
+  /**
+   * Add a call job to the queue
+   */
+  public async addCallJob(job: Record<string, any>): Promise<Job> {
+    // Delegate to generic helper with sensible defaults
+    return this.queueJob(QUEUE_NAMES.CALL, job, {
+      removeOnComplete: { count: 20 },
+      removeOnFail: { count: 10 },
     });
   }
 
