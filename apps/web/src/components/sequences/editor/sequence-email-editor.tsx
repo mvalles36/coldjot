@@ -549,18 +549,6 @@ export function SequenceEmailEditor({
           </div>
         </form>
 
-        {/* ---------------- Intelligence Modal ---------------- */}
-        <IntelligenceModal
-          open={isIntelligenceModalOpen}
-          onClose={() => setIsIntelligenceModalOpen(false)}
-          onGenerate={generateEmailContent}
-          onRegenerate={regenerateContent}
-          sequenceId={sequenceId || ""}
-          stepId={stepId || ""}
-          isLoading={isGeneratingContent}
-          hasGeneratedContent={hasGeneratedContent}
-        />
-
         <AlertDialog open={showUnlinkAlert} onOpenChange={setShowUnlinkAlert}>
           <AlertDialogContent>
             <AlertDialogHeader>
