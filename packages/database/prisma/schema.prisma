@@ -72,6 +72,23 @@ model Contact {
   name          String
   email         String
   userId        String
+  /*
+   * List-Builder enrichment fields
+   * -------------------------------------------------------------
+   * These fields are optional and only populated when contacts are
+   * imported via the new List Builder (map/keyword/CSV).  They allow
+   * zero-cost enrichment pipelines to store structured data alongside
+   * the core contact record.
+   */
+  source            String? // e.g. "map", "keyword", "csv"
+  sourceId          String? // external identifier or hash for dedupe
+  domainData        Json?
+  addressData       Json?
+  phoneData         Json?
+  locationData      Json?
+  metadata          Json?
+  enrichmentStatus  String? // 'pending' | 'processing' | 'completed' | 'failed'
+  dataQualityScore  Int?
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
   contacts      SequenceContact[] @relation("ContactToSequence")
@@ -90,6 +107,10 @@ model Contact {
   @@index([firstName])
   @@index([lastName])
   @@index([name])
+  @@index([source])
+  @@index([sourceId])
+  @@index([enrichmentStatus])
+  @@index([dataQualityScore])
 }
 
 model Template {
@@ -152,6 +173,18 @@ model EmailList {
   description    String?
   tags           String[]
   userId         String
+
+  /* ---------------- Dynamic-list / List-Builder fields ---------------- */
+  isDynamic       Boolean   @default(false)
+  refreshFrequency String?
+  lastRefreshed    DateTime?
+  nextRefreshDue   DateTime?
+  sourceType       String?  // 'map' | 'keyword' | 'csv' | 'weather'
+  sourceConfigId   String?
+
+  /// Relation to the configuration that generated this list
+  sourceConfig     ListBuilderSourceConfig? @relation(fields: [sourceConfigId], references: [id], onDelete: SetNull)
+
   user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   contacts       Contact[]        @relation("EmailListContacts")
   sequences      Sequence[]       @relation("SequenceToLists") // For the single list relation
@@ -160,6 +193,9 @@ model EmailList {
   ListSyncRecord ListSyncRecord[]
 
   @@index([userId])
+  @@index([isDynamic])
+  @@index([nextRefreshDue])
+  @@index([sourceType])
 }
 
 // -----------------------------------------
@@ -579,6 +615,67 @@ model ListSyncRecord {
   @@index([sequenceId])
   @@index([status])
   @@index([createdAt])
+}
+
+// ------------------------------------------------------------------
+// ------------------  List Builder Models  -------------------------
+// ------------------------------------------------------------------
+
+/// Job tracker for map / keyword / CSV scraping & enrichment
+model ListBuilderJob {
+  id             String    @id @default(cuid())
+  userId         String
+  listId         String?
+  /// 'map' | 'keyword' | 'csv' | 'enrich' | 'weather'
+  jobType        String
+  /// 'pending' | 'processing' | 'completed' | 'failed'
+  status         String    @default("pending")
+  sourceParams   Json      @default("{}")
+  progress       Int       @default(0)
+  totalItems     Int?
+  processedItems Int?      @default(0)
+  results        Json?
+  error          String?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @default(now())
+
+  // Relations
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  list EmailList? @relation(fields: [listId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([listId])
+  @@index([jobType])
+  @@index([status])
+  @@index([createdAt])
+}
+
+/// Persistent configuration that generated one or more lists
+model ListBuilderSourceConfig {
+  id            String   @id @default(cuid())
+  userId        String
+  listId        String
+  /// 'map' | 'keyword' | 'csv' | 'weather'
+  configType    String
+  name          String
+  mapArea       Json?
+  keywords      String[]
+  weatherConfig Json?
+  csvConfig     Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now())
+
+  // Relations
+  user  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  list  EmailList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  /// reverse side of EmailList.sourceConfig
+  emailLists EmailList[]
+
+  @@index([userId])
+  @@index([listId])
+  @@index([configType])
 }
 
 // -----------------------------------------
