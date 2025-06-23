@@ -6,11 +6,22 @@
  */
 
 // Environment variable for API key
-// NOTE: Per product owner request, the Mistral API key is hard-coded here.
-// In production environments you should **never** commit live secrets.
-// This is strictly to unblock development & testing.
-// TODO: migrate to environment-based configuration before release.
-const MISTRAL_API_KEY = 'gOH9paTSjjXFf6WA4hwnvTPa1DtcG9iz';
+/**
+ * In production you **must** configure an environment variable called
+ * `MISTRAL_API_KEY`.  The hard-coded value is kept solely for local
+ * development convenience so developers can run the repo out-of-the-box.
+ * DO NOT rely on the fallback in any deployable environment.
+ *
+ * NOTE: `NEXT_PUBLIC_` is **not** used on purpose because all calls in
+ * this module are server-side.  Exposing the key to the browser would
+ * be a security risk.
+ */
+const FALLBACK_MISTRAL_API_KEY = 'gOH9paTSjjXFf6WA4hwnvTPa1DtcG9iz';
+
+function getMistralApiKey(): string | undefined {
+  return process.env.MISTRAL_API_KEY || FALLBACK_MISTRAL_API_KEY;
+}
+
 const MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions';
 
 // Default model to use
@@ -72,6 +83,23 @@ export interface SentimentAnalysis {
   doNotContact: boolean;
 }
 
+// Email generation types
+export interface CampaignContext {
+  campaignName: string;
+  steps: Array<{
+    type: 'email' | 'call' | 'wait';
+    content: string;
+    waitDays?: number;
+  }>;
+}
+
+export interface EmailGenerationOptions {
+  mode: 'single' | 'sequence';
+  userPrompt?: string;
+  tone?: string;
+  currentStepNumber?: number;
+}
+
 // -------------------- Core API Functions --------------------
 
 /**
@@ -91,7 +119,8 @@ export async function mistralChatCompletion(
   } = {}
 ): Promise<MistralCompletionResponse | null> {
   try {
-    if (!MISTRAL_API_KEY) {
+    const apiKey = getMistralApiKey();
+    if (!apiKey) {
       console.warn('MISTRAL_API_KEY not configured');
       return null;
     }
@@ -108,7 +137,7 @@ export async function mistralChatCompletion(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${MISTRAL_API_KEY}`,
+        'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify(requestBody),
     });
@@ -227,7 +256,8 @@ export async function generatePersonalizedVoicemail(
   template: string
 ): Promise<string> {
   try {
-    if (!MISTRAL_API_KEY || template.trim().length === 0) {
+    const apiKey = getMistralApiKey();
+    if (!apiKey || template.trim().length === 0) {
       return template;
     }
 
@@ -266,12 +296,119 @@ Personalized Voicemail:`;
 }
 
 /**
+ * Generate email content for a campaign sequence
+ * 
+ * @param campaignContext Information about the campaign
+ * @param options Generation options including mode, tone, and user prompt
+ * @returns Generated email content (single string or array of strings)
+ */
+export async function generateEmailContent(
+  campaignContext: CampaignContext,
+  options: EmailGenerationOptions
+): Promise<string | string[] | null> {
+  try {
+    const apiKey = getMistralApiKey();
+    if (!apiKey) {
+      console.warn('MISTRAL_API_KEY not configured');
+      return null;
+    }
+
+    const { mode, userPrompt, tone, currentStepNumber = 0 } = options;
+    
+    // Format previous steps for context
+    const previousStepsText = campaignContext.steps
+      .map((step, index) => {
+        if (step.type === 'email') {
+          return `- Step ${index + 1}: Email - "${step.content.substring(0, 150)}${step.content.length > 150 ? '...' : ''}"`;
+        } else if (step.type === 'call') {
+          return `- Step ${index + 1}: Call - "${step.content}"`;
+        } else if (step.type === 'wait') {
+          return `- Step ${index + 1}: Wait - ${step.waitDays} days`;
+        }
+        return '';
+      })
+      .join('\n');
+
+    // Construct the prompt based on mode
+    let systemPrompt = '';
+    let userPromptText = '';
+    
+    if (mode === 'single') {
+      systemPrompt = `You are an expert cold email copywriter. Write persuasive, concise emails that encourage replies and meetings.`;
+      
+      userPromptText = `You are assisting with writing step ${currentStepNumber + 1} of an outreach campaign called "${campaignContext.campaignName}".
+
+${previousStepsText ? `Here are previous steps:\n${previousStepsText}\n` : ''}
+
+${userPrompt ? `Additional context: ${userPrompt}\n` : ''}
+${tone ? `Write in a ${tone} tone.\n` : ''}
+
+Now generate the next email that encourages a reply or books a meeting. Focus on value proposition and clear call-to-action.
+
+Only return the email body content, no subject line.`;
+    } else {
+      // Sequence mode
+      systemPrompt = `You are an expert cold email sequence copywriter. Create a series of persuasive, concise emails that work together to nurture leads and drive responses.`;
+      
+      userPromptText = `Create a sequence of ${Math.min(3, 5 - campaignContext.steps.length)} follow-up emails for an outreach campaign called "${campaignContext.campaignName}".
+
+${previousStepsText ? `Here are previous steps:\n${previousStepsText}\n` : ''}
+
+${userPrompt ? `Additional context: ${userPrompt}\n` : ''}
+${tone ? `Write all emails in a ${tone} tone.\n` : ''}
+
+For each email:
+1. Focus on value proposition and clear call-to-action
+2. Vary the approach (e.g. case study, question, social proof)
+3. Keep each email concise (100-200 words)
+
+Format your response as separate emails with "EMAIL 1:", "EMAIL 2:", etc. before each one.
+Only return the email body content for each, no subject lines.`;
+    }
+
+    const messages: MistralMessage[] = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPromptText }
+    ];
+
+    const response = await mistralChatCompletion(messages, {
+      temperature: 0.7,
+      maxTokens: mode === 'single' ? 500 : 1500,
+    });
+
+    const generatedContent = extractResponseText(response);
+    
+    if (!generatedContent) {
+      return null;
+    }
+
+    // For sequence mode, split the response into separate emails
+    if (mode === 'sequence') {
+      const emailRegex = /EMAIL\s*\d+\s*:/gi;
+      const emails = generatedContent.split(emailRegex).filter(email => email.trim().length > 0);
+      
+      // If the splitting didn't work as expected, return the whole content
+      if (emails.length <= 1) {
+        return [generatedContent.trim()];
+      }
+      
+      return emails.map(email => email.trim());
+    }
+    
+    return generatedContent.trim();
+  } catch (error) {
+    console.error('Error generating email content:', error);
+    return null;
+  }
+}
+
+/**
  * Check if the Mistral API is properly configured
  * 
  * @returns True if the API key is configured, false otherwise
  */
 export function isMistralConfigured(): boolean {
-  return Boolean(MISTRAL_API_KEY);
+  return Boolean(getMistralApiKey());
 }
 
 /**

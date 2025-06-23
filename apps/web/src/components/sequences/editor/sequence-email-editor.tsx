@@ -33,6 +33,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import { Sparkles } from "lucide-react";
+import { IntelligenceModal } from "./intelligence-modal";
+import { useRef } from "react";
 
 interface SequenceEmailEditorProps {
   open: boolean;
@@ -77,6 +80,18 @@ export function SequenceEmailEditor({
     !initialData?.templateId
   );
   const [showUnlinkAlert, setShowUnlinkAlert] = useState(false);
+
+  /* ------------------------------------------------------------------
+   * AI – Intelligence modal / generation state
+   * ------------------------------------------------------------------ */
+  const [isIntelligenceModalOpen, setIsIntelligenceModalOpen] = useState(false);
+  const [isGeneratingContent, setIsGeneratingContent] = useState(false);
+  const [hasGeneratedContent, setHasGeneratedContent] = useState(false);
+  const lastGenerationParams = useRef<{
+    mode: "single" | "sequence";
+    userPrompt?: string;
+    tone?: string;
+  } | null>(null);
 
   const isEditorDisabled = Boolean(currentTemplateId) && !isTemplateUnlinked;
 
@@ -261,6 +276,63 @@ export function SequenceEmailEditor({
     }
   };
 
+  /* ------------------------------------------------------------------
+   * AI Email generation handlers
+   * ------------------------------------------------------------------ */
+  const generateEmailContent = async (params: {
+    mode: "single" | "sequence";
+    userPrompt?: string;
+    tone?: string;
+  }) => {
+    if (!sequenceId || !stepId) {
+      toast.error("Sequence or step information missing.");
+      return;
+    }
+
+    try {
+      setIsGeneratingContent(true);
+      lastGenerationParams.current = params;
+
+      const res = await fetch("/api/ai/generate-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          campaignId: sequenceId,
+          stepId,
+          ...params,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed with status ${res.status}`);
+      }
+
+      const data = await res.json();
+
+      if (typeof data.content === "string") {
+        setContent(data.content);
+      } else if (Array.isArray(data.content) && data.content.length > 0) {
+        setContent(data.content[0]);
+        // TODO: apply remaining emails to following empty steps
+      }
+
+      setHasGeneratedContent(true);
+      toast.success("AI generated content applied!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to generate email content.");
+    } finally {
+      setIsGeneratingContent(false);
+      setIsIntelligenceModalOpen(false);
+    }
+  };
+
+  const regenerateContent = async () => {
+    if (lastGenerationParams.current) {
+      await generateEmailContent(lastGenerationParams.current);
+    }
+  };
+
   // Function to process content and preserve both HTML formatting and line breaks
   const processContent = (htmlContent: string) => {
     if (!htmlContent) return "";
@@ -423,6 +495,21 @@ export function SequenceEmailEditor({
           <div className="flex-shrink-0 flex justify-between items-center pt-4 mt-4 border-t">
             <div className="flex items-center gap-2">
               <TemplateCommand onSelect={handleTemplateSelect} />
+              {/* Intelligence button */}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsIntelligenceModalOpen(true)}
+                disabled={isGeneratingContent}
+                className="gap-1"
+              >
+                {isGeneratingContent ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                Intelligence
+              </Button>
 
               {/* DO NOT DELETE THIS */}
               {/* {sequenceId && stepId && (
@@ -461,6 +548,18 @@ export function SequenceEmailEditor({
             </div>
           </div>
         </form>
+
+        {/* ---------------- Intelligence Modal ---------------- */}
+        <IntelligenceModal
+          open={isIntelligenceModalOpen}
+          onClose={() => setIsIntelligenceModalOpen(false)}
+          onGenerate={generateEmailContent}
+          onRegenerate={regenerateContent}
+          sequenceId={sequenceId || ""}
+          stepId={stepId || ""}
+          isLoading={isGeneratingContent}
+          hasGeneratedContent={hasGeneratedContent}
+        />
 
         <AlertDialog open={showUnlinkAlert} onOpenChange={setShowUnlinkAlert}>
           <AlertDialogContent>

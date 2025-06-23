@@ -124,6 +124,28 @@ model Draft {
   template Template @relation(fields: [templateId], references: [id])
 }
 
+// Stores AI-generated email drafts for rollback & analytics
+model AiEmailDraft {
+  id         String   @id @default(cuid())
+  campaignId String
+  stepId     String
+  userId     String
+  content    String   @db.Text
+  tone       String?
+  /// 'single' or 'sequence'
+  mode       String
+  createdAt  DateTime @default(now())
+
+  // Relations
+  campaign Sequence     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  step     SequenceStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@index([stepId])
+  @@index([userId])
+}
+
 model EmailList {
   id             String           @id @default(cuid())
   name           String
